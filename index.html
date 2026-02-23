@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%231a1a1a' stroke='%23ef4444' stroke-width='3'/%3E%3Cpath d='M50 20 L28 40 L18 35 L28 55 L50 80 L72 55 L82 35 L72 40 Z' fill='%23ef4444'/%3E%3Ccircle cx='38' cy='48' r='4' fill='%231a1a1a'/%3E%3Ccircle cx='62' cy='48' r='4' fill='%231a1a1a'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="WOLF Valuation Engine - Professional financial analysis and company valuation tool with DCF, comparable analysis, and Excel export" />
+    <meta name="keywords" content="valuation, DCF, financial analysis, stock valuation, investment, finance" />
+    <meta name="author" content="WOLF" />
+    <meta name="theme-color" content="#ef4444" />
+    <title>WOLF | Valuation Engine</title>
+    <style>
+      body {
+        background-color: #0a0a0a;
+      }
+      /* Loading state */
+      .wolf-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      }
+      .wolf-loading svg {
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="wolf-loading">
+        <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#1a1a1a" stroke="#ef4444" stroke-width="3"/>
+          <path d="M50 20 L28 40 L18 35 L28 55 L50 80 L72 55 L82 35 L72 40 Z" fill="#ef4444"/>
+          <circle cx="38" cy="48" r="4" fill="#1a1a1a"/>
+          <circle cx="62" cy="48" r="4" fill="#1a1a1a"/>
+        </svg>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
