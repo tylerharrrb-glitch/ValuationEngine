@@ -1,12 +1,24 @@
 /**
  * Market region defaults and industry multiples for USA and Egypt.
  * These constants drive WACC components, tax rates, and comparable valuation defaults.
+ *
+ * BUG FIX: Egypt Rf changed from 27.25% (CBE overnight) to 22.0% (10Y bond)
+ * BUG FIX: Egypt ERP changed from 10.0% to 5.5% (mature ERP only for Method A)
  */
 
-/** Market defaults - Updated for 2025/2026 */
+/** Egyptian tax categories per Section 3.4 */
+export const EGYPT_TAX_CATEGORIES = {
+  standard: { rate: 22.5, label: 'Standard Corporate Tax (DEFAULT)', applies: 'Most Egyptian companies' },
+  oil_gas: { rate: 40.55, label: 'Oil & Gas Companies', applies: 'Petroleum sector companies' },
+  suez_canal: { rate: 40.0, label: 'Suez Canal / EGPC / CBE', applies: 'Specific state entities' },
+  free_zone: { rate: 0, label: 'Free Zone (Export Income)', applies: 'Free economic zone exports' },
+  custom: { rate: 22.5, label: 'Custom', applies: 'Any special case' },
+} as const;
+
+/** Market defaults — Updated for 2025/2026, bugs fixed per WOLF spec */
 export const MARKET_DEFAULTS = {
   USA: {
-    riskFreeRate: 4.5,           // 10-Year US Treasury Yield
+    riskFreeRate: 4.5,            // 10-Year US Treasury Yield
     marketRiskPremium: 5.5,       // Historical US equity risk premium
     terminalGrowthRate: 2.5,      // Long-term GDP growth proxy
     maxTerminalGrowth: 4.0,       // Cap for validation
@@ -16,20 +28,29 @@ export const MARKET_DEFAULTS = {
     label: '🇺🇸 USA',
     description: '10-Year US Treasury Yield',
     marketDescription: 'United States - Developed Market (NYSE/NASDAQ)',
+    riskFreeDescription: '10-Year US Treasury Bond Yield',
+    countryRiskPremium: 0,
   },
   Egypt: {
-    riskFreeRate: 27.25,          // Egyptian Central Bank Rate (2025)
-    marketRiskPremium: 10.0,      // Higher premium for emerging market (includes country risk)
-    terminalGrowthRate: 5.0,      // Higher due to inflation
-    maxTerminalGrowth: 5.0,       // Sustainable long-term rate (even with high inflation)
+    riskFreeRate: 22.0,           // 10-Year Egyptian Government Bond Yield (BUG FIX: was 27.25% CBE overnight)
+    marketRiskPremium: 5.5,       // Mature Market ERP ONLY (BUG FIX: was 10.0% which double-counts country risk)
+    terminalGrowthRate: 8.0,      // Egyptian nominal GDP growth
+    maxTerminalGrowth: 12.0,      // Sustainable long-term rate (nominal, includes inflation)
     defaultTaxRate: 22.5,         // Egyptian Corporate Tax Rate
     currency: 'EGP' as const,
     currencySymbol: 'EGP',
     label: '🇪🇬 Egypt',
-    description: 'Egyptian T-Bill Rate (91-Day)',
+    description: '10-Year Egyptian Government Bond Yield',  // BUG FIX: was "Egyptian T-Bill Rate (91-Day)"
     marketDescription: 'Egypt - Emerging Market (EGX)',
+    riskFreeDescription: '10-Year Egyptian Government Bond Yield',  // BUG FIX
+    countryRiskPremium: 7.5,      // Damodaran for Egypt (Caa1/B-) — used ONLY in Method B
   },
 };
+
+/** Egyptian tax categories as array for UI dropdown */
+export const EGYPTIAN_TAX_CATEGORIES = Object.entries(EGYPT_TAX_CATEGORIES).map(
+  ([id, cat]) => ({ id, rate: cat.rate, label: cat.label, applies: cat.applies })
+);
 
 /** Default industry multiples for when no comparables are added (US market) */
 export const DEFAULT_INDUSTRY_MULTIPLES = {

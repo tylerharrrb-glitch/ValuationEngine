@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection } from '../types/financial';
-import { formatNumber, formatPercent, formatCurrency } from './formatters';
+import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
+import { formatNumber, formatPercent, formatCurrency, CurrencyCode } from './formatters';
 
 interface PDFExportParams {
   financialData: FinancialData;
@@ -12,6 +12,7 @@ interface PDFExportParams {
   comparableValue: number;
   scenario: 'bear' | 'base' | 'bull';
   lastReportedDate?: string;
+  marketRegion?: MarketRegion;
 }
 
 export const exportToPDF = ({
@@ -23,15 +24,18 @@ export const exportToPDF = ({
   comparableValue,
   scenario,
   lastReportedDate,
+  marketRegion = 'Egypt',
 }: PDFExportParams): void => {
   const doc = new jsPDF();
+  const ccy: CurrencyCode = marketRegion === 'Egypt' ? 'EGP' : 'USD';
+  const fmtCcy = (v: number, d: number = 0) => formatCurrency(v, d, ccy);
   const pageWidth = doc.internal.pageSize.getWidth();
-  
+
   // Colors
   const redColor: [number, number, number] = [220, 38, 38];
   const darkColor: [number, number, number] = [24, 24, 27];
   const grayColor: [number, number, number] = [113, 113, 122];
-  
+
   let yPos = 20;
 
   // Helper function to add page if needed
@@ -45,25 +49,25 @@ export const exportToPDF = ({
   // Header
   doc.setFillColor(...darkColor);
   doc.rect(0, 0, pageWidth, 35, 'F');
-  
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('WOLF', 15, 22);
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Valuation Engine', 15, 29);
-  
+
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text(`${financialData.companyName} (${financialData.ticker})`, pageWidth - 15, 22, { align: 'right' });
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const scenarioLabels = { bear: 'Bear Case', base: 'Base Case', bull: 'Bull Case' };
   doc.text(`${scenarioLabels[scenario]} Analysis`, pageWidth - 15, 29, { align: 'right' });
-  
+
   yPos = 45;
 
   // Executive Summary
@@ -76,22 +80,23 @@ export const exportToPDF = ({
   const blendedValue = dcfValue * 0.6 + comparableValue * 0.4;
   const currentPrice = financialData.currentStockPrice;
   const upside = ((blendedValue - currentPrice) / currentPrice) * 100;
-  
+
+  // Section 7 verdict: ±10% bands
   let recommendation = '';
-  if (upside > 20) recommendation = 'STRONG BUY';
-  else if (upside > 10) recommendation = 'BUY';
-  else if (upside > -10) recommendation = 'HOLD';
-  else if (upside > -20) recommendation = 'SELL';
-  else recommendation = 'STRONG SELL';
+  if (upside > 10) recommendation = 'BUY';
+  else if (upside >= -10) recommendation = 'HOLD';
+  else recommendation = 'SELL';
 
   autoTable(doc, {
     startY: yPos,
     head: [['Metric', 'Value']],
     body: [
-      ['Current Price', formatCurrency(currentPrice)],
-      ['DCF Fair Value', formatCurrency(dcfValue)],
-      ['Comparable Fair Value', formatCurrency(comparableValue)],
-      ['Blended Fair Value (60/40)', formatCurrency(blendedValue)],
+      ['Currency', ccy],
+      ['CAPM Method', assumptions.capmMethod === 'B' ? 'B — USD Build-Up' : 'A — Local Currency'],
+      ['Current Price', fmtCcy(currentPrice, 2)],
+      ['DCF Fair Value', fmtCcy(dcfValue, 2)],
+      ['Comparable Fair Value', fmtCcy(comparableValue, 2)],
+      ['Blended Fair Value (60/40)', fmtCcy(blendedValue, 2)],
       ['Upside / (Downside)', `${upside >= 0 ? '+' : ''}${formatPercent(upside)}`],
       ['Recommendation', recommendation],
     ],
@@ -101,7 +106,7 @@ export const exportToPDF = ({
     columnStyles: { 0: { fontStyle: 'bold' } },
     margin: { left: 15, right: 15 },
   });
-  
+
   yPos = (doc as any).lastAutoTable.finalY + 15;
   checkNewPage();
 
@@ -150,7 +155,7 @@ export const exportToPDF = ({
   const { balanceSheet } = financialData;
 
   // Helper: only include a balance sheet row if value is non-zero
-  const bsRow = (label: string, value: number): [string, string][] => 
+  const bsRow = (label: string, value: number): [string, string][] =>
     value !== 0 ? [[label, formatNumber(value)]] : [];
 
   // Assets table — zero-value rows are filtered out
@@ -271,7 +276,7 @@ export const exportToPDF = ({
     return new Date().getFullYear() - 1;
   })();
   const projectionHeaders = ['Metric', ...dcfProjections.map((_, i) => `${baseYear + i + 1}`)];
-  
+
   autoTable(doc, {
     startY: yPos,
     head: [projectionHeaders],
@@ -296,10 +301,10 @@ export const exportToPDF = ({
     startY: yPos,
     head: [['Valuation Summary', 'Value']],
     body: [
-      ['DCF Fair Value (per share)', formatCurrency(dcfValue)],
-      ['Comparable Fair Value (per share)', formatCurrency(comparableValue)],
-      ['Blended Value (60/40)', formatCurrency(blendedValue)],
-      ['Current Stock Price', formatCurrency(currentPrice)],
+      ['DCF Fair Value (per share)', fmtCcy(dcfValue, 2)],
+      ['Comparable Fair Value (per share)', fmtCcy(comparableValue, 2)],
+      ['Blended Value (60/40)', fmtCcy(blendedValue, 2)],
+      ['Current Stock Price', fmtCcy(currentPrice, 2)],
       ['Upside / (Downside)', `${upside >= 0 ? '+' : ''}${formatPercent(upside)}`],
       ['WOLF Recommendation', recommendation],
     ],
@@ -326,11 +331,11 @@ export const exportToPDF = ({
     const scenarioWACC = Math.max(assumptions.discountRate + waccAdd, 2);
     const scenarioTermGrowth = assumptions.terminalGrowthRate * termMult;
     const baseMargin = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
-    
+
     let rev = financialData.incomeStatement.revenue;
     let sumPV = 0;
     let lastFCF = 0;
-    
+
     for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
       rev = rev * (1 + scenarioRevGrowth / 100);
       const margin = baseMargin + ((assumptions.marginImprovement + marginAdd) / 100) * yr;
@@ -339,7 +344,7 @@ export const exportToPDF = ({
       sumPV += fcf / df;
       lastFCF = fcf;
     }
-    
+
     let tv = 0;
     if (scenarioWACC > scenarioTermGrowth) {
       tv = (lastFCF * (1 + scenarioTermGrowth / 100)) / ((scenarioWACC - scenarioTermGrowth) / 100);
@@ -360,9 +365,9 @@ export const exportToPDF = ({
     startY: yPos,
     head: [['Scenario', 'Implied Price', 'vs. Current', 'Key Assumptions']],
     body: [
-      ['BEAR CASE', formatCurrency(bearPrice), `${((bearPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 0.4).toFixed(1)}%, WACC: ${(assumptions.discountRate + 2.5).toFixed(1)}%`],
-      ['BASE CASE', formatCurrency(dcfValue), `${((dcfValue - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${assumptions.revenueGrowthRate.toFixed(1)}%, WACC: ${assumptions.discountRate.toFixed(1)}%`],
-      ['BULL CASE', formatCurrency(bullPrice), `+${((bullPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 2.0).toFixed(1)}%, WACC: ${Math.max(assumptions.discountRate - 2.5, 2).toFixed(1)}%`],
+      ['BEAR CASE', fmtCcy(bearPrice, 2), `${((bearPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 0.4).toFixed(1)}%, WACC: ${(assumptions.discountRate + 2.5).toFixed(1)}%`],
+      ['BASE CASE', fmtCcy(dcfValue, 2), `${((dcfValue - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${assumptions.revenueGrowthRate.toFixed(1)}%, WACC: ${assumptions.discountRate.toFixed(1)}%`],
+      ['BULL CASE', fmtCcy(bullPrice, 2), `+${((bullPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 2.0).toFixed(1)}%, WACC: ${Math.max(assumptions.discountRate - 2.5, 2).toFixed(1)}%`],
     ],
     theme: 'striped',
     headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
@@ -385,15 +390,23 @@ export const exportToPDF = ({
     startY: yPos,
     head: [['Assumption', 'Value']],
     body: [
+      ['CAPM Method', assumptions.capmMethod === 'B' ? 'B — USD Build-Up' : 'A — Local Currency'],
       ['WACC (Discount Rate)', formatPercent(assumptions.discountRate)],
       ['Terminal Growth Rate', formatPercent(assumptions.terminalGrowthRate)],
       ['Revenue Growth Rate', formatPercent(assumptions.revenueGrowthRate)],
-      ['Margin Improvement (%/yr)', formatPercent(assumptions.marginImprovement)],
+      ['EBITDA Margin', formatPercent(assumptions.ebitdaMargin)],
+      ['D&A (% of Revenue)', formatPercent(assumptions.daPercent)],
+      ['CapEx (% of Revenue)', formatPercent(assumptions.capexPercent)],
+      ['ΔWC (% of Revenue)', formatPercent(assumptions.deltaWCPercent)],
       ['Projection Years', assumptions.projectionYears.toString()],
       ['Tax Rate', formatPercent(assumptions.taxRate)],
       ['Risk-Free Rate', formatPercent(assumptions.riskFreeRate)],
-      ['Market Risk Premium', formatPercent(assumptions.marketRiskPremium)],
+      ['Equity Risk Premium', formatPercent(assumptions.marketRiskPremium)],
       ['Beta', assumptions.beta.toFixed(2)],
+      ['Beta Type', assumptions.betaType || 'Raw'],
+      ['Cost of Debt', formatPercent(assumptions.costOfDebt)],
+      ['Terminal Method', assumptions.terminalMethod === 'exit_multiple' ? `Exit Multiple (${assumptions.exitMultiple}x)` : 'Gordon Growth'],
+      ['Discounting', assumptions.discountingConvention === 'mid_year' ? 'Mid-Year' : 'End of Year'],
     ],
     theme: 'striped',
     headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
@@ -418,7 +431,7 @@ export const exportToPDF = ({
       head: [['Company', 'P/E', 'EV/EBITDA', 'P/S', 'P/B']],
       body: [
         ...comparables.map(c => [c.name, `${c.peRatio.toFixed(1)}x`, `${c.evEbitda.toFixed(1)}x`, `${c.psRatio.toFixed(1)}x`, `${c.pbRatio.toFixed(1)}x`]),
-        ['Average', 
+        ['Average',
           `${(comparables.reduce((sum, c) => sum + c.peRatio, 0) / comparables.length).toFixed(1)}x`,
           `${(comparables.reduce((sum, c) => sum + c.evEbitda, 0) / comparables.length).toFixed(1)}x`,
           `${(comparables.reduce((sum, c) => sum + c.psRatio, 0) / comparables.length).toFixed(1)}x`,

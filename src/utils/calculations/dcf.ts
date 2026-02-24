@@ -1,12 +1,13 @@
 /**
  * DCF (Discounted Cash Flow) calculation utilities.
  * All functions are pure — no React dependencies.
+ * REWRITTEN: Uses proper FCFF formula (NOPAT + D&A − CapEx − ΔWC)
  */
 import { FinancialData, ValuationAssumptions, DCFProjection } from '../../types/financial';
 
 /**
- * Calculate DCF projections for each year.
- * Projects revenue, EBITDA, FCF, discount factors, and present values.
+ * Calculate DCF projections for each year using proper FCFF methodology.
+ * Projects: Revenue → EBITDA → D&A → EBIT → NOPAT → CapEx → ΔWC → FCFF
  */
 export function calculateDCFProjections(
   financialData: FinancialData,
@@ -14,24 +15,37 @@ export function calculateDCFProjections(
 ): DCFProjection[] {
   const projections: DCFProjection[] = [];
   let currentRevenue = financialData.incomeStatement.revenue;
-  const baseMargin = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
-  
+  const taxRate = adjustedAssumptions.taxRate / 100;
+  const wacc = adjustedAssumptions.discountRate / 100;
+
   for (let i = 1; i <= adjustedAssumptions.projectionYears; i++) {
+    const prevRevenue = currentRevenue;
     currentRevenue = currentRevenue * (1 + adjustedAssumptions.revenueGrowthRate / 100);
-    const margin = baseMargin + (adjustedAssumptions.marginImprovement / 100) * i;
-    const ebitda = currentRevenue * (financialData.incomeStatement.operatingIncome + 
-      financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization) / 
-      financialData.incomeStatement.revenue;
-    const fcf = currentRevenue * margin;
-    const discountFactor = Math.pow(1 + adjustedAssumptions.discountRate / 100, i);
-    
+
+    const ebitda = currentRevenue * (adjustedAssumptions.ebitdaMargin / 100);
+    const dAndA = currentRevenue * (adjustedAssumptions.daPercent / 100);
+    const ebit = ebitda - dAndA;
+    const nopat = ebit * (1 - taxRate);
+    const capex = currentRevenue * (adjustedAssumptions.capexPercent / 100);
+    const deltaWC = (currentRevenue - prevRevenue) * (adjustedAssumptions.deltaWCPercent / 100);
+    const fcff = nopat + dAndA - capex - deltaWC;
+
+    // Discount factor based on convention
+    const period = adjustedAssumptions.discountingConvention === 'mid_year' ? i - 0.5 : i;
+    const discountFactor = Math.pow(1 + wacc, period);
+
     projections.push({
       year: new Date().getFullYear() + i,
       revenue: currentRevenue,
-      ebitda: ebitda,
-      freeCashFlow: fcf,
-      discountFactor: discountFactor,
-      presentValue: fcf / discountFactor,
+      ebitda,
+      dAndA,
+      ebit,
+      nopat,
+      capex,
+      deltaWC,
+      freeCashFlow: fcff,
+      discountFactor,
+      presentValue: fcff / discountFactor,
     });
   }
   return projections;
@@ -39,7 +53,7 @@ export function calculateDCFProjections(
 
 /**
  * Calculate per-share DCF value from projections.
- * Computes terminal value, enterprise value, then equity value per share.
+ * BUG FIX: No MAX(0) floor on equity value.
  */
 export function calculateDCFValue(
   dcfProjections: DCFProjection[],
@@ -48,14 +62,24 @@ export function calculateDCFValue(
 ): number {
   const sumPV = dcfProjections.reduce((sum, p) => sum + p.presentValue, 0);
   const lastFCF = dcfProjections[dcfProjections.length - 1]?.freeCashFlow || 0;
-  const terminalValue = (lastFCF * (1 + adjustedAssumptions.terminalGrowthRate / 100)) / 
-    ((adjustedAssumptions.discountRate - adjustedAssumptions.terminalGrowthRate) / 100);
-  const lastDiscountFactor = dcfProjections[dcfProjections.length - 1]?.discountFactor || 1;
+  const wacc = adjustedAssumptions.discountRate / 100;
+  const termGrowth = adjustedAssumptions.terminalGrowthRate / 100;
+
+  let terminalValue = 0;
+  if (adjustedAssumptions.terminalMethod === 'exit_multiple') {
+    const lastEBITDA = dcfProjections[dcfProjections.length - 1]?.ebitda || 0;
+    terminalValue = lastEBITDA * adjustedAssumptions.exitMultiple;
+  } else if (wacc > termGrowth) {
+    terminalValue = (lastFCF * (1 + termGrowth)) / (wacc - termGrowth);
+  }
+
+  const lastDiscountFactor = Math.pow(1 + wacc, adjustedAssumptions.projectionYears);
   const pvTerminal = terminalValue / lastDiscountFactor;
   const enterpriseValue = sumPV + pvTerminal;
   const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
   const equityValue = enterpriseValue - totalDebt + financialData.balanceSheet.cash;
-  return Math.max(equityValue / financialData.sharesOutstanding, 0);
+  // BUG FIX: No MAX(0) floor — equity can be negative for distressed companies
+  return equityValue / financialData.sharesOutstanding;
 }
 
 /**
@@ -70,33 +94,17 @@ export function calculateScenarioDCF(
   termGrowthMult: number,
   marginAdd: number
 ): number {
-  const scenarioRevGrowth = adjustedAssumptions.revenueGrowthRate * revGrowthMult;
-  const scenarioWACC = Math.max(adjustedAssumptions.discountRate + waccAdd, 2);
-  const scenarioTermGrowth = adjustedAssumptions.terminalGrowthRate * termGrowthMult;
-  const baseMargin = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
-  
-  let revenue = financialData.incomeStatement.revenue;
-  let sumPV = 0;
-  let lastFCF = 0;
-  
-  for (let yr = 1; yr <= adjustedAssumptions.projectionYears; yr++) {
-    revenue = revenue * (1 + scenarioRevGrowth / 100);
-    const margin = baseMargin + ((adjustedAssumptions.marginImprovement + marginAdd) / 100) * yr;
-    const fcf = revenue * margin;
-    const df = Math.pow(1 + scenarioWACC / 100, yr);
-    sumPV += fcf / df;
-    lastFCF = fcf;
+  const scenarioAssumptions = { ...adjustedAssumptions };
+  scenarioAssumptions.revenueGrowthRate = adjustedAssumptions.revenueGrowthRate * revGrowthMult;
+  scenarioAssumptions.discountRate = Math.max(adjustedAssumptions.discountRate + waccAdd, 2);
+  scenarioAssumptions.terminalGrowthRate = adjustedAssumptions.terminalGrowthRate * termGrowthMult;
+  scenarioAssumptions.ebitdaMargin = adjustedAssumptions.ebitdaMargin + marginAdd;
+
+  // Ensure g < WACC
+  if (scenarioAssumptions.terminalGrowthRate >= scenarioAssumptions.discountRate) {
+    scenarioAssumptions.terminalGrowthRate = scenarioAssumptions.discountRate - 1;
   }
-  
-  let tv = 0;
-  if (scenarioWACC > scenarioTermGrowth) {
-    tv = (lastFCF * (1 + scenarioTermGrowth / 100)) / ((scenarioWACC - scenarioTermGrowth) / 100);
-  } else {
-    tv = lastFCF * 12;
-  }
-  const lastDF = Math.pow(1 + scenarioWACC / 100, adjustedAssumptions.projectionYears);
-  const ev = sumPV + tv / lastDF;
-  const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-  const equity = Math.max(ev - totalDebt + financialData.balanceSheet.cash, 0);
-  return Math.max(equity / financialData.sharesOutstanding, 0);
+
+  const projections = calculateDCFProjections(financialData, scenarioAssumptions);
+  return calculateDCFValue(projections, scenarioAssumptions, financialData);
 }

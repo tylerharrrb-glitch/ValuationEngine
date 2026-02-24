@@ -93,41 +93,41 @@ async function fetchEndpoint<T>(
 ): Promise<T | null> {
   // NEW 2026 FORMAT: Use query parameters instead of path parameters
   const url = `${BASE_URL}/${endpoint}?symbol=${ticker.toUpperCase()}${additionalParams}&apikey=${apiKey}`;
-  
+
   console.log(`[WOLF API] Fetching ${endpoint} from: ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
-  
+
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[WOLF API] ❌ HTTP Error ${response.status}: ${errorText}`);
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
-    
+
     const data = await response.json();
-    
+
     // Check for API error messages
     if (data && typeof data === 'object' && 'Error Message' in data) {
       console.error(`[WOLF API] ❌ API Error: ${data['Error Message']}`);
       throw new Error(data['Error Message']);
     }
-    
+
     // Check for legacy endpoint error
     if (data && typeof data === 'string' && data.includes('Legacy')) {
       console.error(`[WOLF API] ❌ Legacy Endpoint Error: ${data}`);
       throw new Error(data);
     }
-    
+
     // Check for empty response
     if (!data || (Array.isArray(data) && data.length === 0)) {
       console.error(`[WOLF API] ❌ Empty response for ${endpoint}`);
       throw new Error(`No data found for ${ticker}`);
     }
-    
+
     console.log(`[WOLF API] ✅ ${endpoint} loaded successfully`);
     return data as T;
-    
+
   } catch (error) {
     console.error(`[WOLF API] ❌ Fetch failed for ${endpoint}:`, error);
     throw error;
@@ -140,9 +140,9 @@ async function fetchEndpoint<T>(
 
 async function fetchProfile(ticker: string, apiKey: string): Promise<FMPProfile | null> {
   console.log(`[WOLF API] 📊 Fetching company profile...`);
-  
+
   const data = await fetchEndpoint<FMPProfile[]>('profile', ticker, apiKey);
-  
+
   if (data && Array.isArray(data) && data.length > 0) {
     const profile = data[0];
     console.log(`[WOLF API] Company: ${profile.companyName}`);
@@ -151,14 +151,14 @@ async function fetchProfile(ticker: string, apiKey: string): Promise<FMPProfile 
     console.log(`[WOLF API] Beta: ${profile.beta || 'N/A'}`);
     return profile;
   }
-  
+
   // Try single object response
   if (data && !Array.isArray(data)) {
     const profile = data as unknown as FMPProfile;
     console.log(`[WOLF API] Company: ${profile.companyName}`);
     return profile;
   }
-  
+
   return null;
 }
 
@@ -168,7 +168,7 @@ async function fetchProfile(ticker: string, apiKey: string): Promise<FMPProfile 
 
 async function fetchIncomeStatement(ticker: string, apiKey: string): Promise<FMPIncomeStatement | null> {
   console.log(`[WOLF API] 📈 Fetching income statement (annual)...`);
-  
+
   // Request annual data with limit=1 to get most recent year
   const data = await fetchEndpoint<FMPIncomeStatement[]>(
     'income-statement',
@@ -176,7 +176,7 @@ async function fetchIncomeStatement(ticker: string, apiKey: string): Promise<FMP
     apiKey,
     '&period=annual&limit=1'
   );
-  
+
   if (data && Array.isArray(data) && data.length > 0) {
     const statement = data[0];
     console.log(`[WOLF API] Period: ${statement.date}`);
@@ -184,7 +184,7 @@ async function fetchIncomeStatement(ticker: string, apiKey: string): Promise<FMP
     console.log(`[WOLF API] Net Income: $${(statement.netIncome / 1e9).toFixed(2)}B`);
     return statement;
   }
-  
+
   return null;
 }
 
@@ -194,14 +194,14 @@ async function fetchIncomeStatement(ticker: string, apiKey: string): Promise<FMP
 
 async function fetchBalanceSheet(ticker: string, apiKey: string): Promise<FMPBalanceSheet | null> {
   console.log(`[WOLF API] 🏦 Fetching balance sheet (annual)...`);
-  
+
   const data = await fetchEndpoint<FMPBalanceSheet[]>(
     'balance-sheet-statement',
     ticker,
     apiKey,
     '&period=annual&limit=1'
   );
-  
+
   if (data && Array.isArray(data) && data.length > 0) {
     const statement = data[0];
     console.log(`[WOLF API] Period: ${statement.date}`);
@@ -210,7 +210,7 @@ async function fetchBalanceSheet(ticker: string, apiKey: string): Promise<FMPBal
     console.log(`[WOLF API] Equity: $${(statement.totalStockholdersEquity / 1e9).toFixed(2)}B`);
     return statement;
   }
-  
+
   return null;
 }
 
@@ -220,14 +220,14 @@ async function fetchBalanceSheet(ticker: string, apiKey: string): Promise<FMPBal
 
 async function fetchCashFlow(ticker: string, apiKey: string): Promise<FMPCashFlow | null> {
   console.log(`[WOLF API] 💵 Fetching cash flow statement (annual)...`);
-  
+
   const data = await fetchEndpoint<FMPCashFlow[]>(
     'cash-flow-statement',
     ticker,
     apiKey,
     '&period=annual&limit=1'
   );
-  
+
   if (data && Array.isArray(data) && data.length > 0) {
     const statement = data[0];
     console.log(`[WOLF API] Period: ${statement.date}`);
@@ -235,7 +235,7 @@ async function fetchCashFlow(ticker: string, apiKey: string): Promise<FMPCashFlo
     console.log(`[WOLF API] Free Cash Flow: $${(statement.freeCashFlow / 1e9).toFixed(2)}B`);
     return statement;
   }
-  
+
   return null;
 }
 
@@ -252,12 +252,12 @@ export async function fetchFromAPI(
   ticker: string,
   apiKey: string
 ): Promise<{ success: boolean; data?: ExtendedFinancialData; error?: string }> {
-  
+
   console.log(`\n${'='.repeat(50)}`);
   console.log(`[WOLF API] 🐺 Starting data fetch for: ${ticker.toUpperCase()}`);
   console.log(`[WOLF API] Using NEW Stable API format (2026)`);
   console.log(`${'='.repeat(50)}\n`);
-  
+
   try {
     // Fetch all data in parallel for speed
     const [profile, incomeStatement, balanceSheet, cashFlow] = await Promise.all([
@@ -266,16 +266,16 @@ export async function fetchFromAPI(
       fetchBalanceSheet(ticker, apiKey),
       fetchCashFlow(ticker, apiKey),
     ]);
-    
+
     // Validate we got at least profile data
     if (!profile) {
       throw new Error(`Could not fetch profile for ${ticker}. Check if the ticker is valid.`);
     }
-    
+
     // Calculate shares outstanding - CRITICAL: Get accurate value from API
     // Priority: 1. Direct from profile, 2. Calculate from market cap / price
     let sharesOutstanding = 0;
-    
+
     if (profile.sharesOutstanding && profile.sharesOutstanding > 0) {
       sharesOutstanding = profile.sharesOutstanding;
       console.log(`[WOLF API] ✓ Shares Outstanding from profile: ${(sharesOutstanding / 1e9).toFixed(2)}B`);
@@ -290,7 +290,7 @@ export async function fetchFromAPI(
       sharesOutstanding = 1000000000; // 1 billion as fallback
       console.log(`[WOLF API] ⚠ Shares Outstanding fallback: ${(sharesOutstanding / 1e9).toFixed(2)}B (API did not provide)`);
     }
-    
+
     // Map API data to our FinancialData format (matching the type structure)
     const financialData: ExtendedFinancialData = {
       companyName: profile.companyName || ticker,
@@ -300,7 +300,13 @@ export async function fetchFromAPI(
       beta: profile.beta,
       lastReportedDate: incomeStatement?.date,
       sector: profile.sector,
-      
+      dividendsPerShare: (() => {
+        const divPaid = Math.abs(
+          cashFlow?.commonDividendsPaid ?? cashFlow?.netDividendsPaid ?? cashFlow?.dividendsPaid ?? 0
+        );
+        return sharesOutstanding > 0 ? divPaid / sharesOutstanding : 0;
+      })(),
+
       // Income Statement (nested object)
       incomeStatement: {
         revenue: incomeStatement?.revenue || 0,
@@ -310,7 +316,7 @@ export async function fetchFromAPI(
         operatingIncome: incomeStatement?.operatingIncome || 0,
         // FIX: If API reports 0 interest but there IS debt, assume ~2.8% cost of debt
         interestExpense: (incomeStatement?.interestExpense === 0 && (balanceSheet?.totalDebt || 0) > 0)
-          ? (balanceSheet?.totalDebt || 0) * 0.028 
+          ? (balanceSheet?.totalDebt || 0) * 0.028
           : (incomeStatement?.interestExpense || 0),
         taxExpense: incomeStatement?.incomeTaxExpense || 0,
         netIncome: incomeStatement?.netIncome || 0,
@@ -321,7 +327,7 @@ export async function fetchFromAPI(
       // Bank-specific fix: if sector is Financial and COGS is 0, use Interest Expense as cost of revenue
       ...((() => {
         const isFinancial = (profile.sector || '').toLowerCase().includes('financial') ||
-                           (profile.industry || '').toLowerCase().includes('bank');
+          (profile.industry || '').toLowerCase().includes('bank');
         const cogs = incomeStatement?.costOfRevenue || 0;
         const interest = incomeStatement?.interestExpense || 0;
         if (isFinancial && cogs === 0 && interest > 0) {
@@ -343,7 +349,7 @@ export async function fetchFromAPI(
         }
         return {};
       })()),
-      
+
       // Balance Sheet (nested object)
       balanceSheet: {
         cash: balanceSheet?.cashAndCashEquivalents || 0,
@@ -405,7 +411,7 @@ export async function fetchFromAPI(
         totalLiabilities: balanceSheet?.totalLiabilities || 0,
         totalEquity: balanceSheet?.totalStockholdersEquity || balanceSheet?.totalEquity || 0,
       },
-      
+
       // Cash Flow Statement (nested object)
       // FMP convention: outflows are NEGATIVE (dividends, capex, buybacks)
       // Our internal format: store as POSITIVE values
@@ -423,7 +429,7 @@ export async function fetchFromAPI(
         netChangeInCash: cashFlow?.netChangeInCash || 0,
       },
     };
-    
+
     console.log(`\n${'='.repeat(50)}`);
     console.log(`[WOLF API] ✅ SUCCESS! Data loaded for ${profile.companyName}`);
     console.log(`${'='.repeat(50)}`);
@@ -439,17 +445,17 @@ export async function fetchFromAPI(
     console.log(`  • Total Assets: $${(financialData.balanceSheet.totalAssets / 1e9).toFixed(2)}B`);
     console.log(`  • Total Debt: $${((financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) / 1e9).toFixed(2)}B`);
     console.log(`${'='.repeat(50)}\n`);
-    
+
     return { success: true, data: financialData };
-    
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
+
     console.error(`\n${'='.repeat(50)}`);
     console.error(`[WOLF API] ❌ FAILED to fetch data for ${ticker}`);
     console.error(`[WOLF API] Error: ${errorMessage}`);
     console.error(`${'='.repeat(50)}\n`);
-    
+
     return { success: false, error: errorMessage };
   }
 }
@@ -478,31 +484,31 @@ export async function fetchComparableMultiples(
 ): Promise<ComparableMultiples[]> {
   console.log(`[WOLF API] 📊 Fetching comparable company multiples...`);
   console.log(`[WOLF API] Peers: ${tickers.join(', ')}`);
-  
+
   const results: ComparableMultiples[] = [];
-  
+
   for (const ticker of tickers) {
     try {
       // Fetch key metrics for valuation ratios
       const metricsUrl = `${BASE_URL}/ratios-ttm?symbol=${ticker.toUpperCase()}&apikey=${apiKey}`;
       const profileUrl = `${BASE_URL}/profile?symbol=${ticker.toUpperCase()}&apikey=${apiKey}`;
-      
+
       const [metricsResponse, profileResponse] = await Promise.all([
         fetch(metricsUrl),
         fetch(profileUrl),
       ]);
-      
+
       if (!metricsResponse.ok || !profileResponse.ok) {
         console.warn(`[WOLF API] ⚠ Could not fetch data for ${ticker}`);
         continue;
       }
-      
+
       const metricsData = await metricsResponse.json();
       const profileData = await profileResponse.json();
-      
+
       const metrics = Array.isArray(metricsData) ? metricsData[0] : metricsData;
       const profile = Array.isArray(profileData) ? profileData[0] : profileData;
-      
+
       if (metrics && profile) {
         results.push({
           symbol: ticker.toUpperCase(),
@@ -520,7 +526,7 @@ export async function fetchComparableMultiples(
       console.warn(`[WOLF API] ⚠ Failed to fetch ${ticker}:`, error);
     }
   }
-  
+
   console.log(`[WOLF API] ✅ Loaded ${results.length}/${tickers.length} comparable companies`);
   return results;
 }
@@ -564,11 +570,11 @@ export const EGYPTIAN_INDUSTRY_PEERS: Record<string, string[]> = {
 // Get suggested peers for a ticker (handles both US and Egyptian markets)
 export function getSuggestedPeers(ticker: string, market: 'USA' | 'Egypt' = 'USA'): string[] {
   const upperTicker = ticker.toUpperCase();
-  
+
   if (market === 'Egypt' || upperTicker.endsWith('.CA')) {
     return EGYPTIAN_INDUSTRY_PEERS[upperTicker] || EGYPTIAN_INDUSTRY_PEERS['DEFAULT_EG'];
   }
-  
+
   return INDUSTRY_PEERS[upperTicker] || INDUSTRY_PEERS.DEFAULT;
 }
 
@@ -595,54 +601,54 @@ export interface PeerCompanyData {
 // Fetch full peer company data from API
 export async function fetchPeerCompanyData(ticker: string, apiKey: string): Promise<PeerCompanyData | null> {
   console.log(`[WOLF API] 📊 Fetching peer data for ${ticker}...`);
-  
+
   try {
     // Fetch profile and income statement in parallel
     const [profileRes, incomeRes] = await Promise.all([
       fetch(`${BASE_URL}/profile?symbol=${ticker.toUpperCase()}&apikey=${apiKey}`),
       fetch(`${BASE_URL}/income-statement?symbol=${ticker.toUpperCase()}&period=annual&limit=2&apikey=${apiKey}`)
     ]);
-    
+
     if (!profileRes.ok) {
       console.warn(`[WOLF API] ⚠️ Could not fetch profile for ${ticker}`);
       return null;
     }
-    
+
     const profileData = await profileRes.json();
     const incomeData = await incomeRes.json();
-    
+
     const profile = Array.isArray(profileData) ? profileData[0] : profileData;
     const currentIncome = Array.isArray(incomeData) && incomeData.length > 0 ? incomeData[0] : null;
     const prevIncome = Array.isArray(incomeData) && incomeData.length > 1 ? incomeData[1] : null;
-    
+
     if (!profile) {
       return null;
     }
-    
+
     // Calculate revenue growth
     let revenueGrowth = 0;
     if (currentIncome && prevIncome && prevIncome.revenue > 0) {
       revenueGrowth = ((currentIncome.revenue - prevIncome.revenue) / prevIncome.revenue) * 100;
     }
-    
+
     // Calculate operating margin
     let operatingMargin = 0;
     if (currentIncome && currentIncome.revenue > 0) {
       operatingMargin = (currentIncome.operatingIncome / currentIncome.revenue) * 100;
     }
-    
+
     const revenue = currentIncome?.revenue || 0;
     const netIncome = currentIncome?.netIncome || 0;
     const ebitda = currentIncome?.ebitda || currentIncome?.operatingIncome || 0;
     const marketCap = profile.mktCap || profile.marketCap || 0;
     const price = profile.price || 0;
-    
+
     // Calculate multiples
     const peRatio = netIncome > 0 ? marketCap / netIncome : 0;
     const evEbitda = ebitda > 0 ? (marketCap + (profile.totalDebt || 0) - (profile.cash || 0)) / ebitda : 0;
     const psRatio = revenue > 0 ? marketCap / revenue : 0;
     const pbRatio = profile.bookValuePerShare > 0 ? price / profile.bookValuePerShare : 0;
-    
+
     const result: PeerCompanyData = {
       ticker: ticker.toUpperCase(),
       name: profile.companyName || ticker,
@@ -658,10 +664,10 @@ export async function fetchPeerCompanyData(ticker: string, apiKey: string): Prom
       netIncome,
       ebitda
     };
-    
+
     console.log(`[WOLF API] ✅ ${ticker}: P/E=${result.peRatio.toFixed(1)}x, EV/EBITDA=${result.evEbitda.toFixed(1)}x`);
     return result;
-    
+
   } catch (error) {
     console.error(`[WOLF API] ❌ Error fetching ${ticker}:`, error);
     return null;
@@ -671,15 +677,15 @@ export async function fetchPeerCompanyData(ticker: string, apiKey: string): Prom
 // Fetch all peer companies for comparables table
 export async function fetchAllPeerData(tickers: string[], apiKey: string | null): Promise<PeerCompanyData[]> {
   console.log(`[WOLF API] 🔄 Fetching data for ${tickers.length} peer companies...`);
-  
+
   // If no API key, cannot fetch peer data
   if (!apiKey) {
     console.warn('[WOLF API] ⚠ No API key — cannot fetch peer data');
     return [];
   }
-  
+
   const results: PeerCompanyData[] = [];
-  
+
   for (const ticker of tickers) {
     const data = await fetchPeerCompanyData(ticker, apiKey);
     if (data) {
@@ -688,7 +694,7 @@ export async function fetchAllPeerData(tickers: string[], apiKey: string | null)
     // Small delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 200));
   }
-  
+
   console.log(`[WOLF API] ✅ Successfully fetched ${results.length}/${tickers.length} peer companies`);
   return results;
 }

@@ -3,12 +3,12 @@
  * Balance Sheet, Cash Flow, Assumptions, Comparables).
  */
 import React, { useState } from 'react';
-import { FinancialData, ValuationAssumptions, ComparableCompany, MarketRegion } from '../../types/financial';
+import { FinancialData, ValuationAssumptions, ComparableCompany, MarketRegion, EgyptTaxCategory } from '../../types/financial';
 import { CurrencyCode } from '../../utils/formatters';
 import { InputField } from '../shared/InputField';
 import { StockSearch } from '../StockSearch';
 import { Tooltip } from '../Tooltip';
-import { MARKET_DEFAULTS } from '../../constants/marketDefaults';
+import { MARKET_DEFAULTS, EGYPTIAN_TAX_CATEGORIES } from '../../constants/marketDefaults';
 import { formatPercent } from '../../utils/formatters';
 import { fetchAllPeerData, getSuggestedPeers } from '../../services/stockAPI';
 import { calculateWACC } from '../../utils/valuation';
@@ -69,10 +69,10 @@ export const InputTab: React.FC<InputTabProps> = ({
             key={id}
             onClick={() => setInputSubTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputSubTab === id
-                ? 'bg-red-600 text-white'
-                : isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              ? 'bg-red-600 text-white'
+              : isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-zinc-800'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
           >
             {label}
@@ -246,7 +246,7 @@ export const InputTab: React.FC<InputTabProps> = ({
         </div>
       )}
 
-      {/* Valuation Assumptions */}
+      {/* Valuation Assumptions — Enhanced with CAPM, FCFF, DDM controls */}
       {inputSubTab === 'assumptions' && (
         <div className={`p-6 rounded-xl border ${cardClass}`}>
           <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
@@ -272,10 +272,10 @@ export const InputTab: React.FC<InputTabProps> = ({
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'USA'
-                        ? 'bg-red-600 text-white shadow-lg'
-                        : isDarkMode
-                          ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-red-600 text-white shadow-lg'
+                      : isDarkMode
+                        ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     <span className="text-xl">🇺🇸</span>
@@ -292,10 +292,10 @@ export const InputTab: React.FC<InputTabProps> = ({
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'Egypt'
-                        ? 'bg-red-600 text-white shadow-lg'
-                        : isDarkMode
-                          ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-red-600 text-white shadow-lg'
+                      : isDarkMode
+                        ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     <span className="text-xl">🇪🇬</span>
@@ -330,6 +330,42 @@ export const InputTab: React.FC<InputTabProps> = ({
             </div>
           </div>
 
+          {/* CAPM Method Toggle */}
+          <div className="mb-6">
+            <h4 className={`text-sm font-semibold mb-3 text-purple-400 uppercase tracking-wide`}>
+              CAPM Method
+            </h4>
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'A' }))}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'A'
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : isDarkMode
+                    ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+              >
+                A — Local Currency CAPM
+              </button>
+              <button
+                onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'B' }))}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'B'
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : isDarkMode
+                    ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+              >
+                B — USD Build-Up
+              </button>
+            </div>
+            <p className={`text-xs ${textMutedClass}`}>
+              {assumptions.capmMethod === 'A'
+                ? 'Ke = Rf(Egypt 10Y) + β × ERP. Country risk embedded in local risk-free rate.'
+                : 'Ke = Rf(US 10Y) + β × ERP + CRP, then Fisher adjustment to EGP.'}
+            </p>
+          </div>
+
           {/* WACC Components Section */}
           <div className="mb-6">
             <h4 className={`text-sm font-semibold mb-3 text-red-400 uppercase tracking-wide`}>
@@ -339,77 +375,210 @@ export const InputTab: React.FC<InputTabProps> = ({
               <InputField label="Risk-Free Rate" value={assumptions.riskFreeRate}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, riskFreeRate: val as number }))}
                 suffix="%" tooltip="Risk-Free Rate" step="0.1" {...fieldProps} />
-              <InputField label="Market Risk Premium" value={assumptions.marketRiskPremium}
+              <InputField label="Equity Risk Premium" value={assumptions.marketRiskPremium}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, marketRiskPremium: val as number }))}
                 suffix="%" tooltip="Equity Risk Premium" step="0.1" {...fieldProps} />
               <InputField label="Beta" value={assumptions.beta}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, beta: val as number }))}
                 tooltip="Beta" step="0.01" {...fieldProps} />
-              <InputField label="Tax Rate" value={assumptions.taxRate}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, taxRate: val as number }))}
-                suffix="%" step="0.1" min={0} {...fieldProps} />
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>Beta Type</label>
+                <select
+                  value={assumptions.betaType}
+                  onChange={(e) => updateAssumptions(prev => ({ ...prev, betaType: e.target.value as any }))}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputClass}`}
+                >
+                  <option value="raw">Raw Beta</option>
+                  <option value="adjusted">Adjusted (Bloomberg)</option>
+                  <option value="relevered">Relevered</option>
+                </select>
+              </div>
+              <InputField label="Cost of Debt (Pre-Tax)" value={assumptions.costOfDebt}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, costOfDebt: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              {/* Egyptian Tax Category */}
+              {marketRegion === 'Egypt' ? (
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>Tax Category</label>
+                  <select
+                    value={assumptions.taxCategory || 'standard'}
+                    onChange={(e) => {
+                      const cat = EGYPTIAN_TAX_CATEGORIES.find(c => c.id === e.target.value);
+                      if (cat) {
+                        updateAssumptions(prev => ({ ...prev, taxCategory: e.target.value as EgyptTaxCategory, taxRate: cat.rate }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border ${inputClass}`}
+                  >
+                    {EGYPTIAN_TAX_CATEGORIES.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.label} ({cat.rate}%)</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <InputField label="Tax Rate" value={assumptions.taxRate}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, taxRate: val as number }))}
+                  suffix="%" step="0.1" min={0} {...fieldProps} />
+              )}
             </div>
+
+            {/* Method B: CRP fields (conditional) */}
+            {assumptions.capmMethod === 'B' && (
+              <div className={`mt-4 p-4 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-blue-50 border-blue-200'}`}>
+                <h5 className={`text-xs font-semibold mb-3 text-blue-400 uppercase`}>Method B — USD Build-Up Parameters</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField label="US Risk-Free Rate" value={assumptions.rfUS}
+                    onChange={(val) => updateAssumptions(prev => ({ ...prev, rfUS: val as number }))}
+                    suffix="%" step="0.1" {...fieldProps} />
+                  <InputField label="Country Risk Premium" value={assumptions.countryRiskPremium}
+                    onChange={(val) => updateAssumptions(prev => ({ ...prev, countryRiskPremium: val as number }))}
+                    suffix="%" step="0.1" {...fieldProps} />
+                  <InputField label="Egypt Inflation" value={assumptions.egyptInflation}
+                    onChange={(val) => updateAssumptions(prev => ({ ...prev, egyptInflation: val as number }))}
+                    suffix="%" step="0.1" {...fieldProps} />
+                  <InputField label="US Inflation" value={assumptions.usInflation}
+                    onChange={(val) => updateAssumptions(prev => ({ ...prev, usInflation: val as number }))}
+                    suffix="%" step="0.1" {...fieldProps} />
+                </div>
+              </div>
+            )}
+
             {/* Calculated WACC Display */}
             <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
               <div className="flex items-center justify-between">
                 <span className={textMutedClass}>
-                  <Tooltip term="WACC">Calculated WACC (Cost of Equity)</Tooltip>
+                  <Tooltip term="WACC">Calculated Ke (Cost of Equity)</Tooltip>
                 </span>
                 <span className={`text-lg font-bold ${textClass}`}>
                   {formatPercent(assumptions.riskFreeRate + (assumptions.beta * assumptions.marketRiskPremium))}
                 </span>
               </div>
               <div className={`text-xs ${textMutedClass} mt-1`}>
-                Formula: Risk-Free Rate + (Beta × Market Risk Premium) = {assumptions.riskFreeRate}% + ({assumptions.beta} × {assumptions.marketRiskPremium}%)
+                Ke = {assumptions.riskFreeRate}% + ({assumptions.beta} × {assumptions.marketRiskPremium}%) = {formatPercent(assumptions.riskFreeRate + (assumptions.beta * assumptions.marketRiskPremium))}
               </div>
             </div>
           </div>
 
-          {/* Growth & Projection Section */}
+          {/* FCFF Projection Drivers */}
           <div className="mb-6">
             <h4 className={`text-sm font-semibold mb-3 text-green-400 uppercase tracking-wide`}>
-              Growth & Projections
+              FCFF Projection Drivers
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <InputField label="Revenue Growth Rate" value={assumptions.revenueGrowthRate}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, revenueGrowthRate: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />
-              <InputField label="Terminal Growth Rate" value={assumptions.terminalGrowthRate}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, terminalGrowthRate: val as number }))}
-                suffix="%" tooltip="Terminal Growth" step="0.1" {...fieldProps} />
-              <InputField label="Margin Improvement % (annual)" value={assumptions.marginImprovement}
+              <InputField label="EBITDA Margin" value={assumptions.ebitdaMargin}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, ebitdaMargin: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="D&A (% of Revenue)" value={assumptions.daPercent}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, daPercent: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="CapEx (% of Revenue)" value={assumptions.capexPercent}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, capexPercent: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="ΔWC (% of ΔRevenue)" value={assumptions.deltaWCPercent}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, deltaWCPercent: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="Margin Improvement %/yr" value={assumptions.marginImprovement}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, marginImprovement: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />
-              <InputField label="Projection Years" value={assumptions.projectionYears}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, projectionYears: val as number }))}
-                step="1" min={1} max={50} {...fieldProps} />
             </div>
           </div>
 
-          {/* DCF Model Section */}
-          <div>
+          {/* Terminal Value & DCF Settings */}
+          <div className="mb-6">
             <h4 className={`text-sm font-semibold mb-3 text-blue-400 uppercase tracking-wide`}>
-              DCF Model Settings
+              Terminal Value & DCF Settings
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Discount Rate (WACC)" value={assumptions.discountRate}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, discountRate: val as number }))}
-                suffix="%" tooltip="WACC" step="0.1" min={0} {...fieldProps} />
-              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-                <div className={`text-sm ${textMutedClass} mb-1`}>Quick Set WACC</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <InputField label="Terminal Growth Rate" value={assumptions.terminalGrowthRate}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, terminalGrowthRate: val as number }))}
+                suffix="%" tooltip="Terminal Growth" step="0.1" {...fieldProps} />
+              <InputField label="Projection Years" value={assumptions.projectionYears}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, projectionYears: val as number }))}
+                step="1" min={1} max={50} {...fieldProps} />
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>Terminal Method</label>
+                <select
+                  value={assumptions.terminalMethod}
+                  onChange={(e) => updateAssumptions(prev => ({ ...prev, terminalMethod: e.target.value as any }))}
+                  className={`w-full px-3 py-2 rounded-lg border ${inputClass}`}
+                >
+                  <option value="gordon_growth">Gordon Growth Model</option>
+                  <option value="exit_multiple">Exit Multiple</option>
+                </select>
+              </div>
+              {assumptions.terminalMethod === 'exit_multiple' && (
+                <InputField label="Exit EBITDA Multiple" value={assumptions.exitMultiple}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, exitMultiple: val as number }))}
+                  step="0.5" {...fieldProps} />
+              )}
+            </div>
+
+            {/* Discounting Convention */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>Discounting Convention</label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      // Use the rigorous WACC calculation (Weighted Average of Equity and Debt)
-                      const wacc = calculateWACC(financialData, assumptions);
-                      updateAssumptions(prev => ({ ...prev, discountRate: Math.round(wacc * 100) / 100 }));
-                    }}
-                    className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+                    onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'end_of_year' }))}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'end_of_year'
+                        ? 'bg-red-600 text-white'
+                        : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                   >
-                    Auto-Calculate (Weighted)
+                    End of Year
+                  </button>
+                  <button
+                    onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'mid_year' }))}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'mid_year'
+                        ? 'bg-red-600 text-white'
+                        : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                  >
+                    Mid-Year
                   </button>
                 </div>
               </div>
+              {/* WACC Override */}
+              <InputField label="Discount Rate (WACC)" value={assumptions.discountRate}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, discountRate: val as number }))}
+                suffix="%" tooltip="WACC" step="0.1" min={0} {...fieldProps} />
+            </div>
+
+            {/* Quick-Set WACC */}
+            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${textMutedClass}`}>Quick Set:</span>
+                <button
+                  onClick={() => {
+                    const wacc = calculateWACC(financialData, assumptions);
+                    updateAssumptions(prev => ({ ...prev, discountRate: Math.round(wacc * 100) / 100 }));
+                  }}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  Auto-Calculate WACC
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* DDM Parameters */}
+          <div>
+            <h4 className={`text-sm font-semibold mb-3 text-orange-400 uppercase tracking-wide`}>
+              DDM Parameters
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <InputField label="Stable Growth Rate" value={assumptions.ddmStableGrowth}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, ddmStableGrowth: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="High Growth Rate" value={assumptions.ddmHighGrowth}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, ddmHighGrowth: val as number }))}
+                suffix="%" step="0.1" {...fieldProps} />
+              <InputField label="High Growth Years" value={assumptions.ddmHighGrowthYears}
+                onChange={(val) => updateAssumptions(prev => ({ ...prev, ddmHighGrowthYears: val as number }))}
+                step="1" min={1} max={10} {...fieldProps} />
             </div>
           </div>
         </div>

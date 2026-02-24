@@ -123,17 +123,17 @@ export async function fetchFromYahoo(
 
   try {
     console.log(`[WOLF Yahoo] 📊 Fetching quoteSummary...`);
-    
+
     // Try each proxy in order until one succeeds
     let response: Response | null = null;
     let lastError = '';
-    
+
     for (const proxy of CORS_PROXIES) {
       try {
         const proxyUrl = proxy.encode
           ? `${proxy.url}${encodeURIComponent(targetUrl)}`
           : `${proxy.url}${targetUrl}`;
-        
+
         console.log(`[WOLF Yahoo] 🔄 Trying proxy: ${proxy.name}...`);
         const res = await fetch(proxyUrl, {
           headers: {
@@ -141,7 +141,7 @@ export async function fetchFromYahoo(
             'User-Agent': 'Mozilla/5.0',
           },
         });
-        
+
         if (res.ok) {
           response = res;
           console.log(`[WOLF Yahoo] ✅ Proxy ${proxy.name} succeeded!`);
@@ -155,7 +155,7 @@ export async function fetchFromYahoo(
         console.warn(`[WOLF Yahoo] ⚠ Proxy ${proxy.name} error: ${lastError}`);
       }
     }
-    
+
     if (!response) {
       throw new Error(`All CORS proxies failed. Last error: ${lastError}`);
     }
@@ -197,18 +197,18 @@ export async function fetchFromYahoo(
     const cogs = raw(income?.costOfRevenue);
     const interestExp = raw(income?.interestExpense);
     const operatingIncome = raw(income?.operatingIncome);
-    
+
     // Bank detection: Egyptian banks typically have 0 COGS but large interest expense
     const isBankTicker = /^(CIB|COMI|ALEX|FAISAL|ASGR|ADIB|QNB|HDBK)/i.test(yahooTicker.replace('.CA', ''));
     const isFinancialSector = isBankTicker || (cogs === 0 && interestExp > 0 && revenue > 0);
-    
+
     // For banks: Interest Expense is the cost of revenue
     const effectiveCogs = isFinancialSector && cogs === 0 ? interestExp : cogs;
-    const grossProfit = isFinancialSector && cogs === 0 
-      ? revenue - interestExp 
+    const grossProfit = isFinancialSector && cogs === 0
+      ? revenue - interestExp
       : (raw(income?.grossProfit) || (revenue - cogs));
     const operatingExpenses = revenue > 0 ? grossProfit - operatingIncome : 0;
-    
+
     if (isFinancialSector) {
       console.log(`[WOLF Yahoo] \u{1F3E6} Financial sector detected \u2014 Gross Profit = Revenue - Interest Expense`);
     }
@@ -252,6 +252,7 @@ export async function fetchFromYahoo(
       sharesOutstanding,
       lastReportedDate,
       sector: isFinancialSector ? 'Financial Services' : undefined,
+      dividendsPerShare: sharesOutstanding > 0 ? dividendsPaid / sharesOutstanding : 0,
 
       incomeStatement: {
         revenue,

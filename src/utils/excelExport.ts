@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection } from '../types/financial';
+import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
 import { calculateDCF, calculateComparableValuation, calculateEBITDA, calculateEnterpriseValue, calculateWACC } from './valuation';
 import { calculateQualityScorecard } from './advancedAnalysis';
 
@@ -7,6 +7,7 @@ interface ExportData {
   financialData: FinancialData;
   assumptions: ValuationAssumptions;
   comparables: ComparableCompany[];
+  marketRegion?: MarketRegion;
 }
 
 // ─── Helpers: write numeric cells with Excel formatting ─────────────
@@ -71,7 +72,7 @@ function newSheet(): XLSX.WorkSheet {
 
 // ─── Number format strings for Excel ───────────────────────────────
 
-const FMT_CURRENCY = '$#,##0.00';
+const FMT_CURRENCY = '#,##0.00';
 
 const FMT_RATIO = '0.00"x"';
 const FMT_INT = '#,##0';
@@ -81,7 +82,8 @@ const FMT_DEC4 = '0.0000';
 // ─── Main Export Function ──────────────────────────────────────────
 
 export function exportToExcel(data: ExportData): void {
-  const { financialData, assumptions, comparables } = data;
+  const { financialData, assumptions, comparables, marketRegion = 'Egypt' } = data;
+  const ccy = marketRegion === 'Egypt' ? 'EGP' : 'USD';
   const wb = XLSX.utils.book_new();
 
   // Calculate all valuation data
@@ -139,8 +141,11 @@ export function exportToExcel(data: ExportData): void {
     [],
     ['Average Fair Value:', avgFairValue],
     [],
+    ['Currency:', ccy],
+    ['CAPM Method:', assumptions.capmMethod === 'B' ? 'B \u2014 USD Build-Up' : 'A \u2014 Local Currency'],
+    [],
     ['Investment Recommendation'],
-    [dcfUpside > 20 ? 'UNDERVALUED - Consider BUY' : dcfUpside < -20 ? 'OVERVALUED - Consider SELL' : 'FAIRLY VALUED - HOLD'],
+    [dcfUpside > 10 ? 'UNDERVALUED - BUY' : dcfUpside < -10 ? 'OVERVALUED - SELL' : 'FAIRLY VALUED - HOLD'],
     [],
     ['Financial Health & Quality'],
     ['Quality Score:', `${qualityResult.grade} (${qualityResult.totalScore}/40)`],
@@ -282,16 +287,25 @@ export function exportToExcel(data: ExportData): void {
     ['DISCOUNTED CASH FLOW VALUATION'],
     [],
     ['Assumptions'],
+    ['Currency', ccy],
+    ['CAPM Method', assumptions.capmMethod === 'B' ? 'B \u2014 USD Build-Up' : 'A \u2014 Local Currency'],
     ['Discount Rate (WACC)', assumptions.discountRate / 100],
     ['Calculated WACC', wacc / 100],
     ['Terminal Growth Rate', assumptions.terminalGrowthRate / 100],
     ['Projection Years', assumptions.projectionYears],
     ['Revenue Growth Rate', assumptions.revenueGrowthRate / 100],
-    ['Margin Improvement (Annual)', assumptions.marginImprovement / 100],
+    ['EBITDA Margin', assumptions.ebitdaMargin / 100],
+    ['D&A (% of Revenue)', assumptions.daPercent / 100],
+    ['CapEx (% of Revenue)', assumptions.capexPercent / 100],
+    ['\u0394WC (% of Revenue)', assumptions.deltaWCPercent / 100],
     ['Tax Rate', assumptions.taxRate / 100],
     ['Risk-Free Rate', assumptions.riskFreeRate / 100],
-    ['Market Risk Premium', assumptions.marketRiskPremium / 100],
+    ['Equity Risk Premium', assumptions.marketRiskPremium / 100],
     ['Beta', assumptions.beta],
+    ['Beta Type', assumptions.betaType || 'Raw'],
+    ['Cost of Debt', assumptions.costOfDebt / 100],
+    ['Terminal Method', assumptions.terminalMethod === 'exit_multiple' ? `Exit Multiple (${assumptions.exitMultiple}x)` : 'Gordon Growth'],
+    ['Discounting Convention', assumptions.discountingConvention === 'mid_year' ? 'Mid-Year' : 'End of Year'],
   ], r, [undefined, '0.00%']);
 
   // Override beta cell format
@@ -369,11 +383,11 @@ export function exportToExcel(data: ExportData): void {
     ['Method', 'Comparable Multiple', 'Company Metric ($)', 'Implied Value ($)', 'Per Share ($)', 'Upside (%)'],
     ...compResults.map(cr => {
       const mult = cr.method.includes('P/E') ? avgPE :
-                   cr.method.includes('EV/EBITDA') ? avgEV :
-                   cr.method.includes('P/S') ? avgPS : avgPB;
+        cr.method.includes('EV/EBITDA') ? avgEV :
+          cr.method.includes('P/S') ? avgPS : avgPB;
       const metric = cr.method.includes('P/E') ? incomeStatement.netIncome :
-                     cr.method.includes('EV/EBITDA') ? ebitda :
-                     cr.method.includes('P/S') ? incomeStatement.revenue : balanceSheet.totalEquity;
+        cr.method.includes('EV/EBITDA') ? ebitda :
+          cr.method.includes('P/S') ? incomeStatement.revenue : balanceSheet.totalEquity;
       return [cr.method, mult, metric, cr.value, cr.perShare, cr.upside] as (string | number)[];
     }),
   ], r, [undefined, FMT_RATIO, FMT_CURRENCY, FMT_CURRENCY, FMT_CURRENCY, FMT_DEC2]);
@@ -395,7 +409,7 @@ export function exportToExcel(data: ExportData): void {
   const currentRatio = balanceSheet.totalCurrentLiabilities !== 0 ? balanceSheet.totalCurrentAssets / balanceSheet.totalCurrentLiabilities : 0;
   const debtToEquity = balanceSheet.totalEquity !== 0 ? totalDebt / balanceSheet.totalEquity : 0;
   const investedCapital = balanceSheet.totalEquity + totalDebt - balanceSheet.cash;
-  const roic = investedCapital !== 0 ? (incomeStatement.operatingIncome * (1 - 0.25)) / investedCapital : 0;
+  const roic = investedCapital !== 0 ? (incomeStatement.operatingIncome * (1 - assumptions.taxRate / 100)) / investedCapital : 0;
 
   r = writeRows(ws7, [
     ['KEY FINANCIAL METRICS'],

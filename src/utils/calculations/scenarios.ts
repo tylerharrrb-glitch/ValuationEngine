@@ -1,6 +1,7 @@
 /**
  * Scenario analysis utilities.
- * Bull/Bear/Base case calculations.
+ * Bull/Bear/Base case calculations with probability weighting.
+ * REWRITTEN: Uses spec Section 8.2 parameter deltas
  */
 import { FinancialData, ValuationAssumptions } from '../../types/financial';
 import { calculateScenarioDCF } from './dcf';
@@ -14,17 +15,21 @@ export interface ScenarioCases {
 
 /**
  * Calculate Bull/Bear/Base case valuations.
- * Bear = recession scenario, Bull = strong growth scenario.
+ * Spec Section 8.2:
+ *   Bear: Rev Growth -5%, EBITDA Margin -3%, Terminal Growth -1%, WACC +1%
+ *   Base: As entered
+ *   Bull: Rev Growth +5%, EBITDA Margin +3%, Terminal Growth +1%, WACC -1%
  */
 export function calculateScenarioCases(
   financialData: FinancialData,
   adjustedAssumptions: ValuationAssumptions,
   dcfValue: number
 ): ScenarioCases {
-  const bear = calculateScenarioDCF(financialData, adjustedAssumptions, 0.4, 2.5, 0.6, -1.5);
-  const base = dcfValue; // Already calculated
-  // More aggressive bull case: 2x growth, -2.5% WACC, 1.4x terminal growth, +2.5% margin
-  const bull = calculateScenarioDCF(financialData, adjustedAssumptions, 2.0, -2.5, 1.5, 2.5);
-  
+  // Bear: reduced growth, reduced margins, higher discount rate
+  const bear = calculateScenarioDCF(financialData, adjustedAssumptions, 0.667, 1.0, 0.875, -3.0);
+  const base = dcfValue;
+  // Bull: more growth, better margins, lower discount rate
+  const bull = calculateScenarioDCF(financialData, adjustedAssumptions, 1.333, -1.0, 1.125, 3.0);
+
   return { bear, base, bull };
 }

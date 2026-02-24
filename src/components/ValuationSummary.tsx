@@ -19,7 +19,7 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
   const dcfUpside = ((dcfPerShare - data.currentStockPrice) / data.currentStockPrice) * 100;
 
   const compResults = calculateComparableValuation(data, comparables);
-  
+
   const allResults: ValuationResult[] = [
     {
       method: 'DCF Valuation',
@@ -77,11 +77,9 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
   };
 
   const getRecommendation = () => {
-    if (avgUpside > 30) return { text: 'Strong Buy', color: 'text-green-400', bg: 'bg-green-950/50', border: 'border-green-600' };
-    if (avgUpside > 10) return { text: 'Buy', color: 'text-green-300', bg: 'bg-green-950/30', border: 'border-green-700' };
-    if (avgUpside > -10) return { text: 'Hold', color: 'text-yellow-400', bg: 'bg-yellow-950/30', border: 'border-yellow-700' };
-    if (avgUpside > -30) return { text: 'Sell', color: 'text-red-300', bg: 'bg-red-950/30', border: 'border-red-700' };
-    return { text: 'Strong Sell', color: 'text-red-400', bg: 'bg-red-950/50', border: 'border-red-600' };
+    if (avgUpside > 10) return { text: 'Buy', color: 'text-green-400', bg: 'bg-green-950/50', border: 'border-green-600' };
+    if (avgUpside >= -10) return { text: 'Hold', color: 'text-yellow-400', bg: 'bg-yellow-950/30', border: 'border-yellow-700' };
+    return { text: 'Sell', color: 'text-red-400', bg: 'bg-red-950/50', border: 'border-red-600' };
   };
 
   const recommendation = getRecommendation();
@@ -144,9 +142,9 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
             <ReferenceLine x={data.currentStockPrice} stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" label={{ value: 'Current', fill: '#ef4444', fontSize: 12 }} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {chartData.map((entry, index) => (
-                <Cell 
-                  key={index} 
-                  fill={entry.upside >= 0 ? '#22c55e' : '#ef4444'} 
+                <Cell
+                  key={index}
+                  fill={entry.upside >= 0 ? '#22c55e' : '#ef4444'}
                 />
               ))}
             </Bar>
@@ -185,13 +183,12 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
             </p>
             <div className="grid grid-cols-5 gap-2">
               {sensitivityData.map((s, i) => (
-                <div 
+                <div
                   key={i}
-                  className={`rounded-lg p-3 text-center border transition-all ${
-                    s.isCurrent 
-                      ? 'bg-red-600/10 border-red-600/40' 
+                  className={`rounded-lg p-3 text-center border transition-all ${s.isCurrent
+                      ? 'bg-red-600/10 border-red-600/40'
                       : 'bg-zinc-800/50 border-zinc-700/50 hover:border-zinc-600'
-                  }`}
+                    }`}
                 >
                   <p className={`text-xs font-medium mb-1 ${s.isCurrent ? 'text-red-400' : 'text-zinc-400'}`}>
                     WACC {s.wacc.toFixed(1)}%

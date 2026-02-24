@@ -1,10 +1,12 @@
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../types/financial';
+import { initialAssumptions } from '../constants/initialData';
 
 export const sampleFinancialData: FinancialData = {
   companyName: 'TechCorp Industries',
   ticker: 'TECH',
   sharesOutstanding: 500000000,
   currentStockPrice: 45.00,
+  dividendsPerShare: 0.60,
   incomeStatement: {
     revenue: 12500000000,
     costOfGoodsSold: 7500000000,
@@ -48,17 +50,8 @@ export const sampleFinancialData: FinancialData = {
   },
 };
 
-export const sampleAssumptions: ValuationAssumptions = {
-  discountRate: 10,
-  terminalGrowthRate: 2.5,
-  projectionYears: 5,
-  revenueGrowthRate: 8,
-  marginImprovement: 0.5,
-  taxRate: 25,
-  riskFreeRate: 4.5,
-  marketRiskPremium: 5.5,
-  beta: 1.2,
-};
+// Use the full default assumptions from initialData (Egyptian market defaults)
+export const sampleAssumptions: ValuationAssumptions = { ...initialAssumptions };
 
 // Start with empty comparables - user adds their own peer companies
 export const sampleComparables: ComparableCompany[] = [];
