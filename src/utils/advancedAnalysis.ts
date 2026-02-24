@@ -38,7 +38,7 @@ export function calculateReverseDCF(
   const terminalGrowth = assumptions.terminalGrowthRate / 100;
   const years = assumptions.projectionYears;
 
-  // Binary search for implied growth rate
+  // Binary search for implied growth rate using proper FCFF
   let low = -10;
   let high = 50;
   let impliedGrowth = 0;
@@ -49,22 +49,31 @@ export function calculateReverseDCF(
 
     let revenue = financialData.incomeStatement.revenue;
     let sumPV = 0;
-    let lastFCF = 0;
+    let lastFCFF = 0;
 
     for (let yr = 1; yr <= years; yr++) {
+      const prevRev = revenue;
       revenue = revenue * (1 + growth);
-      const margin = baseFCFMargin + (assumptions.marginImprovement / 100) * yr;
-      const fcf = revenue * margin;
-      const df = Math.pow(1 + wacc, yr);
-      sumPV += fcf / df;
-      lastFCF = fcf;
+      // Proper FCFF: NOPAT + D&A − CapEx − ΔWC
+      const ebitdaMarginDec = assumptions.ebitdaMargin / 100;
+      const ebitda = revenue * ebitdaMarginDec;
+      const dAndA = revenue * (assumptions.daPercent / 100);
+      const ebit = ebitda - dAndA;
+      const nopat = ebit * (1 - assumptions.taxRate / 100);
+      const capex = revenue * (assumptions.capexPercent / 100);
+      const deltaWC = (revenue - prevRev) * (assumptions.deltaWCPercent / 100);
+      const fcff = nopat + dAndA - capex - deltaWC;
+      const period = assumptions.discountingConvention === 'mid_year' ? yr - 0.5 : yr;
+      const df = Math.pow(1 + wacc, period);
+      sumPV += fcff / df;
+      lastFCFF = fcff;
     }
 
     let tv = 0;
     if (wacc > terminalGrowth) {
-      tv = (lastFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+      tv = (lastFCFF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
     } else {
-      tv = lastFCF * 15;
+      tv = lastFCFF * 15;
     }
     const lastDF = Math.pow(1 + wacc, years);
     const ev = sumPV + tv / lastDF;
@@ -202,7 +211,7 @@ export function runMonteCarloSimulation(
   const mean = results.reduce((a, b) => a + b, 0) / n;
   const variance = results.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
   const stdDev = Math.sqrt(variance);
-  const median = n % 2 === 0 ? (results[n/2 - 1] + results[n/2]) / 2 : results[Math.floor(n/2)];
+  const median = n % 2 === 0 ? (results[n / 2 - 1] + results[n / 2]) / 2 : results[Math.floor(n / 2)];
   const p5 = results[Math.floor(n * 0.05)];
   const p25 = results[Math.floor(n * 0.25)];
   const p75 = results[Math.floor(n * 0.75)];
@@ -495,7 +504,7 @@ export function calculateQualityScorecard(financialData: FinancialData, sector: 
   const debtToEquity = balanceSheet.totalEquity > 0 ? totalDebt / balanceSheet.totalEquity : 99;
   const interestCoverage = incomeStatement.interestExpense > 0 ? incomeStatement.operatingIncome / incomeStatement.interestExpense : 999;
   const cashRatio = totalDebt > 0 ? balanceSheet.cash / totalDebt : 99;
-  
+
   // SECTOR SPECIFIC LOGIC: Tech companies run leaner current ratios
   let crScore = 0;
   let crDetail = '';

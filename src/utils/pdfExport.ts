@@ -222,7 +222,7 @@ export const exportToPDF = ({
   doc.setFontSize(7);
   doc.setTextColor(...grayColor);
   doc.text(
-    'Note: Cash & Equivalents represents highly liquid assets only. Marketable Securities (short-term investments) are shown separately per GAAP standards.',
+    'Note: Cash & Equivalents represents highly liquid assets only. Marketable Securities (short-term investments) are shown separately per EAS / IFRS standards.',
     15, yPos + 3
   );
 
@@ -283,9 +283,14 @@ export const exportToPDF = ({
     body: [
       ['Revenue', ...dcfProjections.map(p => formatNumber(p.revenue))],
       ['EBITDA', ...dcfProjections.map(p => formatNumber(p.ebitda))],
-      ['Free Cash Flow', ...dcfProjections.map(p => formatNumber(p.freeCashFlow))],
+      ['D\u0026A', ...dcfProjections.map(p => formatNumber(p.dAndA))],
+      ['EBIT', ...dcfProjections.map(p => formatNumber(p.ebit))],
+      ['NOPAT', ...dcfProjections.map(p => formatNumber(p.nopat))],
+      ['CapEx', ...dcfProjections.map(p => formatNumber(p.capex))],
+      ['ΔWC', ...dcfProjections.map(p => formatNumber(p.deltaWC))],
+      ['FCFF', ...dcfProjections.map(p => formatNumber(p.freeCashFlow))],
       ['Discount Factor', ...dcfProjections.map(p => p.discountFactor.toFixed(3))],
-      ['Present Value', ...dcfProjections.map(p => formatNumber(p.presentValue))],
+      ['PV of FCFF', ...dcfProjections.map(p => formatNumber(p.presentValue))],
     ],
     theme: 'striped',
     headStyles: { fillColor: redColor, textColor: [255, 255, 255] },
@@ -325,37 +330,46 @@ export const exportToPDF = ({
   doc.text('SCENARIO ANALYSIS', 15, yPos);
   yPos += 10;
 
-  // Calculate scenarios
+  // Calculate scenarios — Proper FCFF formula (NOPAT + D&A − CapEx − ΔWC)
+  // FIX-6: Bull case terminal g auto-clamped below scenario WACC
   const calcScenarioPrice = (revMult: number, waccAdd: number, termMult: number, marginAdd: number) => {
     const scenarioRevGrowth = assumptions.revenueGrowthRate * revMult;
     const scenarioWACC = Math.max(assumptions.discountRate + waccAdd, 2);
-    const scenarioTermGrowth = assumptions.terminalGrowthRate * termMult;
-    const baseMargin = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
+    // FIX-6: Clamp terminal growth below scenario WACC (must be g < WACC for Gordon Growth)
+    const rawTermGrowth = assumptions.terminalGrowthRate * termMult;
+    const scenarioTermGrowth = Math.min(rawTermGrowth, scenarioWACC - 1);
 
     let rev = financialData.incomeStatement.revenue;
     let sumPV = 0;
-    let lastFCF = 0;
+    let lastFCFF = 0;
 
     for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      const prevRev = rev;
       rev = rev * (1 + scenarioRevGrowth / 100);
-      const margin = baseMargin + ((assumptions.marginImprovement + marginAdd) / 100) * yr;
-      const fcf = rev * margin;
-      const df = Math.pow(1 + scenarioWACC / 100, yr);
-      sumPV += fcf / df;
-      lastFCF = fcf;
+      const ebitdaMarginPct = (assumptions.ebitdaMargin + marginAdd) / 100;
+      const ebitda = rev * ebitdaMarginPct;
+      const dAndA = rev * (assumptions.daPercent / 100);
+      const ebit = ebitda - dAndA;
+      const nopat = ebit * (1 - assumptions.taxRate / 100);
+      const capex = rev * (assumptions.capexPercent / 100);
+      const deltaWC = (rev - prevRev) * (assumptions.deltaWCPercent / 100);
+      const fcff = nopat + dAndA - capex - deltaWC;
+      const period = assumptions.discountingConvention === 'mid_year' ? yr - 0.5 : yr;
+      const df = Math.pow(1 + scenarioWACC / 100, period);
+      sumPV += fcff / df;
+      lastFCFF = fcff;
     }
 
     let tv = 0;
-    if (scenarioWACC > scenarioTermGrowth) {
-      tv = (lastFCF * (1 + scenarioTermGrowth / 100)) / ((scenarioWACC - scenarioTermGrowth) / 100);
-    } else {
-      tv = lastFCF * 12;
+    if (scenarioWACC > scenarioTermGrowth && (scenarioWACC - scenarioTermGrowth) > 0.01) {
+      tv = (lastFCFF * (1 + scenarioTermGrowth / 100)) / ((scenarioWACC - scenarioTermGrowth) / 100);
     }
     const lastDF = Math.pow(1 + scenarioWACC / 100, assumptions.projectionYears);
     const ev = sumPV + tv / lastDF;
     const totalDebtCalc = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-    const equity = Math.max(ev - totalDebtCalc + financialData.balanceSheet.cash, 0);
-    return Math.max(equity / financialData.sharesOutstanding, 0);
+    // No MAX(0) floor — equity can be negative for distressed companies
+    const equity = ev - totalDebtCalc + financialData.balanceSheet.cash;
+    return equity / financialData.sharesOutstanding;
   };
 
   const bearPrice = calcScenarioPrice(0.4, 2.5, 0.6, -1.5);

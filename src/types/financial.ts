@@ -357,7 +357,32 @@ export interface ValuationJSON {
   inputs: Record<string, unknown>;
   calculated: {
     wacc: WACCResult;
-    dcf: DCFResult & { projected_fcff: number[]; pv_fcff: number[] };
+    dcf: DCFResult & {
+      projections: {
+        year: number;
+        revenue: number;
+        ebitda: number;
+        d_and_a: number;
+        ebit: number;
+        nopat: number;
+        capex: number;
+        delta_wc: number;
+        fcff: number;
+        discount_factor: number;
+        present_value: number;
+      }[];
+      projected_fcff: number[];
+      pv_fcff: number[];
+      ev_bridge: {
+        enterprise_value: number;
+        total_debt: number;
+        cash: number;
+        net_debt: number;
+        equity_value: number;
+        shares_outstanding: number;
+        intrinsic_value_per_share: number;
+      };
+    };
     ddm: DDMResult;
     multiples: Record<string, number>;
     sensitivity: SensitivityMatrix;

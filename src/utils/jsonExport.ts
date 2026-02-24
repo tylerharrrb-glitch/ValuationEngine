@@ -18,7 +18,7 @@ import {
     ValuationJSON,
 } from '../types/financial';
 
-const ENGINE_VERSION = '2.0.0';
+const ENGINE_VERSION = '3.0.0';
 
 export interface JSONExportInput {
     financialData: FinancialData;
@@ -89,8 +89,30 @@ export function generateValuationJSON(input: JSONExportInput): ValuationJSON {
             wacc: waccResult,
             dcf: {
                 ...dcfResult,
+                projections: projections.map(p => ({
+                    year: p.year,
+                    revenue: p.revenue,
+                    ebitda: p.ebitda,
+                    d_and_a: p.dAndA,
+                    ebit: p.ebit,
+                    nopat: p.nopat,
+                    capex: p.capex,
+                    delta_wc: p.deltaWC,
+                    fcff: p.freeCashFlow,
+                    discount_factor: p.discountFactor,
+                    present_value: p.presentValue,
+                })),
                 projected_fcff: projections.map(p => p.freeCashFlow),
                 pv_fcff: projections.map(p => p.presentValue),
+                ev_bridge: {
+                    enterprise_value: dcfResult.enterpriseValue,
+                    total_debt: financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt,
+                    cash: financialData.balanceSheet.cash,
+                    net_debt: dcfResult.netDebt,
+                    equity_value: dcfResult.equityValue,
+                    shares_outstanding: financialData.sharesOutstanding,
+                    intrinsic_value_per_share: dcfResult.impliedSharePrice,
+                },
             },
             ddm: ddmResult,
             multiples: comparableMultiples,
