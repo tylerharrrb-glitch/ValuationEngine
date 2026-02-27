@@ -2,6 +2,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
 import { formatNumber, formatPercent, formatCurrency, CurrencyCode } from './formatters';
+import { calculateWACC } from './valuation';
+import { SCENARIO_PARAMS } from './constants/scenarioParams';
+import { calcScenarioPrice } from './calculations/scenarios';
+import { calculateQualityScorecard, calculateReverseDCF } from './advancedAnalysis';
 
 interface PDFExportParams {
   financialData: FinancialData;
@@ -287,7 +291,7 @@ export const exportToPDF = ({
       ['EBIT', ...dcfProjections.map(p => formatNumber(p.ebit))],
       ['NOPAT', ...dcfProjections.map(p => formatNumber(p.nopat))],
       ['CapEx', ...dcfProjections.map(p => formatNumber(p.capex))],
-      ['ΔWC', ...dcfProjections.map(p => formatNumber(p.deltaWC))],
+      ['Change in WC', ...dcfProjections.map(p => formatNumber(p.deltaWC))],
       ['FCFF', ...dcfProjections.map(p => formatNumber(p.freeCashFlow))],
       ['Discount Factor', ...dcfProjections.map(p => p.discountFactor.toFixed(3))],
       ['PV of FCFF', ...dcfProjections.map(p => formatNumber(p.presentValue))],
@@ -297,6 +301,44 @@ export const exportToPDF = ({
     styles: { fontSize: 8 },
     columnStyles: { 0: { fontStyle: 'bold' } },
     margin: { left: 15, right: 15 },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 10;
+
+  // FIX S6: Terminal Value and EV-to-Equity Bridge Breakdown
+  const totalDebtForBridge = balanceSheet.shortTermDebt + balanceSheet.longTermDebt;
+  const sumPV = dcfProjections.reduce((s, p) => s + p.presentValue, 0);
+  const lastFCFF = dcfProjections[dcfProjections.length - 1]?.freeCashFlow || 0;
+  const waccDec = assumptions.discountRate / 100;
+  const termGrowthDec = assumptions.terminalGrowthRate / 100;
+  let tvGordon = 0;
+  if (waccDec > termGrowthDec) {
+    tvGordon = (lastFCFF * (1 + termGrowthDec)) / (waccDec - termGrowthDec);
+  }
+  const pvTV = tvGordon / Math.pow(1 + waccDec, assumptions.projectionYears);
+  const evCalc = sumPV + pvTV;
+  const equityVal = evCalc - totalDebtForBridge + balanceSheet.cash;
+  const dcfPerShareCalc = equityVal / financialData.sharesOutstanding;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Valuation Build-Up', 'Value']],
+    body: [
+      ['Sum of PV(FCFF) Years 1-' + assumptions.projectionYears, formatNumber(sumPV)],
+      [`Terminal Value (Gordon Growth, g=${formatPercent(assumptions.terminalGrowthRate)})`, formatNumber(tvGordon)],
+      ['PV of Terminal Value', formatNumber(pvTV)],
+      ['Enterprise Value', formatNumber(evCalc)],
+      ['Less: Total Debt', `(${formatNumber(totalDebtForBridge)})`],
+      ['Plus: Cash', formatNumber(balanceSheet.cash)],
+      [{ content: 'Equity Value', styles: { fontStyle: 'bold' } }, { content: formatNumber(equityVal), styles: { fontStyle: 'bold' } }],
+      ['Shares Outstanding', formatNumber(financialData.sharesOutstanding)],
+      [{ content: 'DCF Fair Value per Share', styles: { fontStyle: 'bold' } }, { content: fmtCcy(dcfPerShareCalc, 2), styles: { fontStyle: 'bold' } }],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 100 },
   });
 
   yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -330,58 +372,24 @@ export const exportToPDF = ({
   doc.text('SCENARIO ANALYSIS', 15, yPos);
   yPos += 10;
 
-  // Calculate scenarios — Proper FCFF formula (NOPAT + D&A − CapEx − ΔWC)
-  // FIX-6: Bull case terminal g auto-clamped below scenario WACC
-  const calcScenarioPrice = (revMult: number, waccAdd: number, termMult: number, marginAdd: number) => {
-    const scenarioRevGrowth = assumptions.revenueGrowthRate * revMult;
-    const scenarioWACC = Math.max(assumptions.discountRate + waccAdd, 2);
-    // FIX-6: Clamp terminal growth below scenario WACC (must be g < WACC for Gordon Growth)
-    const rawTermGrowth = assumptions.terminalGrowthRate * termMult;
-    const scenarioTermGrowth = Math.min(rawTermGrowth, scenarioWACC - 1);
+  // S1: Use shared scenario function for exact consistency with Engine/Excel
+  const bearResult = calcScenarioPrice(financialData, assumptions, 'bear');
+  const bullResult = calcScenarioPrice(financialData, assumptions, 'bull');
+  const bearPrice = bearResult.price;
+  const bullPrice = bullResult.price;
 
-    let rev = financialData.incomeStatement.revenue;
-    let sumPV = 0;
-    let lastFCFF = 0;
-
-    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
-      const prevRev = rev;
-      rev = rev * (1 + scenarioRevGrowth / 100);
-      const ebitdaMarginPct = (assumptions.ebitdaMargin + marginAdd) / 100;
-      const ebitda = rev * ebitdaMarginPct;
-      const dAndA = rev * (assumptions.daPercent / 100);
-      const ebit = ebitda - dAndA;
-      const nopat = ebit * (1 - assumptions.taxRate / 100);
-      const capex = rev * (assumptions.capexPercent / 100);
-      const deltaWC = (rev - prevRev) * (assumptions.deltaWCPercent / 100);
-      const fcff = nopat + dAndA - capex - deltaWC;
-      const period = assumptions.discountingConvention === 'mid_year' ? yr - 0.5 : yr;
-      const df = Math.pow(1 + scenarioWACC / 100, period);
-      sumPV += fcff / df;
-      lastFCFF = fcff;
-    }
-
-    let tv = 0;
-    if (scenarioWACC > scenarioTermGrowth && (scenarioWACC - scenarioTermGrowth) > 0.01) {
-      tv = (lastFCFF * (1 + scenarioTermGrowth / 100)) / ((scenarioWACC - scenarioTermGrowth) / 100);
-    }
-    const lastDF = Math.pow(1 + scenarioWACC / 100, assumptions.projectionYears);
-    const ev = sumPV + tv / lastDF;
-    const totalDebtCalc = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-    // No MAX(0) floor — equity can be negative for distressed companies
-    const equity = ev - totalDebtCalc + financialData.balanceSheet.cash;
-    return equity / financialData.sharesOutstanding;
-  };
-
-  const bearPrice = calcScenarioPrice(0.4, 2.5, 0.6, -1.5);
-  const bullPrice = calcScenarioPrice(2.0, -2.5, 1.5, 2.5);
+  const bearGrowth = bearResult.growth.toFixed(1);
+  const bearWACCVal = bearResult.wacc.toFixed(1);
+  const bullGrowth = bullResult.growth.toFixed(1);
+  const bullWACCVal = bullResult.wacc.toFixed(1);
 
   autoTable(doc, {
     startY: yPos,
     head: [['Scenario', 'Implied Price', 'vs. Current', 'Key Assumptions']],
     body: [
-      ['BEAR CASE', fmtCcy(bearPrice, 2), `${((bearPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 0.4).toFixed(1)}%, WACC: ${(assumptions.discountRate + 2.5).toFixed(1)}%`],
+      ['BEAR CASE', fmtCcy(bearPrice, 2), `${((bearPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${bearGrowth}%, WACC: ${bearWACCVal}%`],
       ['BASE CASE', fmtCcy(dcfValue, 2), `${((dcfValue - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${assumptions.revenueGrowthRate.toFixed(1)}%, WACC: ${assumptions.discountRate.toFixed(1)}%`],
-      ['BULL CASE', fmtCcy(bullPrice, 2), `+${((bullPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${(assumptions.revenueGrowthRate * 2.0).toFixed(1)}%, WACC: ${Math.max(assumptions.discountRate - 2.5, 2).toFixed(1)}%`],
+      ['BULL CASE', fmtCcy(bullPrice, 2), `${((bullPrice - currentPrice) / currentPrice * 100).toFixed(1)}%`, `Growth: ${bullGrowth}%, WACC: ${bullWACCVal}%`],
     ],
     theme: 'striped',
     headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
@@ -411,7 +419,7 @@ export const exportToPDF = ({
       ['EBITDA Margin', formatPercent(assumptions.ebitdaMargin)],
       ['D&A (% of Revenue)', formatPercent(assumptions.daPercent)],
       ['CapEx (% of Revenue)', formatPercent(assumptions.capexPercent)],
-      ['ΔWC (% of Revenue)', formatPercent(assumptions.deltaWCPercent)],
+      ['Change in WC (% of Revenue Change)', formatPercent(assumptions.deltaWCPercent)],
       ['Projection Years', assumptions.projectionYears.toString()],
       ['Tax Rate', formatPercent(assumptions.taxRate)],
       ['Risk-Free Rate', formatPercent(assumptions.riskFreeRate)],
@@ -492,6 +500,273 @@ export const exportToPDF = ({
     margin: { left: 15, right: 15 },
   });
 
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // S4: WACC BREAKDOWN
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('WACC BREAKDOWN', 15, yPos);
+  yPos += 10;
+
+  const ke = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+  const waccCalc = calculateWACC(financialData, assumptions);
+  const equityWeight = (financialData.currentStockPrice * financialData.sharesOutstanding) /
+    ((financialData.currentStockPrice * financialData.sharesOutstanding) + totalDebt);
+  const debtWeight = 1 - equityWeight;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Component', 'Value']],
+    body: [
+      ['Risk-Free Rate', formatPercent(assumptions.riskFreeRate)],
+      ['Equity Risk Premium', formatPercent(assumptions.marketRiskPremium)],
+      ['Beta', assumptions.beta.toFixed(2)],
+      ['Cost of Equity (Ke)', formatPercent(ke)],
+      ['Cost of Debt (Pre-Tax)', formatPercent(assumptions.costOfDebt)],
+      ['Tax Rate', formatPercent(assumptions.taxRate)],
+      ['Cost of Debt (After-Tax)', formatPercent(assumptions.costOfDebt * (1 - assumptions.taxRate / 100))],
+      ['Equity Weight', formatPercent(equityWeight * 100)],
+      ['Debt Weight', formatPercent(debtWeight * 100)],
+      ['WACC', formatPercent(waccCalc)],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 100 },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // S4: ALTMAN Z-SCORE
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ALTMAN Z-SCORE', 15, yPos);
+  yPos += 10;
+
+  const wcPdf = balanceSheet.totalCurrentAssets - balanceSheet.totalCurrentLiabilities;
+  const marketCapPdf = financialData.currentStockPrice * financialData.sharesOutstanding;
+  const totalLiab = balanceSheet.totalLiabilities || 1;
+  const taPdf = balanceSheet.totalAssets || 1;
+  const x1 = wcPdf / taPdf;
+  const x2 = balanceSheet.totalEquity / taPdf;
+  const x3 = incomeStatement.operatingIncome / taPdf;
+  const x4 = marketCapPdf / totalLiab;
+  const x5 = incomeStatement.revenue / taPdf;
+  const zScore = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + x5;
+  const zZone = zScore > 2.99 ? 'Safe Zone' : zScore > 1.81 ? 'Grey Zone' : 'Distress Zone';
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Factor', 'Formula', 'Value', 'Weighted']],
+    body: [
+      ['X1 (WC/TA)', 'Working Capital / Total Assets', x1.toFixed(3), (1.2 * x1).toFixed(3)],
+      ['X2 (RE/TA)', 'Retained Earnings / Total Assets', x2.toFixed(3), (1.4 * x2).toFixed(3)],
+      ['X3 (EBIT/TA)', 'EBIT / Total Assets', x3.toFixed(3), (3.3 * x3).toFixed(3)],
+      ['X4 (MCap/TL)', 'Market Cap / Total Liabilities', x4.toFixed(3), (0.6 * x4).toFixed(3)],
+      ['X5 (Rev/TA)', 'Revenue / Total Assets', x5.toFixed(3), x5.toFixed(3)],
+      ['Z-Score', '', '', zScore.toFixed(2)],
+      ['Assessment', '', '', zZone],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // S4: DUPONT DECOMPOSITION
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DUPONT DECOMPOSITION', 15, yPos);
+  yPos += 10;
+
+  const npmPdf = incomeStatement.netIncome / (incomeStatement.revenue || 1);
+  const atPdf = incomeStatement.revenue / taPdf;
+  const emPdf = taPdf / (balanceSheet.totalEquity || 1);
+  const duPontROE = npmPdf * atPdf * emPdf * 100;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Component', 'Formula', 'Value']],
+    body: [
+      ['Net Profit Margin', 'Net Income / Revenue', formatPercent(npmPdf * 100)],
+      ['Asset Turnover', 'Revenue / Total Assets', `${atPdf.toFixed(2)}x`],
+      ['Equity Multiplier', 'Total Assets / Total Equity', `${emPdf.toFixed(2)}x`],
+      ['DuPont ROE', 'NPM × AT × EM', formatPercent(duPontROE)],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 100 },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // S4: CASH CONVERSION CYCLE
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CASH CONVERSION CYCLE', 15, yPos);
+  yPos += 10;
+
+  const cogsPdf = incomeStatement.costOfGoodsSold || 1;
+  const dsoPdf = balanceSheet.accountsReceivable > 0 ? 365 / (incomeStatement.revenue / balanceSheet.accountsReceivable) : 0;
+  const dioPdf = balanceSheet.inventory > 0 ? 365 / (cogsPdf / balanceSheet.inventory) : 0;
+  const dpoPdf = balanceSheet.accountsPayable > 0 ? 365 / (cogsPdf / balanceSheet.accountsPayable) : 0;
+  const cccPdf = dsoPdf + dioPdf - dpoPdf;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Metric', 'Formula', 'Days']],
+    body: [
+      ['DSO (Days Sales Outstanding)', 'AR × 365 / Revenue', `${dsoPdf.toFixed(1)} days`],
+      ['DIO (Days Inventory Outstanding)', 'Inventory × 365 / COGS', `${dioPdf.toFixed(1)} days`],
+      ['DPO (Days Payable Outstanding)', 'AP × 365 / COGS', `${dpoPdf.toFixed(1)} days`],
+      ['CCC (Cash Conversion Cycle)', 'DSO + DIO - DPO', `${cccPdf.toFixed(1)} days`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 100 },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+  const keForDDM = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+  // C1 Fix: Calculate DPS from actual dividends paid
+  const dividendsPaidAbs = Math.abs(financialData.cashFlowStatement.dividendsPaid || 0);
+  const dpsVal = dividendsPaidAbs > 0
+    ? dividendsPaidAbs / financialData.sharesOutstanding
+    : (financialData.dividendsPerShare || 0);
+  const gStableDDM = (assumptions.ddmStableGrowth || assumptions.terminalGrowthRate) / 100;
+  const gHighDDM = (assumptions.ddmHighGrowth || assumptions.revenueGrowthRate) / 100;
+  const keDec = keForDDM / 100;
+  const ddmHighYears = assumptions.ddmHighGrowthYears || 5;
+
+  if (dpsVal > 0 && keDec > gStableDDM) {
+    doc.setTextColor(...redColor);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DDM VALUATION', 15, yPos);
+    yPos += 10;
+
+    // Gordon Growth
+    const gordonPrice = (dpsVal * (1 + gStableDDM)) / (keDec - gStableDDM);
+
+    // Two-Stage DDM
+    let pvDivs = 0;
+    let lastDiv = dpsVal;
+    for (let t = 1; t <= ddmHighYears; t++) {
+      lastDiv = dpsVal * Math.pow(1 + gHighDDM, t);
+      pvDivs += lastDiv / Math.pow(1 + keDec, t);
+    }
+    const termDiv = lastDiv * (1 + gStableDDM);
+    const tvDDM = termDiv / (keDec - gStableDDM);
+    const pvTVDDM = tvDDM / Math.pow(1 + keDec, ddmHighYears);
+    const twoStagePrice = pvDivs + pvTVDDM;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['DDM Method', 'Value']],
+      body: [
+        ['DPS (Current)', fmtCcy(dpsVal, 2)],
+        ['Cost of Equity (Ke)', formatPercent(keForDDM)],
+        ['Stable Growth Rate', formatPercent((assumptions.ddmStableGrowth || assumptions.terminalGrowthRate))],
+        ['High Growth Rate', formatPercent((assumptions.ddmHighGrowth || assumptions.revenueGrowthRate))],
+        ['Gordon Growth (Single-Stage)', fmtCcy(gordonPrice, 2)],
+        [`Two-Stage DDM (${formatPercent((assumptions.ddmHighGrowth || assumptions.revenueGrowthRate))} -> ${formatPercent((assumptions.ddmStableGrowth || assumptions.terminalGrowthRate))})`, fmtCcy(twoStagePrice, 2)],
+        ['DDM vs DCF spread', fmtCcy(gordonPrice - dcfValue, 2)],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 15, right: 100 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // S4: Quality Scorecard
+  checkNewPage(60);
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('QUALITY SCORECARD', 15, yPos);
+  yPos += 10;
+
+  const scorecard = (() => {
+    try {
+      return calculateQualityScorecard(financialData);
+    } catch { return null; }
+  })();
+
+  if (scorecard) {
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Component', 'Score', 'Weight']],
+      body: [
+        ['Overall Quality Score', `${scorecard.totalScore}/${scorecard.maxTotalScore} (Grade ${scorecard.grade})`, ''],
+        ['Economic Moat', `${scorecard.economicMoat.score}/${scorecard.economicMoat.maxScore}`, '25%'],
+        ['Financial Health', `${scorecard.financialHealth.score}/${scorecard.financialHealth.maxScore}`, '25%'],
+        ['Growth & Profitability', `${scorecard.growthProfile.score}/${scorecard.growthProfile.maxScore}`, '25%'],
+        ['Capital Allocation', `${scorecard.capitalAllocation.score}/${scorecard.capitalAllocation.maxScore}`, '25%'],
+        ['Quality Premium Applied', `+${scorecard.qualityPremium?.toFixed(1) ?? 0}%`, ''],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 15, right: 100 },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // S5: Reverse DCF Analysis
+  checkNewPage(40);
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REVERSE DCF ANALYSIS', 15, yPos);
+  yPos += 10;
+
+  const reverseDCF = (() => {
+    try {
+      return calculateReverseDCF(financialData, assumptions);
+    } catch { return null; }
+  })();
+
+  if (reverseDCF) {
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Market Implied Growth Rate', `${reverseDCF.impliedGrowthRate?.toFixed(1) ?? 'N/A'}%`],
+        ['WOLF Fundamental Estimate', `${reverseDCF.baseGrowthRate?.toFixed(1) ?? formatPercent(assumptions.revenueGrowthRate)}%`],
+        ['Growth Gap', `${reverseDCF.growthGap >= 0 ? '+' : ''}${reverseDCF.growthGap?.toFixed(1) ?? 'N/A'}pp`],
+        ['Assessment', reverseDCF.narrative || 'N/A'],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 15, right: 100 },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
   // Footer
   const pageCount = (doc as any).getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -499,7 +774,7 @@ export const exportToPDF = ({
     doc.setFontSize(8);
     doc.setTextColor(...grayColor);
     doc.text(
-      `WOLF Valuation Engine | ${financialData.companyName} | Generated: ${new Date().toLocaleDateString()}`,
+      `WOLF Valuation Engine V2.7 | ${financialData.companyName} | Generated: ${new Date().toLocaleDateString()}`,
       pageWidth / 2,
       290,
       { align: 'center' }

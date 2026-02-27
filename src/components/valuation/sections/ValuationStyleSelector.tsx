@@ -36,18 +36,16 @@ export const ValuationStyleSelector: React.FC<Props> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {styleEntries.map(([key, style]) => (
           <button key={key} onClick={() => setValuationStyle(key)}
-            className={`p-4 rounded-xl border-2 transition-all text-left ${
-              valuationStyle === key
+            className={`p-4 rounded-xl border-2 transition-all text-left ${valuationStyle === key
                 ? key === 'conservative' ? 'border-blue-500 bg-blue-500/10'
                   : key === 'moderate' ? 'border-yellow-500 bg-yellow-500/10'
-                  : 'border-green-500 bg-green-500/10'
+                    : 'border-green-500 bg-green-500/10'
                 : isDarkMode ? 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/50'
                   : 'border-gray-200 hover:border-gray-400 bg-gray-50'
-            }`}>
+              }`}>
             <div className="flex items-center gap-2 mb-1">
-              <div className={`w-3 h-3 rounded-full ${
-                key === 'conservative' ? 'bg-blue-500' : key === 'moderate' ? 'bg-yellow-500' : 'bg-green-500'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${key === 'conservative' ? 'bg-blue-500' : key === 'moderate' ? 'bg-yellow-500' : 'bg-green-500'
+                }`} />
               <div>
                 <div className={`font-semibold ${textClass}`}>{style.label}</div>
                 <div className={`text-xs ${textMutedClass}`}>{style.subtitle}</div>
@@ -60,9 +58,8 @@ export const ValuationStyleSelector: React.FC<Props> = ({
 
       {/* Adjusted values panel */}
       {valuationStyle !== 'moderate' ? (
-        <div className={`mt-4 p-4 rounded-lg border ${
-          valuationStyle === 'conservative' ? 'bg-blue-500/5 border-blue-500/30' : 'bg-green-500/5 border-green-500/30'
-        }`}>
+        <div className={`mt-4 p-4 rounded-lg border ${valuationStyle === 'conservative' ? 'bg-blue-500/5 border-blue-500/30' : 'bg-green-500/5 border-green-500/30'
+          }`}>
           <div className={`text-sm font-semibold mb-2 ${valuationStyle === 'conservative' ? 'text-blue-400' : 'text-green-400'}`}>
             {valuationStyle === 'conservative' ? 'CONSERVATIVE' : 'AGGRESSIVE'} ADJUSTMENTS APPLIED
           </div>
@@ -99,13 +96,20 @@ export const ValuationStyleSelector: React.FC<Props> = ({
               const sRevGrowth = assumptions.revenueGrowthRate * scenarioMultipliers[scenario].revenueGrowth * style.revenueGrowthMult;
               const sWACC = Math.max(2, assumptions.discountRate * scenarioMultipliers[scenario].wacc + style.waccAdd);
               const sTermGrowth = assumptions.terminalGrowthRate * scenarioMultipliers[scenario].terminalGrowth * style.terminalGrowthMult;
-              const sMarginImp = assumptions.marginImprovement + scenarioMultipliers[scenario].marginChange * 100 + style.marginChange;
-              const baseFcfMarg = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
+              // C3 Fix: Use FCFF buildup (NOPAT + D&A − CapEx − ΔWC) instead of legacy FCF margin
+              const sTaxRate = assumptions.taxRate / 100;
               let rev = financialData.incomeStatement.revenue;
               let sPV = 0, sLastFCF = 0;
               for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+                const prevRev = rev;
                 rev *= (1 + sRevGrowth / 100);
-                const fcfC = rev * (baseFcfMarg + (sMarginImp / 100) * yr);
+                const ebitda = rev * (assumptions.ebitdaMargin / 100);
+                const da = rev * (assumptions.daPercent / 100);
+                const ebit = ebitda - da;
+                const nopat = ebit * (1 - sTaxRate);
+                const capex = rev * (assumptions.capexPercent / 100);
+                const deltaWC = (rev - prevRev) * (assumptions.deltaWCPercent / 100);
+                const fcfC = nopat + da - capex - deltaWC;
                 sPV += fcfC / Math.pow(1 + sWACC / 100, yr);
                 sLastFCF = fcfC;
               }

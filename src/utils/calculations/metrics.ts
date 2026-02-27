@@ -26,7 +26,9 @@ export interface KeyMetrics {
 
 /** Buy/sell recommendation result */
 export interface Recommendation {
-  text: string;
+  text: string;     // Primary display text (verdict)
+  action: string;   // Actionable recommendation (STRONG BUY/BUY/HOLD/SELL/STRONG SELL)
+  verdict: string;  // Valuation verdict (UNDERVALUED/FAIRLY VALUED/OVERVALUED)
   color: string;
   bg: string;
 }
@@ -41,10 +43,9 @@ export function calculateKeyMetrics(financialData: FinancialData): KeyMetrics {
   const ebitda = incomeStatement.operatingIncome + incomeStatement.depreciation + incomeStatement.amortization;
   const ev = marketCap + totalDebt - balanceSheet.cash;
   const investedCapital = balanceSheet.totalEquity + totalDebt - balanceSheet.cash;
-  const taxRate = (incomeStatement.netIncome + incomeStatement.taxExpense) > 0
-    ? incomeStatement.taxExpense / (incomeStatement.netIncome + incomeStatement.taxExpense)
-    : 0.225;  // BUG FIX: was 0.21, now defaults to Egyptian 22.5%
-  const nopat = incomeStatement.operatingIncome * (1 - taxRate);
+  // C7 Fix: Use statutory tax rate (22.5%) for ROIC, not effective tax
+  const STATUTORY_TAX_RATE = 0.225;
+  const nopat = incomeStatement.operatingIncome * (1 - STATUTORY_TAX_RATE);
   const netDebt = totalDebt - balanceSheet.cash;
 
   return {
@@ -64,17 +65,31 @@ export function calculateKeyMetrics(financialData: FinancialData): KeyMetrics {
     interestCoverage: incomeStatement.interestExpense > 0
       ? incomeStatement.operatingIncome / incomeStatement.interestExpense : 999,
     netDebtEbitda: ebitda > 0 ? netDebt / ebitda : 0,
-    dividendYield: financialData.currentStockPrice > 0
-      ? (financialData.dividendsPerShare / financialData.currentStockPrice) * 100 : 0,
+    // C8 Fix: Use abs(dividendsPaid) to handle negative sign convention
+    dividendYield: financialData.currentStockPrice > 0 && financialData.sharesOutstanding > 0
+      ? (Math.abs(financialData.cashFlowStatement.dividendsPaid) / financialData.sharesOutstanding / financialData.currentStockPrice) * 100 : 0,
   };
 }
 
 /**
- * Get recommendation based on upside percentage.
- * Uses spec Section 5.5 verdict logic (±10% bands)
+ * C4 Fix: Get unified recommendation based on upside percentage.
+ * Returns BOTH verdict and actionable recommendation.
+ * Thresholds: STRONG BUY >30% | BUY >10% | HOLD ≥-10% | SELL ≥-30% | STRONG SELL <-30%
  */
 export function getRecommendation(upside: number): Recommendation {
-  if (upside > 10) return { text: 'UNDERVALUED', color: 'text-green-400', bg: 'bg-green-500/20' };
-  if (upside > -10) return { text: 'FAIRLY VALUED', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
-  return { text: 'OVERVALUED', color: 'text-red-400', bg: 'bg-red-500/20' };
+  // Verdict: valuation assessment
+  let verdict: string, color: string, bg: string;
+  if (upside > 10) { verdict = 'UNDERVALUED'; color = 'text-green-400'; bg = 'bg-green-500/20'; }
+  else if (upside >= -10) { verdict = 'FAIRLY VALUED'; color = 'text-yellow-400'; bg = 'bg-yellow-500/20'; }
+  else { verdict = 'OVERVALUED'; color = 'text-red-400'; bg = 'bg-red-500/20'; }
+
+  // Action: investment recommendation
+  let action: string;
+  if (upside > 30) action = 'STRONG BUY';
+  else if (upside > 10) action = 'BUY';
+  else if (upside >= -10) action = 'HOLD';
+  else if (upside >= -30) action = 'SELL';
+  else action = 'STRONG SELL';
+
+  return { text: verdict, action, verdict, color, bg };
 }

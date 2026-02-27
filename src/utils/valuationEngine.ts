@@ -435,7 +435,11 @@ export function calculateDDM(
   assumptions: ValuationAssumptions,
   costOfEquity: number,  // Ke in percent
 ): DDMResult {
-  const dps = financialData.dividendsPerShare || assumptions.dps || 0;
+  // C1 Fix: Calculate DPS from actual dividends paid, not manual input
+  const dividendsPaid = Math.abs(financialData.cashFlowStatement.dividendsPaid || 0);
+  const dps = dividendsPaid > 0
+    ? dividendsPaid / financialData.sharesOutstanding
+    : (financialData.dividendsPerShare || assumptions.dps || 0);
   const ke = costOfEquity / 100;
 
   // Check if company pays dividends
@@ -749,9 +753,15 @@ export function generateSensitivityMatrix(
   baseWACC: number,
   baseTerminalGrowth: number
 ): SensitivityMatrix {
-  const waccAxis = [baseWACC - 3.56, baseWACC - 2.06, baseWACC, baseWACC + 1.44, baseWACC + 3.44];
-  // Use the spec's exact values if they match the defaults
-  const growthAxis = [baseTerminalGrowth - 2, baseTerminalGrowth - 1, baseTerminalGrowth, baseTerminalGrowth + 1, baseTerminalGrowth + 2];
+  // C1 Fix: Dynamic axes centered on actual WACC and terminal growth
+  // WACC: ±4%, ±2% steps → e.g. 21.84% to 29.84% for TechCorp (WACC=25.84%)
+  const waccAxis = [baseWACC - 4, baseWACC - 2, baseWACC, baseWACC + 2, baseWACC + 4];
+  // Growth: ±3%, ±1.5% steps → e.g. 5.0% to 11.0% for TechCorp (g=8%)
+  // Floor at 4% (Egypt minimum), cap below WACC-1%
+  const growthAxis = [-3, -1.5, 0, 1.5, 3].map(d => {
+    const val = baseTerminalGrowth + d;
+    return Math.max(4, Math.min(baseWACC - 1, val));
+  });
 
   const matrix: SensitivityCell[][] = [];
   const currentPrice = financialData.currentStockPrice || 1;

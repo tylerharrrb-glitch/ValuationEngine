@@ -8,11 +8,12 @@ import { ScenarioType, scenarioMultipliers } from '../components/ScenarioToggle'
 import { VALUATION_STYLES, ValuationStyleKey } from '../constants/valuationStyles';
 import { DEFAULT_INDUSTRY_MULTIPLES, EGYPTIAN_INDUSTRY_MULTIPLES } from '../constants/marketDefaults';
 import { getIndustryForTicker, getEgyptianIndustryForTicker } from '../utils/industryMapping';
-import { calculateDCFProjections, calculateDCFValue } from '../utils/calculations/dcf';
+import { calculateDCFProjections, calculateDCFValue, calculateScenarioDCF } from '../utils/calculations/dcf';
 import { calculateComparableValuations, ComparableValuations, IndustryMultiples } from '../utils/calculations/comparables';
 import { calculateKeyMetrics, getRecommendation, KeyMetrics, Recommendation } from '../utils/calculations/metrics';
 import { calculateScenarioCases, ScenarioCases } from '../utils/calculations/scenarios';
 import { CurrencyCode, getCurrencyFromMarket } from '../utils/formatters';
+import { calculateDDM } from '../utils/valuationEngine';
 
 export interface UseValuationCalculationsReturn {
   adjustedAssumptions: ValuationAssumptions;
@@ -55,13 +56,13 @@ export function useValuationCalculations(
   const adjustedAssumptions = useMemo(() => {
     const multipliers = scenarioMultipliers[scenario];
     const style = VALUATION_STYLES[valuationStyle];
-    
+
     // Apply both scenario AND style adjustments
     const baseRevGrowth = assumptions.revenueGrowthRate * multipliers.revenueGrowth;
     const baseWACC = assumptions.discountRate * multipliers.wacc;
     const baseTermGrowth = assumptions.terminalGrowthRate * multipliers.terminalGrowth;
     const baseMargin = assumptions.marginImprovement + multipliers.marginChange * 100;
-    
+
     const adjusted = {
       ...assumptions,
       revenueGrowthRate: baseRevGrowth * style.revenueGrowthMult,
@@ -69,15 +70,15 @@ export function useValuationCalculations(
       terminalGrowthRate: baseTermGrowth * style.terminalGrowthMult,
       marginImprovement: baseMargin + style.marginChange,
     };
-    
-    // Cap terminal growth at sustainable long-term rates
-    // Terminal growth cannot exceed long-term GDP growth — even in high-inflation markets
-    const maxTermGrowth = marketRegion === 'Egypt' ? 5.0 : 2.5;
-    if (adjusted.terminalGrowthRate > maxTermGrowth) {
-      console.log(`[WOLF] Terminal growth capped: ${adjusted.terminalGrowthRate.toFixed(1)}% → ${maxTermGrowth}% (sustainable long-term rate for ${marketRegion})`);
-      adjusted.terminalGrowthRate = maxTermGrowth;
+
+    // Terminal growth must be < WACC (hard requirement for Gordon Growth Model).
+    // No artificial cap — user's input is the single source of truth (Fix C5).
+    // The engine, PDF, Excel, and JSON all use this same value.
+    if (adjusted.terminalGrowthRate >= adjusted.discountRate) {
+      console.warn(`[WOLF] Terminal growth (${adjusted.terminalGrowthRate.toFixed(1)}%) ≥ WACC (${adjusted.discountRate.toFixed(1)}%) — clamping to WACC-1%`);
+      adjusted.terminalGrowthRate = adjusted.discountRate - 1;
     }
-    
+
     return adjusted;
   }, [assumptions, scenario, valuationStyle, marketRegion]);
 
@@ -123,7 +124,7 @@ export function useValuationCalculations(
 
   // Check if we have valid comparables for blending
   const hasValidComparables = comparableValuations.hasUserComps;
-  
+
   // Use the blended comps value
   const comparableValue = comparableValuations.blendedComps;
 
@@ -143,15 +144,28 @@ export function useValuationCalculations(
 
   // Detect financial sector for chart filtering
   const isFinancialSector = (financialData.sector || '').toLowerCase().includes('financial') ||
-                            (financialData.sector || '').toLowerCase().includes('bank');
+    (financialData.sector || '').toLowerCase().includes('bank');
 
-  // Football field data — skip EV/EBITDA for banks
+  // M1: Football field data — DCF range from sensitivity bounds (WACC ±4pp), M3: DDM bar
+  const dcfLow = useMemo(() => calculateScenarioDCF(financialData, adjustedAssumptions, 1, 4, 1, 0), [financialData, adjustedAssumptions]);
+  const dcfHigh = useMemo(() => calculateScenarioDCF(financialData, adjustedAssumptions, 1, -4, 1, 0), [financialData, adjustedAssumptions]);
+
+  // M3: DDM values for football field
+  const ke = adjustedAssumptions.riskFreeRate + adjustedAssumptions.beta * adjustedAssumptions.marketRiskPremium;
+  const ddmResult = useMemo(() => calculateDDM(financialData, adjustedAssumptions, ke), [financialData, adjustedAssumptions, ke]);
+  const ddmLow = ddmResult.applicable ? Math.min(ddmResult.gordonGrowth || Infinity, ddmResult.twoStage || Infinity, ddmResult.hModel || Infinity) : 0;
+  const ddmHigh = ddmResult.applicable ? Math.max(ddmResult.gordonGrowth || 0, ddmResult.twoStage || 0, ddmResult.hModel || 0) : 0;
+  const ddmMid = ddmResult.applicable && ddmResult.twoStage ? ddmResult.twoStage : 0;
+
   const footballFieldData = [
-    { method: 'DCF', low: dcfValue * 0.85, mid: dcfValue, high: dcfValue * 1.15, color: 'bg-blue-500' },
+    { method: 'DCF', low: Math.min(dcfLow, dcfValue), mid: dcfValue, high: Math.max(dcfHigh, dcfValue), color: 'bg-blue-500' },
     { method: 'P/E', low: comparableValuations.peImplied * 0.9, mid: comparableValuations.peImplied, high: comparableValuations.peImplied * 1.1, color: 'bg-purple-500' },
     ...(isFinancialSector ? [] : [
       { method: 'EV/EBITDA', low: comparableValuations.evEbitdaImplied * 0.9, mid: comparableValuations.evEbitdaImplied, high: comparableValuations.evEbitdaImplied * 1.1, color: 'bg-green-500' },
     ]),
+    ...(ddmMid > 0 ? [
+      { method: 'DDM', low: ddmLow, mid: ddmMid, high: ddmHigh, color: 'bg-cyan-500' },
+    ] : []),
     { method: 'P/B', low: comparableValuations.pbImplied * 0.9, mid: comparableValuations.pbImplied, high: comparableValuations.pbImplied * 1.1, color: 'bg-yellow-500' },
     { method: 'Blended', low: blendedValue * 0.9, mid: blendedValue, high: blendedValue * 1.1, color: 'bg-red-500' },
   ];

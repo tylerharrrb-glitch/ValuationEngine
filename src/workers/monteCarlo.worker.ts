@@ -17,25 +17,31 @@ function runSimulation(
   numSimulations: number = 5000
 ) {
   const results: number[] = [];
-  const baseFCFMargin = financialData.incomeStatement.revenue > 0
-    ? financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue
-    : 0.15;
+  // C3 Fix: Use FCFF buildup (NOPAT + D&A − CapEx − ΔWC) instead of legacy FCF margin
+  const taxRate = assumptions.taxRate / 100;
 
   for (let sim = 0; sim < numSimulations; sim++) {
     // Add random variation to key parameters
     const revGrowthVar = assumptions.revenueGrowthRate + gaussianRandom() * 4;  // ±4% std dev
     const waccVar = Math.max(2, assumptions.discountRate + gaussianRandom() * 1.5); // ±1.5% std dev
     const termGrowthVar = Math.max(0, Math.min(waccVar - 0.5, assumptions.terminalGrowthRate + gaussianRandom() * 0.8)); // ±0.8% std dev
-    const marginVar = assumptions.marginImprovement + gaussianRandom() * 0.5; // ±0.5% std dev
+    const marginVar = gaussianRandom() * 1.5; // ±1.5% std dev on EBITDA margin
 
     let revenue = financialData.incomeStatement.revenue;
     let sumPV = 0;
     let lastFCF = 0;
 
     for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      const prevRevenue = revenue;
       revenue = revenue * (1 + revGrowthVar / 100);
-      const margin = baseFCFMargin + (marginVar / 100) * yr;
-      const fcf = revenue * Math.max(margin, 0.01);
+      const ebitdaMargin = (assumptions.ebitdaMargin + marginVar) / 100;
+      const ebitda = revenue * ebitdaMargin;
+      const da = revenue * (assumptions.daPercent / 100);
+      const ebit = ebitda - da;
+      const nopat = ebit * (1 - taxRate);
+      const capex = revenue * (assumptions.capexPercent / 100);
+      const deltaWC = (revenue - prevRevenue) * (assumptions.deltaWCPercent / 100);
+      const fcf = nopat + da - capex - deltaWC;
       const df = Math.pow(1 + waccVar / 100, yr);
       sumPV += fcf / df;
       lastFCF = fcf;
@@ -75,7 +81,7 @@ function runSimulation(
   const mean = results.reduce((a, b) => a + b, 0) / n;
   const variance = results.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
   const stdDev = Math.sqrt(variance);
-  const median = n % 2 === 0 ? (results[n/2 - 1] + results[n/2]) / 2 : results[Math.floor(n/2)];
+  const median = n % 2 === 0 ? (results[n / 2 - 1] + results[n / 2]) / 2 : results[Math.floor(n / 2)];
   const p5 = results[Math.floor(n * 0.05)];
   const p25 = results[Math.floor(n * 0.25)];
   const p75 = results[Math.floor(n * 0.75)];
@@ -99,7 +105,7 @@ function runSimulation(
     let count = 0;
     // Since results are sorted, we could optimize this, but filter is okay for 5000 items in a worker
     count = results.filter(p => p >= low && p < high).length;
-    
+
     distribution.push({
       bucket: `${low.toFixed(0)}-${high.toFixed(0)}`,
       count,
@@ -118,7 +124,7 @@ function runSimulation(
     percentile95: Math.round(p95 * 100) / 100,
     probabilityAboveCurrentPrice: Math.round(probabilityAboveCurrentPrice * 10) / 10,
     probabilityAboveBaseCase: 0, // Simplified, skipping base case recalc in worker for now to save payload size
-    distribution, 
+    distribution,
   };
 }
 

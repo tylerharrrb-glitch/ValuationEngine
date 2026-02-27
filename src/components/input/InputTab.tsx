@@ -2,7 +2,7 @@
  * Input Tab — Orchestrates all input sub-tabs (Company Info, Income Statement,
  * Balance Sheet, Cash Flow, Assumptions, Comparables).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FinancialData, ValuationAssumptions, ComparableCompany, MarketRegion, EgyptTaxCategory } from '../../types/financial';
 import { CurrencyCode } from '../../utils/formatters';
 import { InputField } from '../shared/InputField';
@@ -45,6 +45,52 @@ export const InputTab: React.FC<InputTabProps> = ({
 
   // Shared InputField props
   const fieldProps = { isDarkMode, textMutedClass, inputClass, currency };
+
+  // C1: Auto-calculate WACC whenever any WACC-related input changes
+  const autoWACC = useMemo(() => {
+    return calculateWACC(financialData, assumptions);
+  }, [
+    financialData.currentStockPrice,
+    financialData.sharesOutstanding,
+    financialData.balanceSheet.shortTermDebt,
+    financialData.balanceSheet.longTermDebt,
+    financialData.incomeStatement.interestExpense,
+    assumptions.riskFreeRate,
+    assumptions.marketRiskPremium,
+    assumptions.beta,
+    assumptions.costOfDebt,
+    assumptions.taxRate,
+  ]);
+
+  // C1: WACC breakdown values for inline display
+  const waccBreakdown = useMemo(() => {
+    const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
+    const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+    const totalCapital = marketCap + totalDebt;
+    const We = totalCapital > 0 ? marketCap / totalCapital : 1;
+    const Wd = totalCapital > 0 ? totalDebt / totalCapital : 0;
+    const Ke = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+    const costOfDebt = assumptions.costOfDebt || (
+      totalDebt > 0 ? (financialData.incomeStatement.interestExpense / totalDebt) * 100 : assumptions.riskFreeRate + 2
+    );
+    const KdAfterTax = costOfDebt * (1 - assumptions.taxRate / 100);
+    return { We, Wd, Ke, KdAfterTax, marketCap, totalDebt };
+  }, [financialData, assumptions]);
+
+  // C1: Explicit manual override flag — only set when user TYPES a custom WACC
+  const [isWACCManualOverride, setIsWACCManualOverride] = useState(false);
+
+  // C1: Auto-apply WACC on input changes (always, unless manually overridden)
+  useEffect(() => {
+    if (!isWACCManualOverride) {
+      const rounded = Math.round(autoWACC * 100) / 100;
+      // Only update if different to avoid infinite loops
+      if (Math.abs(assumptions.discountRate - rounded) > 0.005) {
+        updateAssumptions(prev => ({ ...prev, discountRate: rounded }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoWACC, isWACCManualOverride]);
 
   return (
     <div className="space-y-6">
@@ -96,7 +142,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               tooltip="Shares Outstanding" showAsShares={true} min={0} {...fieldProps} />
             <InputField label="Current Stock Price" value={financialData.currentStockPrice}
               onChange={(val) => updateFinancialData(prev => ({ ...prev, currentStockPrice: val as number }))}
-              prefix="$" step="0.01" min={0} {...fieldProps} />
+              prefix={marketRegion === 'Egypt' ? 'EGP' : '$'} step="0.01" min={0} {...fieldProps} />
           </div>
         </div>
       )}
@@ -364,6 +410,26 @@ export const InputTab: React.FC<InputTabProps> = ({
                 ? 'Ke = Rf(Egypt 10Y) + β × ERP. Country risk embedded in local risk-free rate.'
                 : 'Ke = Rf(US 10Y) + β × ERP + CRP, then Fisher adjustment to EGP.'}
             </p>
+            {/* M2: Contextual ERP warning */}
+            {marketRegion === 'Egypt' && (
+              <div className={`mt-2 p-2 rounded-lg text-xs ${isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+                {assumptions.capmMethod === 'A' ? (
+                  <span className="text-blue-400">
+                    ℹ Using Mature Market ERP ({assumptions.marketRiskPremium}%) with Local CAPM. Country risk is embedded in Rf={assumptions.riskFreeRate}%. Ke = {(assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium).toFixed(2)}%. This is the correct approach for Method A.
+                  </span>
+                ) : (
+                  assumptions.marketRiskPremium < 8 ? (
+                    <span className="text-yellow-400">
+                      ⚠ For USD Build-Up (Method B), total ERP should be 8-12% for Egypt. Consider adding Country Risk Premium of 3-6% to the mature market {assumptions.marketRiskPremium}%.
+                    </span>
+                  ) : (
+                    <span className="text-green-400">
+                      ✓ ERP of {assumptions.marketRiskPremium}% is appropriate for Egypt USD Build-Up method.
+                    </span>
+                  )
+                )}
+              </div>
+            )}
           </div>
 
           {/* WACC Components Section */}
@@ -524,8 +590,8 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <button
                     onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'end_of_year' }))}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'end_of_year'
-                        ? 'bg-red-600 text-white'
-                        : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-red-600 text-white'
+                      : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     End of Year
@@ -533,8 +599,8 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <button
                     onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'mid_year' }))}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'mid_year'
-                        ? 'bg-red-600 text-white'
-                        : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-red-600 text-white'
+                      : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     Mid-Year
@@ -543,24 +609,45 @@ export const InputTab: React.FC<InputTabProps> = ({
               </div>
               {/* WACC Override */}
               <InputField label="Discount Rate (WACC)" value={assumptions.discountRate}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, discountRate: val as number }))}
+                onChange={(val) => {
+                  const newVal = val as number;
+                  const rounded = Math.round(autoWACC * 100) / 100;
+                  const isOverride = Math.abs(newVal - rounded) > 0.01;
+                  setIsWACCManualOverride(isOverride);
+                  updateAssumptions(prev => ({ ...prev, discountRate: newVal }));
+                }}
                 suffix="%" tooltip="WACC" step="0.1" min={0} {...fieldProps} />
             </div>
 
             {/* Quick-Set WACC */}
             <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm ${textMutedClass}`}>Quick Set:</span>
-                <button
-                  onClick={() => {
-                    const wacc = calculateWACC(financialData, assumptions);
-                    updateAssumptions(prev => ({ ...prev, discountRate: Math.round(wacc * 100) / 100 }));
-                  }}
-                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
-                >
-                  Auto-Calculate WACC
-                </button>
+              {/* C1: Inline WACC breakdown */}
+              <div className={`text-xs ${textMutedClass} mb-2`}>
+                WACC = {(waccBreakdown.We * 100).toFixed(2)}% × {waccBreakdown.Ke.toFixed(2)}% + {(waccBreakdown.Wd * 100).toFixed(2)}% × {waccBreakdown.KdAfterTax.toFixed(2)}% = {autoWACC.toFixed(2)}%
               </div>
+              <div className={`text-xs ${textMutedClass}`}>
+                E={currency === 'EGP' ? 'EGP' : '$'}{(waccBreakdown.marketCap / 1e9).toFixed(2)}B, D={currency === 'EGP' ? 'EGP' : '$'}{(waccBreakdown.totalDebt / 1e9).toFixed(2)}B — Auto-calculated from current inputs.
+              </div>
+
+              {/* C1: Manual override warning */}
+              {isWACCManualOverride && (
+                <div className={`mt-2 p-2 rounded-lg border ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700' : 'bg-yellow-50 border-yellow-300'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-yellow-400 font-medium">
+                      ⚠ Manual override: {assumptions.discountRate.toFixed(3)}% entered. Auto-calculated = {autoWACC.toFixed(2)}%
+                    </span>
+                    <button
+                      onClick={() => {
+                        setIsWACCManualOverride(false);
+                        // useEffect will fire and set discountRate = autoWACC
+                      }}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded-lg transition-colors ml-3"
+                    >
+                      Reset to Calculated WACC
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

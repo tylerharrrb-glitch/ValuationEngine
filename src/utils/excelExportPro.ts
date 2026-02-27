@@ -1,16 +1,20 @@
 import * as XLSX from 'xlsx';
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../types/financial';
 import { calculateEBITDA } from './valuation';
+import { SCENARIO_PARAMS } from './constants/scenarioParams';
 
-// Excel number formats
-const FMT = {
-  number: '#,##0',
-  decimal: '#,##0.00',
-  percent: '0.00%',
-  currency: '"$"#,##0',
-  currencyDec: '"$"#,##0.00',
-  multiple: '0.0"x"',
-};
+// Excel number formats — dynamic based on market region
+function makeFMT(isEgypt: boolean) {
+  const sym = isEgypt ? '"EGP "' : '"$"';
+  return {
+    number: '#,##0',
+    decimal: '#,##0.00',
+    percent: '0.00%',
+    currency: `${sym}#,##0`,
+    currencyDec: `${sym}#,##0.00`,
+    multiple: '0.0"x"',
+  };
+}
 
 // Create a cell with value and optional format
 const cell = (v: string | number | null | undefined, fmt?: string, bold?: boolean): XLSX.CellObject => {
@@ -57,11 +61,15 @@ export const exportToExcelWithFormulas = (
   comparables: ComparableCompany[]
 ): void => {
   const wb = XLSX.utils.book_new();
-  
+
+  // Market region detection
+  const isEgypt = (financialData as any).marketRegion === 'Egypt' || assumptions.riskFreeRate > 10;
+  const FMT = makeFMT(isEgypt);
+  const currencyLabel = isEgypt ? 'EGP' : 'USD';
+
   // Pre-calculate values for reference
   const ebitda = calculateEBITDA(financialData);
   const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-  const fcfMargin = (financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue) * 100;
   const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
   const enterpriseValue = marketCap + totalDebt - financialData.balanceSheet.cash;
   const currentYear = new Date().getFullYear();
@@ -70,11 +78,11 @@ export const exportToExcelWithFormulas = (
   // SHEET 1: INPUTS (All editable values)
   // ============================================
   const inputsWs: XLSX.WorkSheet = {};
-  
+
   // Title
   inputsWs['A1'] = header('WOLF VALUATION ENGINE - INPUT DATA');
   inputsWs['A2'] = cell('Edit values here. All other sheets will update automatically.');
-  
+
   // Company Info
   inputsWs['A4'] = header('COMPANY INFORMATION');
   inputsWs['A5'] = header('Item');
@@ -87,11 +95,11 @@ export const exportToExcelWithFormulas = (
   inputsWs['B8'] = cell(financialData.sharesOutstanding, FMT.number);
   inputsWs['A9'] = cell('Current Stock Price');
   inputsWs['B9'] = cell(financialData.currentStockPrice, FMT.currencyDec);
-  
+
   // Income Statement
   inputsWs['A11'] = header('INCOME STATEMENT');
   inputsWs['A12'] = header('Item');
-  inputsWs['B12'] = header('Amount ($)');
+  inputsWs['B12'] = header(`Amount (${currencyLabel})`);
   inputsWs['A13'] = cell('Revenue');
   inputsWs['B13'] = cell(financialData.incomeStatement.revenue, FMT.number);
   inputsWs['A14'] = cell('Cost of Goods Sold');
@@ -112,12 +120,12 @@ export const exportToExcelWithFormulas = (
   inputsWs['B21'] = cell(financialData.incomeStatement.taxExpense, FMT.number);
   inputsWs['A22'] = cell('Net Income');
   inputsWs['B22'] = cell(financialData.incomeStatement.netIncome, FMT.number);
-  
+
   // Balance Sheet - COMPLETE with all line items
   inputsWs['A24'] = header('BALANCE SHEET');
   inputsWs['A25'] = header('Item');
-  inputsWs['B25'] = header('Amount ($)');
-  
+  inputsWs['B25'] = header(`Amount (${currencyLabel})`);
+
   // Current Assets
   inputsWs['A26'] = header('CURRENT ASSETS');
   inputsWs['A27'] = cell('Cash & Cash Equivalents');
@@ -132,7 +140,7 @@ export const exportToExcelWithFormulas = (
   inputsWs['B31'] = cell(financialData.balanceSheet.otherCurrentAssets, FMT.number);
   inputsWs['A32'] = cell('Total Current Assets');
   inputsWs['B32'] = cell(financialData.balanceSheet.totalCurrentAssets, FMT.number);
-  
+
   // Non-Current Assets
   inputsWs['A33'] = header('NON-CURRENT ASSETS');
   inputsWs['A34'] = cell('PP&E (Net)');
@@ -147,7 +155,7 @@ export const exportToExcelWithFormulas = (
   inputsWs['B38'] = cell(financialData.balanceSheet.otherNonCurrentAssets, FMT.number);
   inputsWs['A39'] = cell('Total Assets');
   inputsWs['B39'] = cell(financialData.balanceSheet.totalAssets, FMT.number);
-  
+
   // Current Liabilities
   inputsWs['A40'] = header('CURRENT LIABILITIES');
   inputsWs['A41'] = cell('Accounts Payable');
@@ -158,7 +166,7 @@ export const exportToExcelWithFormulas = (
   inputsWs['B43'] = cell(financialData.balanceSheet.otherCurrentLiabilities, FMT.number);
   inputsWs['A44'] = cell('Total Current Liabilities');
   inputsWs['B44'] = cell(financialData.balanceSheet.totalCurrentLiabilities, FMT.number);
-  
+
   // Non-Current Liabilities
   inputsWs['A45'] = header('NON-CURRENT LIABILITIES');
   inputsWs['A46'] = cell('Long-term Debt');
@@ -167,16 +175,16 @@ export const exportToExcelWithFormulas = (
   inputsWs['B47'] = cell(financialData.balanceSheet.otherNonCurrentLiabilities, FMT.number);
   inputsWs['A48'] = cell('Total Liabilities');
   inputsWs['B48'] = cell(financialData.balanceSheet.totalLiabilities, FMT.number);
-  
+
   // Equity
   inputsWs['A49'] = header('EQUITY');
   inputsWs['A50'] = cell('Total Shareholders Equity');
   inputsWs['B50'] = cell(financialData.balanceSheet.totalEquity, FMT.number);
-  
+
   // Cash Flow - shifted down to row 52
   inputsWs['A52'] = header('CASH FLOW STATEMENT');
   inputsWs['A53'] = header('Item');
-  inputsWs['B53'] = header('Amount ($)');
+  inputsWs['B53'] = header(`Amount (${currencyLabel})`);
   inputsWs['A54'] = cell('Operating Cash Flow');
   inputsWs['B54'] = cell(financialData.cashFlowStatement.operatingCashFlow, FMT.number);
   inputsWs['A55'] = cell('Capital Expenditures');
@@ -185,7 +193,7 @@ export const exportToExcelWithFormulas = (
   inputsWs['B56'] = cell(financialData.cashFlowStatement.freeCashFlow, FMT.number);
   inputsWs['A57'] = cell('Dividends Paid');
   inputsWs['B57'] = cell(financialData.cashFlowStatement.dividendsPaid, FMT.number);
-  
+
   // Assumptions - shifted down to row 59
   inputsWs['A59'] = header('VALUATION ASSUMPTIONS');
   inputsWs['A60'] = header('Assumption');
@@ -200,175 +208,154 @@ export const exportToExcelWithFormulas = (
   inputsWs['B64'] = cell(assumptions.taxRate, FMT.decimal);
   inputsWs['A65'] = cell('Projection Years');
   inputsWs['B65'] = cell(assumptions.projectionYears, FMT.number);
-  
-  // EBITDA (calculated) - shifted down to row 67
-  inputsWs['A67'] = header('CALCULATED VALUES (Reference Only)');
+
+  // FCFF Driver Assumptions
+  inputsWs['A67'] = header('FCFF DRIVER ASSUMPTIONS');
   inputsWs['A68'] = header('Item');
   inputsWs['B68'] = header('Value');
   inputsWs['A69'] = cell('EBITDA');
   inputsWs['B69'] = cell(ebitda, FMT.number);
   inputsWs['A70'] = cell('Total Debt');
   inputsWs['B70'] = cell(totalDebt, FMT.number);
-  inputsWs['A71'] = cell('Base FCF Margin %');
-  inputsWs['B71'] = cell(fcfMargin, FMT.decimal);
-  inputsWs['A72'] = cell('Market Cap');
-  inputsWs['B72'] = cell(marketCap, FMT.number);
-  inputsWs['A73'] = cell('Enterprise Value');
-  inputsWs['B73'] = cell(enterpriseValue, FMT.number);
-  
-  // Comparable Companies - shifted down to row 75
-  inputsWs['A75'] = header('COMPARABLE COMPANIES');
-  inputsWs['A76'] = header('Company');
-  inputsWs['B76'] = header('P/E');
-  inputsWs['C76'] = header('EV/EBITDA');
-  inputsWs['D76'] = header('P/S');
-  inputsWs['E76'] = header('P/B');
-  
+  inputsWs['A71'] = cell('EBITDA Margin %');
+  inputsWs['B71'] = cell(assumptions.ebitdaMargin, FMT.decimal);
+  inputsWs['A72'] = cell('D&A (% of Revenue)');
+  inputsWs['B72'] = cell(assumptions.daPercent, FMT.decimal);
+  inputsWs['A73'] = cell('CapEx (% of Revenue)');
+  inputsWs['B73'] = cell(assumptions.capexPercent, FMT.decimal);
+  inputsWs['A74'] = cell('ΔWC (% of ΔRevenue)');
+  inputsWs['B74'] = cell(assumptions.deltaWCPercent, FMT.decimal);
+  inputsWs['A75'] = cell('Market Cap');
+  inputsWs['B75'] = cell(marketCap, FMT.number);
+  inputsWs['A76'] = cell('Enterprise Value');
+  inputsWs['B76'] = cell(enterpriseValue, FMT.number);
+
+  // Comparable Companies - shifted down to row 78
+  inputsWs['A78'] = header('COMPARABLE COMPANIES');
+  inputsWs['A79'] = header('Company');
+  inputsWs['B79'] = header('P/E');
+  inputsWs['C79'] = header('EV/EBITDA');
+  inputsWs['D79'] = header('P/S');
+  inputsWs['E79'] = header('P/B');
+
   comparables.forEach((comp, i) => {
-    const row = 77 + i;
+    const row = 80 + i;
     inputsWs[`A${row}`] = cell(comp.name);
     inputsWs[`B${row}`] = cell(comp.peRatio, FMT.decimal);
     inputsWs[`C${row}`] = cell(comp.evEbitda, FMT.decimal);
     inputsWs[`D${row}`] = cell(comp.psRatio, FMT.decimal);
     inputsWs[`E${row}`] = cell(comp.pbRatio, FMT.decimal);
   });
-  
+
   inputsWs['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
-  inputsWs['!ref'] = `A1:E${77 + comparables.length}`;
+  inputsWs['!ref'] = `A1:E${80 + comparables.length}`;
   applyBoldRows(inputsWs, [1, 4, 5, 11, 12, 24, 25, 26, 33, 40, 45, 49, 52, 53, 59, 60, 67, 68, 75, 76]);
   XLSX.utils.book_append_sheet(wb, inputsWs, 'Inputs');
 
   // ============================================
-  // SHEET 2: DCF MODEL (With formulas and years)
+  // SHEET 2: DCF MODEL — FULL FCFF BUILDUP (Fix C1)
   // ============================================
   const dcfWs: XLSX.WorkSheet = {};
-  
-  dcfWs['A1'] = header('DCF VALUATION MODEL');
-  dcfWs['A2'] = cell('All values in thousands ($000s)');
-  
-  // Key Assumptions (reference Inputs sheet)
+
+  dcfWs['A1'] = header('DCF VALUATION MODEL \u2014 FCFF Buildup');
+  dcfWs['A2'] = cell(`All values in ${currencyLabel}`);
+
   dcfWs['A4'] = header('KEY ASSUMPTIONS');
-  dcfWs['A5'] = header('Item');
-  dcfWs['B5'] = header('Value');
-  dcfWs['A6'] = cell('Base Revenue');
-  dcfWs['B6'] = formula('Inputs!B13', FMT.number);
-  dcfWs['A7'] = cell('Base Free Cash Flow');
-  dcfWs['B7'] = formula('Inputs!B56', FMT.number);
-  dcfWs['A8'] = cell('Revenue Growth Rate');
-  dcfWs['B8'] = formula('Inputs!B63/100', FMT.percent);
-  dcfWs['A9'] = cell('FCF Margin');
-  dcfWs['B9'] = formula('Inputs!B71/100', FMT.percent);
-  dcfWs['A10'] = cell('WACC (Discount Rate)');
-  dcfWs['B10'] = formula('Inputs!B61/100', FMT.percent);
-  dcfWs['A11'] = cell('Terminal Growth Rate');
-  dcfWs['B11'] = formula('Inputs!B62/100', FMT.percent);
-  
-  // Projections header with YEARS
-  dcfWs['A13'] = header('CASH FLOW PROJECTIONS');
-  dcfWs['A14'] = header('');
-  dcfWs['B14'] = header(`${currentYear} (Base)`);
-  dcfWs['C14'] = header(`${currentYear + 1}`);
-  dcfWs['D14'] = header(`${currentYear + 2}`);
-  dcfWs['E14'] = header(`${currentYear + 3}`);
-  dcfWs['F14'] = header(`${currentYear + 4}`);
-  dcfWs['G14'] = header(`${currentYear + 5}`);
-  
-  // Year number row
-  dcfWs['A15'] = header('Year');
-  dcfWs['B15'] = cell(0, FMT.number);
-  dcfWs['C15'] = cell(1, FMT.number);
-  dcfWs['D15'] = cell(2, FMT.number);
-  dcfWs['E15'] = cell(3, FMT.number);
-  dcfWs['F15'] = cell(4, FMT.number);
-  dcfWs['G15'] = cell(5, FMT.number);
-  
-  // Revenue
-  dcfWs['A16'] = cell('Revenue');
-  dcfWs['B16'] = formula('B6', FMT.number);
-  dcfWs['C16'] = formula('B16*(1+$B$8)', FMT.number);
-  dcfWs['D16'] = formula('C16*(1+$B$8)', FMT.number);
-  dcfWs['E16'] = formula('D16*(1+$B$8)', FMT.number);
-  dcfWs['F16'] = formula('E16*(1+$B$8)', FMT.number);
-  dcfWs['G16'] = formula('F16*(1+$B$8)', FMT.number);
-  
-  // Free Cash Flow
-  dcfWs['A17'] = cell('Free Cash Flow');
-  dcfWs['B17'] = formula('B7', FMT.number);
-  dcfWs['C17'] = formula('C16*$B$9', FMT.number);
-  dcfWs['D17'] = formula('D16*$B$9', FMT.number);
-  dcfWs['E17'] = formula('E16*$B$9', FMT.number);
-  dcfWs['F17'] = formula('F16*$B$9', FMT.number);
-  dcfWs['G17'] = formula('G16*$B$9', FMT.number);
-  
-  // Discount Factor
-  dcfWs['A18'] = cell('Discount Factor');
-  dcfWs['B18'] = cell(1, FMT.decimal);
-  dcfWs['C18'] = formula('1/POWER(1+$B$10,C15)', FMT.decimal);
-  dcfWs['D18'] = formula('1/POWER(1+$B$10,D15)', FMT.decimal);
-  dcfWs['E18'] = formula('1/POWER(1+$B$10,E15)', FMT.decimal);
-  dcfWs['F18'] = formula('1/POWER(1+$B$10,F15)', FMT.decimal);
-  dcfWs['G18'] = formula('1/POWER(1+$B$10,G15)', FMT.decimal);
-  
-  // Present Value
-  dcfWs['A19'] = cell('Present Value of FCF');
-  dcfWs['B19'] = cell('', FMT.number);
-  dcfWs['C19'] = formula('C17*C18', FMT.number);
-  dcfWs['D19'] = formula('D17*D18', FMT.number);
-  dcfWs['E19'] = formula('E17*E18', FMT.number);
-  dcfWs['F19'] = formula('F17*F18', FMT.number);
-  dcfWs['G19'] = formula('G17*G18', FMT.number);
-  
+  dcfWs['A5'] = header('Item'); dcfWs['B5'] = header('Value');
+  dcfWs['A6'] = cell('Base Revenue'); dcfWs['B6'] = formula('Inputs!B13', FMT.number);
+  dcfWs['A7'] = cell('Revenue Growth Rate'); dcfWs['B7'] = formula('Inputs!B63/100', FMT.percent);
+  dcfWs['A8'] = cell('EBITDA Margin'); dcfWs['B8'] = formula('Inputs!B71/100', FMT.percent);
+  dcfWs['A9'] = cell('D&A (% of Revenue)'); dcfWs['B9'] = formula('Inputs!B72/100', FMT.percent);
+  dcfWs['A10'] = cell('Tax Rate'); dcfWs['B10'] = formula('Inputs!B64/100', FMT.percent);
+  dcfWs['A11'] = cell('CapEx (% of Revenue)'); dcfWs['B11'] = formula('Inputs!B73/100', FMT.percent);
+  dcfWs['A12'] = cell('\u0394WC (% of \u0394Revenue)'); dcfWs['B12'] = formula('Inputs!B74/100', FMT.percent);
+  dcfWs['A13'] = cell('WACC'); dcfWs['B13'] = formula('Inputs!B61/100', FMT.percent);
+  dcfWs['A14'] = cell('Terminal Growth'); dcfWs['B14'] = formula('Inputs!B62/100', FMT.percent);
+
+  dcfWs['A16'] = header('FCFF PROJECTIONS');
+  const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
+  dcfWs['B17'] = header(`${currentYear} (Actual)`);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}17`] = header(`${currentYear + i} (Proj)`);
+
+  // Row 18: Revenue
+  dcfWs['A18'] = cell('Revenue');
+  dcfWs['B18'] = formula('B6', FMT.number);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}18`] = formula(`${cols[i - 1]}18*(1+$B$7)`, FMT.number);
+
+  // C6 Fix: Base year (col B) uses ACTUAL financials; projected years use assumptions
+  // Row 19: EBITDA
+  dcfWs['A19'] = cell('EBITDA');
+  dcfWs['B19'] = formula('Inputs!B17+Inputs!B18+Inputs!B19', FMT.number); // Actual: EBIT+Depr+Amort
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}19`] = formula(`${cols[i]}18*$B$8`, FMT.number);
+
+  // Row 20: D&A
+  dcfWs['A20'] = cell('D&A');
+  dcfWs['B20'] = formula('Inputs!B18+Inputs!B19', FMT.number); // Actual: Depr+Amort
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}20`] = formula(`${cols[i]}18*$B$9`, FMT.number);
+
+  // Row 21: EBIT
+  dcfWs['A21'] = cell('EBIT');
+  dcfWs['B21'] = formula('Inputs!B17', FMT.number); // Actual: Operating Income
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}21`] = formula(`${cols[i]}19-${cols[i]}20`, FMT.number);
+
+  // Row 22: NOPAT
+  dcfWs['A22'] = cell('NOPAT');
+  for (const c of cols) dcfWs[`${c}22`] = formula(`${c}21*(1-$B$10)`, FMT.number);
+
+  // Row 23: CapEx
+  dcfWs['A23'] = cell('CapEx');
+  dcfWs['B23'] = formula('Inputs!B55', FMT.number); // Actual: CFS CapEx
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}23`] = formula(`${cols[i]}18*$B$11`, FMT.number);
+
+  // Row 24: \u0394WC
+  dcfWs['A24'] = cell('\u0394WC');
+  dcfWs['B24'] = cell(0, FMT.number);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}24`] = formula(`(${cols[i]}18-${cols[i - 1]}18)*$B$12`, FMT.number);
+
+  // Row 25: FCFF = NOPAT + D&A - CapEx - \u0394WC
+  dcfWs['A25'] = header('FCFF');
+  for (const c of cols) dcfWs[`${c}25`] = formula(`${c}22+${c}20-${c}23-${c}24`, FMT.number);
+
+  // Row 26: Discount Factor
+  dcfWs['A26'] = cell('Discount Factor');
+  dcfWs['B26'] = cell(1, FMT.decimal);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}26`] = formula(`1/POWER(1+$B$13,${i})`, FMT.decimal);
+
+  // Row 27: PV of FCFF
+  dcfWs['A27'] = cell('PV of FCFF');
+  dcfWs['B27'] = cell('', FMT.number);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}27`] = formula(`${cols[i]}25*${cols[i]}26`, FMT.number);
+
   // Valuation Summary
-  dcfWs['A21'] = header('VALUATION SUMMARY');
-  dcfWs['A22'] = header('Item');
-  dcfWs['B22'] = header('Value');
-  
-  dcfWs['A23'] = cell('Sum of PV of FCF (Years 1-5)');
-  dcfWs['B23'] = formula('SUM(C19:G19)', FMT.number);
-  
-  dcfWs['A24'] = cell('Terminal Value (at Year 5)');
-  dcfWs['B24'] = formula('IFERROR(G17*(1+$B$11)/($B$10-$B$11),0)', FMT.number);
-  
-  dcfWs['A25'] = cell('PV of Terminal Value');
-  dcfWs['B25'] = formula('IFERROR(B24*G18,0)', FMT.number);
-  
-  dcfWs['A26'] = cell('Enterprise Value');
-  dcfWs['B26'] = formula('B23+B25', FMT.number);
-  
-  dcfWs['A27'] = cell('Plus: Cash');
-  dcfWs['B27'] = formula('Inputs!B27', FMT.number);
-  
-  dcfWs['A28'] = cell('Less: Total Debt');
-  dcfWs['B28'] = formula('Inputs!B70', FMT.number);
-  
-  dcfWs['A29'] = cell('Equity Value');
-  dcfWs['B29'] = formula('MAX(B26+B27-B28,0)', FMT.number);
-  
-  dcfWs['A30'] = cell('Shares Outstanding');
-  dcfWs['B30'] = formula('Inputs!B8', FMT.number);
-  
-  dcfWs['A31'] = header('DCF Implied Share Price');
-  dcfWs['B31'] = formula('IFERROR(B29/B30,0)', FMT.currencyDec);
-  
-  dcfWs['A33'] = cell('Current Stock Price');
-  dcfWs['B33'] = formula('Inputs!B9', FMT.currencyDec);
-  
-  dcfWs['A34'] = header('Upside / (Downside)');
-  dcfWs['B34'] = formula('IFERROR((B31-B33)/B33,0)', FMT.percent);
-  
-  dcfWs['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-  dcfWs['!ref'] = 'A1:G34';
-  applyBoldRows(dcfWs, [1, 4, 5, 13, 14, 15, 21, 22, 31, 34]);
+  dcfWs['A29'] = header('VALUATION SUMMARY');
+  dcfWs['A30'] = header('Item'); dcfWs['B30'] = header('Value');
+  dcfWs['A31'] = cell('Sum PV(FCFF)'); dcfWs['B31'] = formula('SUM(C27:G27)', FMT.number);
+  dcfWs['A32'] = cell('Terminal Value'); dcfWs['B32'] = formula('IFERROR(G25*(1+$B$14)/($B$13-$B$14),0)', FMT.number);
+  dcfWs['A33'] = cell('PV(Terminal Value)'); dcfWs['B33'] = formula('IFERROR(B32*G26,0)', FMT.number);
+  dcfWs['A34'] = cell('Enterprise Value'); dcfWs['B34'] = formula('B31+B33', FMT.number);
+  dcfWs['A35'] = cell('Plus: Cash'); dcfWs['B35'] = formula('Inputs!B27', FMT.number);
+  dcfWs['A36'] = cell('Less: Total Debt'); dcfWs['B36'] = formula('Inputs!B70', FMT.number);
+  dcfWs['A37'] = cell('Equity Value'); dcfWs['B37'] = formula('MAX(B34+B35-B36,0)', FMT.number);
+  dcfWs['A38'] = cell('Shares Outstanding'); dcfWs['B38'] = formula('Inputs!B8', FMT.number);
+  dcfWs['A39'] = header('DCF Per Share'); dcfWs['B39'] = formula('IFERROR(B37/B38,0)', FMT.currencyDec);
+  dcfWs['A41'] = cell('Current Price'); dcfWs['B41'] = formula('Inputs!B9', FMT.currencyDec);
+  dcfWs['A42'] = header('Upside/(Downside)'); dcfWs['B42'] = formula('IFERROR((B39-B41)/B41,0)', FMT.percent);
+
+  dcfWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+  dcfWs['!ref'] = 'A1:G42';
+  applyBoldRows(dcfWs, [1, 4, 5, 16, 25, 29, 30, 39, 42]);
   XLSX.utils.book_append_sheet(wb, dcfWs, 'DCF Model');
+
+
 
   // ============================================
   // SHEET 3: COMPARABLE ANALYSIS
   // ============================================
   const compWs: XLSX.WorkSheet = {};
-  
+
   compWs['A1'] = header('COMPARABLE COMPANY ANALYSIS');
   compWs['A2'] = cell('Multiple-based valuation');
-  
+
   // Comparables table header
   compWs['A4'] = header('PEER COMPANY MULTIPLES');
   compWs['A5'] = header('Company');
@@ -376,74 +363,88 @@ export const exportToExcelWithFormulas = (
   compWs['C5'] = header('EV/EBITDA');
   compWs['D5'] = header('P/S');
   compWs['E5'] = header('P/B');
-  
-  // Reference comparable data from Inputs
+
+  // Reference comparable data from Inputs (C3: add EGX defaults if no peers)
+  const hasPeers = comparables.length > 0;
   const compCount = Math.max(comparables.length, 1);
-  for (let i = 0; i < compCount; i++) {
-    const row = 6 + i;
-    const inputRow = 77 + i;
-    compWs[`A${row}`] = formula(`Inputs!A${inputRow}`);
-    compWs[`B${row}`] = formula(`Inputs!B${inputRow}`, FMT.decimal);
-    compWs[`C${row}`] = formula(`Inputs!C${inputRow}`, FMT.decimal);
-    compWs[`D${row}`] = formula(`Inputs!D${inputRow}`, FMT.decimal);
-    compWs[`E${row}`] = formula(`Inputs!E${inputRow}`, FMT.decimal);
+  if (hasPeers) {
+    for (let i = 0; i < compCount; i++) {
+      const row = 6 + i;
+      const inputRow = 80 + i;
+      compWs[`A${row}`] = formula(`Inputs!A${inputRow}`);
+      compWs[`B${row}`] = formula(`Inputs!B${inputRow}`, FMT.decimal);
+      compWs[`C${row}`] = formula(`Inputs!C${inputRow}`, FMT.decimal);
+      compWs[`D${row}`] = formula(`Inputs!D${inputRow}`, FMT.decimal);
+      compWs[`E${row}`] = formula(`Inputs!E${inputRow}`, FMT.decimal);
+    }
+  } else {
+    // EGX Market Average defaults
+    compWs['A6'] = cell(`EGX Market Average (${currencyLabel})`);
+    compWs['B6'] = cell(isEgypt ? 7.0 : 15.0, FMT.decimal);
+    compWs['C6'] = cell(isEgypt ? 5.0 : 10.0, FMT.decimal);
+    compWs['D6'] = cell(isEgypt ? 1.2 : 2.0, FMT.decimal);
+    compWs['E6'] = cell(isEgypt ? 1.5 : 2.5, FMT.decimal);
   }
-  
+
   // Averages row
   const avgRow = 6 + compCount + 1;
   compWs[`A${avgRow}`] = header('Average Multiple');
-  compWs[`B${avgRow}`] = formula(`IFERROR(AVERAGE(B6:B${avgRow-2}),0)`, FMT.decimal);
-  compWs[`C${avgRow}`] = formula(`IFERROR(AVERAGE(C6:C${avgRow-2}),0)`, FMT.decimal);
-  compWs[`D${avgRow}`] = formula(`IFERROR(AVERAGE(D6:D${avgRow-2}),0)`, FMT.decimal);
-  compWs[`E${avgRow}`] = formula(`IFERROR(AVERAGE(E6:E${avgRow-2}),0)`, FMT.decimal);
-  
+  compWs[`B${avgRow}`] = hasPeers ? formula(`IFERROR(AVERAGE(B6:B${avgRow - 2}),0)`, FMT.decimal) : cell(isEgypt ? 7.0 : 15.0, FMT.decimal);
+  compWs[`C${avgRow}`] = hasPeers ? formula(`IFERROR(AVERAGE(C6:C${avgRow - 2}),0)`, FMT.decimal) : cell(isEgypt ? 5.0 : 10.0, FMT.decimal);
+  compWs[`D${avgRow}`] = hasPeers ? formula(`IFERROR(AVERAGE(D6:D${avgRow - 2}),0)`, FMT.decimal) : cell(isEgypt ? 1.2 : 2.0, FMT.decimal);
+  compWs[`E${avgRow}`] = hasPeers ? formula(`IFERROR(AVERAGE(E6:E${avgRow - 2}),0)`, FMT.decimal) : cell(isEgypt ? 1.5 : 2.5, FMT.decimal);
+
   // Implied Valuations
   const impliedRow = avgRow + 3;
   compWs[`A${impliedRow}`] = header('IMPLIED SHARE PRICE VALUATIONS');
-  
+
   compWs[`A${impliedRow + 1}`] = header('Method');
   compWs[`B${impliedRow + 1}`] = header('Implied Price');
   compWs[`C${impliedRow + 1}`] = header('Multiple Used');
   compWs[`D${impliedRow + 1}`] = header('Per Share Metric');
-  
+
   // P/E Valuation
   compWs[`A${impliedRow + 2}`] = cell('P/E Valuation');
   compWs[`B${impliedRow + 2}`] = formula(`IFERROR((Inputs!B22/Inputs!B8)*B${avgRow},0)`, FMT.currencyDec);
   compWs[`C${impliedRow + 2}`] = formula(`B${avgRow}`, FMT.multiple);
   compWs[`D${impliedRow + 2}`] = formula('IFERROR(Inputs!B22/Inputs!B8,0)', FMT.currencyDec);
-  
+
   // EV/EBITDA Valuation
   compWs[`A${impliedRow + 3}`] = cell('EV/EBITDA Valuation');
   compWs[`B${impliedRow + 3}`] = formula(`IFERROR((Inputs!B69*C${avgRow}-Inputs!B70+Inputs!B27)/Inputs!B8,0)`, FMT.currencyDec);
   compWs[`C${impliedRow + 3}`] = formula(`C${avgRow}`, FMT.multiple);
   compWs[`D${impliedRow + 3}`] = formula('Inputs!B69', FMT.number);
-  
+
   // P/S Valuation  
   compWs[`A${impliedRow + 4}`] = cell('P/S Valuation');
   compWs[`B${impliedRow + 4}`] = formula(`IFERROR((Inputs!B13/Inputs!B8)*D${avgRow},0)`, FMT.currencyDec);
   compWs[`C${impliedRow + 4}`] = formula(`D${avgRow}`, FMT.multiple);
   compWs[`D${impliedRow + 4}`] = formula('IFERROR(Inputs!B13/Inputs!B8,0)', FMT.currencyDec);
-  
+
   // P/B Valuation
   compWs[`A${impliedRow + 5}`] = cell('P/B Valuation');
   compWs[`B${impliedRow + 5}`] = formula(`IFERROR((MAX(Inputs!B50,0)/Inputs!B8)*E${avgRow},0)`, FMT.currencyDec);
   compWs[`C${impliedRow + 5}`] = formula(`E${avgRow}`, FMT.multiple);
   compWs[`D${impliedRow + 5}`] = formula('IFERROR(MAX(Inputs!B50,0)/Inputs!B8,0)', FMT.currencyDec);
-  
+
   // Summary
+  // C2 Fix: Weighted average (40% P/E, 35% EV/EBITDA, 15% P/S, 10% P/B)
   const summaryRow = impliedRow + 8;
   compWs[`A${summaryRow}`] = header('SUMMARY');
-  compWs[`A${summaryRow + 1}`] = header('Average Implied Price');
-  compWs[`B${summaryRow + 1}`] = formula(`IFERROR(AVERAGE(B${impliedRow + 2}:B${impliedRow + 5}),0)`, FMT.currencyDec);
-  
+  compWs[`A${summaryRow + 1}`] = header('Weighted Avg (40% P/E \u00B7 35% EV/EBITDA \u00B7 15% P/S \u00B7 10% P/B)');
+  compWs[`B${summaryRow + 1}`] = formula(`IFERROR(0.40*B${impliedRow + 2}+0.35*B${impliedRow + 3}+0.15*B${impliedRow + 4}+0.10*B${impliedRow + 5},0)`, FMT.currencyDec);
+
   compWs[`A${summaryRow + 2}`] = cell('Current Stock Price');
   compWs[`B${summaryRow + 2}`] = formula('Inputs!B9', FMT.currencyDec);
-  
+
   compWs[`A${summaryRow + 3}`] = header('Upside / (Downside)');
   compWs[`B${summaryRow + 3}`] = formula(`IFERROR((B${summaryRow + 1}-B${summaryRow + 2})/B${summaryRow + 2},0)`, FMT.percent);
-  
+
   compWs['!cols'] = [{ wch: 26 }, { wch: 18 }, { wch: 16 }, { wch: 18 }, { wch: 12 }];
   compWs['!ref'] = `A1:E${summaryRow + 4}`;
+  // M3: Fit to one page wide when printing to prevent P/B column from splitting
+  (compWs as any)['!print'] = { FitToWidth: 1, FitToHeight: 0 };
+  (compWs as any)['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, scale: 0 };
   applyBoldRows(compWs, [1, 4, 5, avgRow, impliedRow, impliedRow + 1, summaryRow, summaryRow + 1, summaryRow + 3]);
   XLSX.utils.book_append_sheet(wb, compWs, 'Comparables');
 
@@ -451,9 +452,9 @@ export const exportToExcelWithFormulas = (
   // SHEET 4: FINANCIAL RATIOS
   // ============================================
   const ratiosWs: XLSX.WorkSheet = {};
-  
+
   ratiosWs['A1'] = header('KEY FINANCIAL RATIOS & METRICS');
-  
+
   // Market Data
   ratiosWs['A3'] = header('MARKET DATA');
   ratiosWs['A4'] = header('Metric');
@@ -464,7 +465,7 @@ export const exportToExcelWithFormulas = (
   ratiosWs['B6'] = formula('B5+Inputs!B70-Inputs!B27', FMT.number);
   ratiosWs['A7'] = cell('Net Debt');
   ratiosWs['B7'] = formula('Inputs!B70-Inputs!B27', FMT.number);
-  
+
   // Valuation Ratios
   ratiosWs['A9'] = header('VALUATION RATIOS');
   ratiosWs['A10'] = header('Ratio');
@@ -481,7 +482,7 @@ export const exportToExcelWithFormulas = (
   ratiosWs['B15'] = formula('IFERROR(Inputs!B22/Inputs!B8,0)', FMT.currencyDec);
   ratiosWs['A16'] = cell('Book Value Per Share');
   ratiosWs['B16'] = formula('IFERROR(Inputs!B50/Inputs!B8,0)', FMT.currencyDec);
-  
+
   // Profitability
   ratiosWs['A18'] = header('PROFITABILITY RATIOS');
   ratiosWs['A19'] = header('Ratio');
@@ -500,9 +501,10 @@ export const exportToExcelWithFormulas = (
   ratiosWs['B25'] = formula('IFERROR(Inputs!B22/MAX(Inputs!B50,1),0)', FMT.percent);
   ratiosWs['A26'] = cell('ROA (Return on Assets)');
   ratiosWs['B26'] = formula('IFERROR(Inputs!B22/MAX(Inputs!B39,1),0)', FMT.percent);
+  // C4 Fix: ROIC IC = Equity + Debt − Cash (was missing Cash deduction)
   ratiosWs['A27'] = cell('ROIC');
-  ratiosWs['B27'] = formula('IFERROR(Inputs!B17*(1-Inputs!B64/100)/(Inputs!B50+Inputs!B70),0)', FMT.percent);
-  
+  ratiosWs['B27'] = formula('IFERROR(Inputs!B17*(1-Inputs!B64/100)/(Inputs!B50+Inputs!B70-Inputs!B27),0)', FMT.percent);
+
   // Financial Health
   ratiosWs['A29'] = header('FINANCIAL HEALTH');
   ratiosWs['A30'] = header('Ratio');
@@ -521,7 +523,7 @@ export const exportToExcelWithFormulas = (
   ratiosWs['B36'] = formula('IFERROR(Inputs!B56/MAX(B5,1),0)', FMT.percent);
   ratiosWs['A37'] = cell('Dividend Yield');
   ratiosWs['B37'] = formula('IFERROR(Inputs!B57/MAX(B5,1),0)', FMT.percent);
-  
+
   ratiosWs['!cols'] = [{ wch: 28 }, { wch: 18 }];
   ratiosWs['!ref'] = 'A1:B37';
   applyBoldRows(ratiosWs, [1, 3, 4, 9, 10, 18, 19, 29, 30]);
@@ -532,234 +534,196 @@ export const exportToExcelWithFormulas = (
   // ============================================
   const dashWs: XLSX.WorkSheet = {};
   const impliedRowRef = avgRow + 3; // Reference for comparables sheet
-  
+
   dashWs['A1'] = header('WOLF VALUATION DASHBOARD');
   dashWs['A2'] = formula('Inputs!B6&" ("&Inputs!B7&")"');
   dashWs['A3'] = cell(`Analysis Date: ${new Date().toLocaleDateString()}`);
-  
+
   // Valuation Methods Summary
   dashWs['A5'] = header('BLENDED VALUATION ANALYSIS');
   dashWs['A6'] = header('Method');
   dashWs['B6'] = header('Implied Price');
   dashWs['C6'] = header('Weight');
   dashWs['D6'] = header('Weighted Value');
-  
+
   dashWs['A7'] = cell('DCF Valuation');
-  dashWs['B7'] = formula("'DCF Model'!B31", FMT.currencyDec);
-  dashWs['C7'] = cell(0.4, FMT.percent);
+  dashWs['B7'] = formula("'DCF Model'!B39", FMT.currencyDec);
+  dashWs['C7'] = cell(0.6, FMT.percent);
   dashWs['D7'] = formula('B7*C7', FMT.currencyDec);
-  
-  dashWs['A8'] = cell('P/E Multiple');
-  dashWs['B8'] = formula(`'Comparables'!B${impliedRowRef + 2}`, FMT.currencyDec);
-  dashWs['C8'] = cell(0.2, FMT.percent);
+
+  dashWs['A8'] = cell('Comps Weighted Avg');
+  dashWs['B8'] = formula(`'Comparables'!B${impliedRowRef + 9}`, FMT.currencyDec);
+  dashWs['C8'] = cell(0.4, FMT.percent);
   dashWs['D8'] = formula('B8*C8', FMT.currencyDec);
-  
-  dashWs['A9'] = cell('EV/EBITDA Multiple');
-  dashWs['B9'] = formula(`'Comparables'!B${impliedRowRef + 3}`, FMT.currencyDec);
-  dashWs['C9'] = cell(0.2, FMT.percent);
-  dashWs['D9'] = formula('B9*C9', FMT.currencyDec);
-  
-  dashWs['A10'] = cell('P/S Multiple');
-  dashWs['B10'] = formula(`'Comparables'!B${impliedRowRef + 4}`, FMT.currencyDec);
-  dashWs['C10'] = cell(0.1, FMT.percent);
-  dashWs['D10'] = formula('B10*C10', FMT.currencyDec);
-  
-  dashWs['A11'] = cell('P/B Multiple');
-  dashWs['B11'] = formula(`'Comparables'!B${impliedRowRef + 5}`, FMT.currencyDec);
-  dashWs['C11'] = cell(0.1, FMT.percent);
-  dashWs['D11'] = formula('B11*C11', FMT.currencyDec);
-  
-  // Blended Valuation
-  dashWs['A13'] = header('FINAL VALUATION');
-  dashWs['A14'] = header('Item');
-  dashWs['B14'] = header('Value');
-  dashWs['A15'] = header('Blended Target Price');
-  dashWs['B15'] = formula('SUM(D7:D11)', FMT.currencyDec);
-  
-  dashWs['A16'] = cell('Current Stock Price');
-  dashWs['B16'] = formula('Inputs!B9', FMT.currencyDec);
-  
-  dashWs['A17'] = header('Upside / (Downside)');
-  dashWs['B17'] = formula('IFERROR((B15-B16)/B16,0)', FMT.percent);
-  
-  // Recommendation
+
+  dashWs['A10'] = header('FINAL VALUATION');
+  dashWs['A11'] = header('Item');
+  dashWs['B11'] = header('Value');
+  dashWs['A12'] = header('Blended Target Price');
+  dashWs['B12'] = formula('SUM(D7:D8)', FMT.currencyDec);
+
+  dashWs['A14'] = cell('Current Stock Price');
+  dashWs['B14'] = formula('Inputs!B9', FMT.currencyDec);
+
+  dashWs['A15'] = header('Upside / (Downside)');
+  dashWs['B15'] = formula('IFERROR((B12-B14)/B14,0)', FMT.percent);
+
+  // C4 Fix: Unified recommendation with both verdict and action
+  dashWs['A17'] = header('VERDICT');
+  dashWs['A18'] = formula('IF(B15>0.10,"UNDERVALUED",IF(B15>=-0.10,"FAIRLY VALUED","OVERVALUED"))');
   dashWs['A19'] = header('INVESTMENT RECOMMENDATION');
-  dashWs['A20'] = formula('IF(B17>0.15,"STRONG BUY",IF(B17>0.05,"BUY",IF(B17>-0.05,"HOLD",IF(B17>-0.15,"SELL","STRONG SELL"))))');
-  
+  dashWs['A20'] = formula('IF(B15>0.30,"STRONG BUY",IF(B15>0.10,"BUY",IF(B15>=-0.10,"HOLD",IF(B15>=-0.30,"SELL","STRONG SELL"))))');
+
   // Key Metrics Summary
   dashWs['A22'] = header('KEY METRICS SNAPSHOT');
-  dashWs['A23'] = header('Metric');
-  dashWs['B23'] = header('Value');
-  dashWs['A24'] = cell('Market Cap');
-  dashWs['B24'] = formula("'Ratios'!B5", FMT.number);
-  dashWs['A25'] = cell('Enterprise Value');
-  dashWs['B25'] = formula("'Ratios'!B6", FMT.number);
-  dashWs['A26'] = cell('P/E Ratio');
-  dashWs['B26'] = formula("'Ratios'!B11", FMT.decimal);
-  dashWs['A27'] = cell('EV/EBITDA');
-  dashWs['B27'] = formula("'Ratios'!B12", FMT.decimal);
-  dashWs['A28'] = cell('Net Margin');
-  dashWs['B28'] = formula("'Ratios'!B22", FMT.percent);
-  dashWs['A29'] = cell('ROE');
-  dashWs['B29'] = formula("'Ratios'!B25", FMT.percent);
-  dashWs['A30'] = cell('FCF Yield');
-  dashWs['B30'] = formula("'Ratios'!B36", FMT.percent);
-  dashWs['A31'] = cell('Debt/EBITDA');
-  dashWs['B31'] = formula("'Ratios'!B34", FMT.decimal);
-  
+  dashWs['A23'] = header('Metric'); dashWs['B23'] = header('Value');
+  dashWs['A24'] = cell('Market Cap'); dashWs['B24'] = formula("'Ratios'!B5", FMT.number);
+  dashWs['A25'] = cell('Enterprise Value'); dashWs['B25'] = formula("'Ratios'!B6", FMT.number);
+  dashWs['A26'] = cell('P/E Ratio'); dashWs['B26'] = formula("'Ratios'!B11", FMT.decimal);
+  dashWs['A27'] = cell('EV/EBITDA'); dashWs['B27'] = formula("'Ratios'!B12", FMT.decimal);
+  dashWs['A28'] = cell('Net Margin'); dashWs['B28'] = formula("'Ratios'!B22", FMT.percent);
+  dashWs['A29'] = cell('ROE'); dashWs['B29'] = formula("'Ratios'!B25", FMT.percent);
+  dashWs['A30'] = cell('FCF Yield'); dashWs['B30'] = formula("'Ratios'!B36", FMT.percent);
+  dashWs['A31'] = cell('Debt/EBITDA'); dashWs['B31'] = formula("'Ratios'!B34", FMT.decimal);
+
   dashWs['!cols'] = [{ wch: 26 }, { wch: 18 }, { wch: 12 }, { wch: 18 }];
   dashWs['!ref'] = 'A1:D31';
-  applyBoldRows(dashWs, [1, 5, 6, 13, 14, 15, 17, 19, 22, 23]);
+  applyBoldRows(dashWs, [1, 5, 6, 10, 11, 12, 15, 17, 19, 22, 23]);
   XLSX.utils.book_append_sheet(wb, dashWs, 'Dashboard');
 
   // ============================================
   // SHEET 6: SENSITIVITY ANALYSIS
   // ============================================
   const sensWs: XLSX.WorkSheet = {};
-  
+
+  // FCFF buildup helper
+  const calcFCFFPrice = (waccPct: number, gPct: number, revGrowthPct: number, ebitdaMargPct: number) => {
+    const rev0 = financialData.incomeStatement.revenue;
+    const eMarg = ebitdaMargPct / 100;
+    const daPct = assumptions.daPercent / 100;
+    const capPct = assumptions.capexPercent / 100;
+    const dwcPct = assumptions.deltaWCPercent / 100;
+    const tR = assumptions.taxRate / 100;
+    const w = waccPct / 100;
+    const g = gPct / 100;
+    let rev = rev0; let prevRev = rev0; let pvSum = 0; let lastFCFF = 0;
+    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      prevRev = rev;
+      rev *= (1 + revGrowthPct / 100);
+      const ebitda_ = rev * eMarg;
+      const da = rev * daPct;
+      const ebit = ebitda_ - da;
+      const nopat = ebit * (1 - tR);
+      const capex = rev * capPct;
+      const dwc = (rev - prevRev) * dwcPct;
+      const fcff = nopat + da - capex - dwc;
+      pvSum += fcff / Math.pow(1 + w, yr);
+      lastFCFF = fcff;
+    }
+    let tv = 0;
+    if (w > g) tv = (lastFCFF * (1 + g)) / (w - g);
+    else tv = lastFCFF * 12;
+    const pvTV = tv / Math.pow(1 + w, assumptions.projectionYears);
+    const ev_ = pvSum + pvTV;
+    const equity_ = ev_ - totalDebt + financialData.balanceSheet.cash;
+    return Math.max(equity_ / financialData.sharesOutstanding, 0);
+  };
+
   sensWs['A1'] = header('SENSITIVITY ANALYSIS');
-  sensWs['A2'] = cell('How valuation changes with different assumptions');
-  
-  // WACC vs Terminal Growth
-  sensWs['A4'] = header('WACC vs TERMINAL GROWTH RATE');
-  sensWs['A5'] = header('WACC \\ Growth');
-  sensWs['B5'] = header('1.5%');
-  sensWs['C5'] = header('2.0%');
-  sensWs['D5'] = header('2.5%');
-  sensWs['E5'] = header('3.0%');
-  sensWs['F5'] = header('3.5%');
-  
-  const waccValues = [
-    assumptions.discountRate - 2,
-    assumptions.discountRate - 1,
-    assumptions.discountRate,
-    assumptions.discountRate + 1,
-    assumptions.discountRate + 2,
-  ];
-  const growthValues = [1.5, 2.0, 2.5, 3.0, 3.5];
-  
-  waccValues.forEach((wacc, wi) => {
-    const row = 6 + wi;
+  sensWs['A2'] = cell('DCF per share at different WACC / terminal growth combinations');
+
+  // C5/C6: Dynamic axes centered on actual WACC and terminal growth
+  const baseWACC = assumptions.discountRate;
+  const baseGrowth = assumptions.terminalGrowthRate;
+  const waccAxis = [-4, -2, 0, 2, 4].map(d => baseWACC + d);
+  const growthAxis = [-3, -1.5, 0, 1.5, 3].map(d => {
+    const val = baseGrowth + d;
+    return Math.max(isEgypt ? 4 : 1.5, Math.min(baseWACC - 1, val));
+  });
+
+  sensWs['A4'] = header('WACC \\\\ Growth');
+  growthAxis.forEach((g, gi) => {
+    sensWs[`${String.fromCharCode(66 + gi)}4`] = header(`${g.toFixed(1)}%`);
+  });
+
+  waccAxis.forEach((wacc, wi) => {
+    const row = 5 + wi;
     sensWs[`A${row}`] = cell(`${wacc.toFixed(1)}%`, undefined, wi === 2);
-    growthValues.forEach((g, gi) => {
-      const col = String.fromCharCode(66 + gi); // B, C, D, E, F
-      // Calculate implied price
-      const baseRevenue = financialData.incomeStatement.revenue;
-      const baseFCFMarg = financialData.cashFlowStatement.freeCashFlow / baseRevenue;
-      let rev = baseRevenue;
-      let spv = 0;
-      let lFCF = 0;
-      
-      for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
-        rev = rev * (1 + assumptions.revenueGrowthRate / 100);
-        const margin = baseFCFMarg + (assumptions.marginImprovement / 100) * yr;
-        const fcfCalc = rev * margin;
-        const df = Math.pow(1 + wacc / 100, yr);
-        spv += fcfCalc / df;
-        lFCF = fcfCalc;
-      }
-      
-      let tv = 0;
-      if (wacc > g) {
-        tv = (lFCF * (1 + g / 100)) / ((wacc - g) / 100);
-      } else {
-        tv = lFCF * 12;
-      }
-      const lastDF = Math.pow(1 + wacc / 100, assumptions.projectionYears);
-      const ev = spv + tv / lastDF;
-      const equity = ev - totalDebt + financialData.balanceSheet.cash;
-      const price = Math.max(equity / financialData.sharesOutstanding, 0);
-      
-      const isBold = wi === 2 && gi === 2;
-      sensWs[`${col}${row}`] = cell(price, FMT.currencyDec, isBold);
+    growthAxis.forEach((g, gi) => {
+      const col = String.fromCharCode(66 + gi);
+      const price = calcFCFFPrice(wacc, g, assumptions.revenueGrowthRate, assumptions.ebitdaMargin);
+      sensWs[`${col}${row}`] = cell(price, FMT.currencyDec, wi === 2 && gi === 2);
     });
   });
-  
-  // Bull / Bear / Base section
-  sensWs['A13'] = header('SCENARIO ANALYSIS');
-  sensWs['A14'] = header('Scenario');
-  sensWs['B14'] = header('Rev Growth');
-  sensWs['C14'] = header('WACC');
-  sensWs['D14'] = header('Margin Imp');
-  sensWs['E14'] = header('Implied Price');
-  
+
+  // Scenario Analysis
+  sensWs['A12'] = header('SCENARIO ANALYSIS');
+  sensWs['A13'] = header('Scenario'); sensWs['B13'] = header('Rev Growth %');
+  sensWs['C13'] = header('WACC %'); sensWs['D13'] = header('EBITDA Margin %');
+  sensWs['E13'] = header(`Price (${currencyLabel})`);
+
+  // C1 Fix: Use shared SCENARIO_PARAMS for consistency
+  const SP = SCENARIO_PARAMS;
+
+  // Shared scenario calc with per-year margin adjustment
+  const calcScenarioFCFF = (scenario: 'bear' | 'base' | 'bull') => {
+    const p = SP[scenario];
+    const revG = assumptions.revenueGrowthRate * p.revenueGrowthMultiplier;
+    const w = Math.max(2, assumptions.discountRate + p.waccAdjustmentPP);
+    const tg = Math.min(assumptions.terminalGrowthRate * p.terminalGrowthMultiplier, w - 1);
+    let rev = financialData.incomeStatement.revenue;
+    let sumPV = 0, lastFCF = 0;
+    const taxR = assumptions.taxRate / 100;
+    const wDec = w / 100;
+    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      const prevRev = rev;
+      rev *= (1 + revG / 100);
+      const adjMargin = assumptions.ebitdaMargin + (p.marginAdjPerYear * 100 * yr);
+      const ebitda = rev * (adjMargin / 100);
+      const da = rev * (assumptions.daPercent / 100);
+      const nopat = (ebitda - da) * (1 - taxR);
+      const capex = rev * (assumptions.capexPercent / 100);
+      const dwc = (rev - prevRev) * (assumptions.deltaWCPercent / 100);
+      const fcf = nopat + da - capex - dwc;
+      sumPV += fcf / Math.pow(1 + wDec, yr);
+      lastFCF = fcf;
+    }
+    const tgDec = tg / 100;
+    const tv = wDec > tgDec ? (lastFCF * (1 + tgDec)) / (wDec - tgDec) : lastFCF * 12;
+    const ev = sumPV + tv / Math.pow(1 + wDec, assumptions.projectionYears);
+    const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+    const equity = ev - totalDebt + financialData.balanceSheet.cash;
+    return { price: equity / financialData.sharesOutstanding, revG, w, tg };
+  };
+
   // Bear
-  const bearRevGrowth = assumptions.revenueGrowthRate * 0.4;
-  const bearWACC = assumptions.discountRate + 2.5;
-  const bearMargin = assumptions.marginImprovement - 1.5;
-  sensWs['A15'] = cell('BEAR CASE');
-  sensWs['B15'] = cell(bearRevGrowth, FMT.decimal);
-  sensWs['C15'] = cell(bearWACC, FMT.decimal);
-  sensWs['D15'] = cell(bearMargin, FMT.decimal);
-  // Calculate bear price
-  {
-    let rev = financialData.incomeStatement.revenue;
-    const baseFCFMarg = financialData.cashFlowStatement.freeCashFlow / rev;
-    let spv = 0; let lFCF = 0;
-    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
-      rev *= (1 + bearRevGrowth / 100);
-      const fcfC = rev * (baseFCFMarg + (bearMargin / 100) * yr);
-      spv += fcfC / Math.pow(1 + bearWACC / 100, yr);
-      lFCF = fcfC;
-    }
-    const tv = bearWACC > assumptions.terminalGrowthRate * 0.6
-      ? (lFCF * (1 + assumptions.terminalGrowthRate * 0.6 / 100)) / ((bearWACC - assumptions.terminalGrowthRate * 0.6) / 100)
-      : lFCF * 12;
-    const ev = spv + tv / Math.pow(1 + bearWACC / 100, assumptions.projectionYears);
-    sensWs['E15'] = cell(Math.max((ev - totalDebt + financialData.balanceSheet.cash) / financialData.sharesOutstanding, 0), FMT.currencyDec);
-  }
-  
+  const bearResult = calcScenarioFCFF('bear');
+  sensWs['A14'] = cell('BEAR CASE');
+  sensWs['B14'] = cell(bearResult.revG, FMT.decimal); sensWs['C14'] = cell(bearResult.w, FMT.decimal);
+  sensWs['D14'] = cell(assumptions.ebitdaMargin, FMT.decimal);
+  sensWs['E14'] = cell(bearResult.price, FMT.currencyDec);
+
   // Base
-  sensWs['A16'] = cell('BASE CASE');
-  sensWs['B16'] = cell(assumptions.revenueGrowthRate, FMT.decimal);
-  sensWs['C16'] = cell(assumptions.discountRate, FMT.decimal);
-  sensWs['D16'] = cell(assumptions.marginImprovement, FMT.decimal);
-  {
-    let rev = financialData.incomeStatement.revenue;
-    const baseFCFMarg = financialData.cashFlowStatement.freeCashFlow / rev;
-    let spv = 0; let lFCF = 0;
-    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
-      rev *= (1 + assumptions.revenueGrowthRate / 100);
-      const fcfC = rev * (baseFCFMarg + (assumptions.marginImprovement / 100) * yr);
-      spv += fcfC / Math.pow(1 + assumptions.discountRate / 100, yr);
-      lFCF = fcfC;
-    }
-    const tv = (lFCF * (1 + assumptions.terminalGrowthRate / 100)) / ((assumptions.discountRate - assumptions.terminalGrowthRate) / 100);
-    const ev = spv + tv / Math.pow(1 + assumptions.discountRate / 100, assumptions.projectionYears);
-    sensWs['E16'] = cell(Math.max((ev - totalDebt + financialData.balanceSheet.cash) / financialData.sharesOutstanding, 0), FMT.currencyDec);
-  }
-  
+  const baseResult = calcScenarioFCFF('base');
+  sensWs['A15'] = cell('BASE CASE');
+  sensWs['B15'] = cell(assumptions.revenueGrowthRate, FMT.decimal);
+  sensWs['C15'] = cell(assumptions.discountRate, FMT.decimal);
+  sensWs['D15'] = cell(assumptions.ebitdaMargin, FMT.decimal);
+  sensWs['E15'] = cell(baseResult.price, FMT.currencyDec);
+
   // Bull
-  const bullRevGrowth = assumptions.revenueGrowthRate * 2.0;
-  const bullWACC = Math.max(assumptions.discountRate - 2.5, 2);
-  const bullMargin = assumptions.marginImprovement + 2.5;
-  sensWs['A17'] = cell('BULL CASE');
-  sensWs['B17'] = cell(bullRevGrowth, FMT.decimal);
-  sensWs['C17'] = cell(bullWACC, FMT.decimal);
-  sensWs['D17'] = cell(bullMargin, FMT.decimal);
-  {
-    let rev = financialData.incomeStatement.revenue;
-    const baseFCFMarg = financialData.cashFlowStatement.freeCashFlow / rev;
-    let spv = 0; let lFCF = 0;
-    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
-      rev *= (1 + bullRevGrowth / 100);
-      const fcfC = rev * (baseFCFMarg + (bullMargin / 100) * yr);
-      spv += fcfC / Math.pow(1 + bullWACC / 100, yr);
-      lFCF = fcfC;
-    }
-    const tv = bullWACC > assumptions.terminalGrowthRate * 1.5
-      ? (lFCF * (1 + assumptions.terminalGrowthRate * 1.5 / 100)) / ((bullWACC - assumptions.terminalGrowthRate * 1.5) / 100)
-      : lFCF * 15;
-    const ev = spv + tv / Math.pow(1 + bullWACC / 100, assumptions.projectionYears);
-    sensWs['E17'] = cell(Math.max((ev - totalDebt + financialData.balanceSheet.cash) / financialData.sharesOutstanding, 0), FMT.currencyDec);
-  }
-  
-  sensWs['A19'] = cell('Current Stock Price');
-  sensWs['B19'] = formula('Inputs!B9', FMT.currencyDec);
-  
-  sensWs['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }];
-  sensWs['!ref'] = 'A1:F19';
-  applyBoldRows(sensWs, [1, 4, 5, 13, 14]);
+  const bullResult = calcScenarioFCFF('bull');
+  sensWs['A16'] = cell('BULL CASE');
+  sensWs['B16'] = cell(bullResult.revG, FMT.decimal); sensWs['C16'] = cell(bullResult.w, FMT.decimal);
+  sensWs['D16'] = cell(assumptions.ebitdaMargin, FMT.decimal);
+  sensWs['E16'] = cell(bullResult.price, FMT.currencyDec);
+
+  sensWs['A18'] = cell('Current Stock Price');
+  sensWs['B18'] = formula('Inputs!B9', FMT.currencyDec);
+
+  sensWs['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }];
+  sensWs['!ref'] = 'A1:F18';
+  applyBoldRows(sensWs, [1, 4, 12, 13]);
   XLSX.utils.book_append_sheet(wb, sensWs, 'Sensitivity');
 
   // ============================================
@@ -799,7 +763,7 @@ export const exportToExcelWithFormulas = (
     ['   • Large numbers: 1,000,000 (with comma separators)'],
     ['   • Decimals: 1,234.56'],
     ['   • Percentages: 25.50%'],
-    ['   • Currency: $45.50'],
+    ['   • Currency: EGP 45.50 (or $45.50 for US markets)'],
     ['   • Multiples: 15.0x'],
     [''],
     ['KEY FORMULAS'],
@@ -809,16 +773,16 @@ export const exportToExcelWithFormulas = (
     ['   • Share Price = Equity Value / Shares Outstanding'],
     [''],
     ['TIPS FOR BEST RESULTS'],
-    ['   • Use realistic growth assumptions (typically 3-15%)'],
-    ['   • WACC should reflect company risk (typically 8-15%)'],
-    ['   • Terminal growth should not exceed GDP growth (2-3%)'],
+    [isEgypt ? '   • Egyptian companies: WACC typically 20–35% (high interest rate environment)' : '   • WACC should reflect company risk (typically 8–15%)'],
+    [isEgypt ? '   • Terminal growth for Egypt: 5–10% (nominal GDP). Never use 2–35% US rates.' : '   • Terminal growth should not exceed GDP growth (2–3%)'],
+    [isEgypt ? '   • Risk-free rate: 10-year Egyptian government bond (~20–27% as of 2025)' : '   • Use realistic growth assumptions (typically 3–15%)'],
     ['   • Add comparable companies from the same industry'],
     [''],
     [''],
     [`Generated by WOLF Valuation Engine on ${new Date().toLocaleDateString()}`],
-    ['Version 1.0'],
+    ['Version 2.7'],
   ];
-  
+
   const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
   instructionsWs['!cols'] = [{ wch: 75 }];
   applyBoldRows(instructionsWs, [1, 3, 5, 10, 16, 21, 25, 30, 37, 43]);

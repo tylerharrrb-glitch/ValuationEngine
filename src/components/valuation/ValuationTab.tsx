@@ -21,10 +21,13 @@ import { BlendedWeightSlider } from './sections/BlendedWeightSlider';
 import { ComparableBreakdown } from './sections/ComparableBreakdown';
 import { BaseYearFCF } from './sections/BaseYearFCF';
 import { DCFProjectionsTable } from './sections/DCFProjectionsTable';
+import { FCFFReconciliation } from './sections/FCFFReconciliation';
 import { KeyMetricsGrid } from './sections/KeyMetricsGrid';
+import { DDMValuation } from './sections/DDMValuation';
 import { ReverseDCFSection } from './sections/ReverseDCFSection';
 
 import { QualityScorecard } from './sections/QualityScorecard';
+import { EASComplianceSection } from './sections/EASComplianceSection';
 import { CalculationAuditTrail } from '../shared/CalculationAuditTrail';
 
 export interface ValuationTabProps {
@@ -51,7 +54,7 @@ export interface ValuationTabProps {
   setValuationStyle: (s: ValuationStyleKey) => void;
   marketRegion: MarketRegion;
   isDarkMode: boolean;
-  historyIndex: number; 
+  historyIndex: number;
   historyLength: number;
   lastSaved: string | null;
   cardClass: string;
@@ -116,7 +119,10 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       />
       <ScenarioAnalysis
         financialData={financialData} adjustedAssumptions={adjustedAssumptions}
-        scenarioCases={scenarioCases} upside={upside} {...themeProps}
+        scenarioCases={scenarioCases} upside={upside}
+        blendedValue={blendedValue}
+        blendedUpside={financialData.currentStockPrice > 0 ? (blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice * 100 : 0}
+        {...themeProps}
       />
       <ValuationSummaryCards
         financialData={financialData} dcfValue={dcfValue} comparableValue={comparableValue}
@@ -134,9 +140,14 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       <DCFProjectionsTable
         dcfProjections={dcfProjections} scenario={scenario} {...themeProps}
       />
+      <FCFFReconciliation
+        financialData={financialData} assumptions={adjustedAssumptions} {...themeProps}
+      />
       <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} {...themeProps} />
+      <DDMValuation financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <ReverseDCFSection reverseDCF={reverseDCF} {...themeProps} />
       <QualityScorecard scorecard={scorecard} {...themeProps} />
+      <EASComplianceSection financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <AIReport
         financialData={financialData} assumptions={adjustedAssumptions}
         dcfValue={dcfValue} comparableValue={comparableValue}

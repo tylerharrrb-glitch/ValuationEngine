@@ -25,7 +25,7 @@ export const ValidationAlerts: React.FC<Props> = ({
   industryMultiples, marketRegion,
 }) => {
   const alerts: { type: 'error' | 'warning' | 'info'; message: string }[] = [];
-  
+
   if (adjustedAssumptions.discountRate < assumptions.riskFreeRate)
     alerts.push({ type: 'error', message: `WACC (${adjustedAssumptions.discountRate}%) is less than Risk-Free Rate (${assumptions.riskFreeRate}%). This is mathematically impossible.` });
   if (adjustedAssumptions.terminalGrowthRate >= adjustedAssumptions.discountRate)
@@ -33,17 +33,18 @@ export const ValidationAlerts: React.FC<Props> = ({
 
   const maxTG = MARKET_DEFAULTS[marketRegion].maxTerminalGrowth;
   if (adjustedAssumptions.terminalGrowthRate > maxTG) {
-    alerts.push({ type: 'warning', message: marketRegion === 'Egypt'
-      ? `Terminal growth of ${adjustedAssumptions.terminalGrowthRate}% is very high. For Egypt (high inflation), consider 4-7% as sustainable long-term growth.`
-      : `Terminal growth of ${adjustedAssumptions.terminalGrowthRate}% exceeds typical long-term GDP growth (~2-3%). Consider a rate ≤ ${maxTG}% for perpetuity.`
+    alerts.push({
+      type: 'warning', message: marketRegion === 'Egypt'
+        ? `Terminal growth of ${adjustedAssumptions.terminalGrowthRate}% is very high. For Egypt (high inflation), consider 4-7% as sustainable long-term growth.`
+        : `Terminal growth of ${adjustedAssumptions.terminalGrowthRate}% exceeds typical long-term GDP growth (~2-3%). Consider a rate ≤ ${maxTG}% for perpetuity.`
     });
   }
   if (marketRegion === 'Egypt' && adjustedAssumptions.revenueGrowthRate > 30)
     alerts.push({ type: 'warning', message: `Revenue growth of ${adjustedAssumptions.revenueGrowthRate}% is very aggressive even for Egypt's high-inflation environment.` });
   else if (marketRegion === 'USA' && adjustedAssumptions.revenueGrowthRate > 15 && financialData.incomeStatement.revenue > 50000000000)
     alerts.push({ type: 'warning', message: `Revenue growth of ${adjustedAssumptions.revenueGrowthRate}% is aggressive for a $${(financialData.incomeStatement.revenue / 1e9).toFixed(0)}B revenue company.` });
-  if (marketRegion === 'Egypt' && assumptions.marketRiskPremium < 8)
-    alerts.push({ type: 'warning', message: `Market risk premium of ${assumptions.marketRiskPremium}% may be too low for Egypt. Emerging markets typically require 8-12% MRP.` });
+  if (marketRegion === 'Egypt' && assumptions.capmMethod !== 'A' && assumptions.marketRiskPremium < 8)
+    alerts.push({ type: 'warning', message: `Market risk premium of ${assumptions.marketRiskPremium}% may be too low for Egypt. For USD Build-Up (Method B), emerging markets typically require 8-12% MRP.` });
 
   const baseFcfMargin = (financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue) * 100;
   if (adjustedAssumptions.marginImprovement < 0 && baseFcfMargin < 15)
@@ -79,11 +80,10 @@ export const ValidationAlerts: React.FC<Props> = ({
   return (
     <div className="space-y-2">
       {alerts.map((alert, i) => (
-        <div key={i} className={`flex items-center gap-3 p-3 rounded-lg ${
-          alert.type === 'error' ? 'bg-red-500/20 border border-red-500/50'
+        <div key={i} className={`flex items-center gap-3 p-3 rounded-lg ${alert.type === 'error' ? 'bg-red-500/20 border border-red-500/50'
             : alert.type === 'info' ? 'bg-blue-500/20 border border-blue-500/50'
-            : 'bg-yellow-500/20 border border-yellow-500/50'
-        }`}>
+              : 'bg-yellow-500/20 border border-yellow-500/50'
+          }`}>
           <AlertTriangle size={20} className={
             alert.type === 'error' ? 'text-red-400' : alert.type === 'info' ? 'text-blue-400' : 'text-yellow-400'
           } />

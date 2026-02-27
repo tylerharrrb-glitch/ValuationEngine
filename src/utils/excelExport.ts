@@ -2,6 +2,8 @@ import * as XLSX from 'xlsx';
 import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
 import { calculateDCF, calculateComparableValuation, calculateEBITDA, calculateEnterpriseValue, calculateWACC } from './valuation';
 import { calculateQualityScorecard } from './advancedAnalysis';
+import { EGYPTIAN_INDUSTRY_MULTIPLES } from './valuationEngine';
+import { SCENARIO_PARAMS as SCENARIO_PARAMS_IMPORT } from './constants/scenarioParams';
 
 interface ExportData {
   financialData: FinancialData;
@@ -72,7 +74,8 @@ function newSheet(): XLSX.WorkSheet {
 
 // ─── Number format strings for Excel ───────────────────────────────
 
-const FMT_CURRENCY = '#,##0.00';
+const FMT_CURRENCY_USD = '$#,##0.00';
+const FMT_CURRENCY_EGP = '#,##0.00 "EGP"';
 
 const FMT_RATIO = '0.00"x"';
 const FMT_INT = '#,##0';
@@ -84,6 +87,7 @@ const FMT_DEC4 = '0.0000';
 export function exportToExcel(data: ExportData): void {
   const { financialData, assumptions, comparables, marketRegion = 'Egypt' } = data;
   const ccy = marketRegion === 'Egypt' ? 'EGP' : 'USD';
+  const FMT_CURRENCY = marketRegion === 'Egypt' ? FMT_CURRENCY_EGP : FMT_CURRENCY_USD;
   const wb = XLSX.utils.book_new();
 
   // Calculate all valuation data
@@ -133,19 +137,49 @@ export function exportToExcel(data: ExportData): void {
     ...compResults.map(cr => [cr.method, cr.value, cr.perShare, cr.upside] as (string | number)[]),
   ], r, [undefined, FMT_CURRENCY, FMT_CURRENCY, FMT_DEC2]);
 
-  const avgFairValue = compResults.length > 0
-    ? (dcfPerShare + compResults.reduce((s, cr) => s + cr.perShare, 0)) / (compResults.length + 1)
-    : dcfPerShare;
+  // FIX C3/C4: Calculate comparable value with EGX defaults fallback
+  const effectiveComps = comparables.length > 0 ? comparables : [];
+  let compsPerShare = 0;
+  if (effectiveComps.length > 0) {
+    compsPerShare = compResults.reduce((s, cr) => s + cr.perShare, 0) / compResults.length;
+  } else if (marketRegion === 'Egypt') {
+    // Fallback to EGX Market Average defaults (Fix C3)
+    const defaults = EGYPTIAN_INDUSTRY_MULTIPLES['Default'];
+    const eps = incomeStatement.netIncome / financialData.sharesOutstanding;
+    const ebitdaVal = calculateEBITDA(financialData);
+    const peImpl = eps > 0 ? eps * defaults.peRatio : 0;
+    const evImpl = ebitdaVal > 0 ? ((ebitdaVal * defaults.evEbitda) - totalDebt + balanceSheet.cash) / financialData.sharesOutstanding : 0;
+    const psImpl = incomeStatement.revenue > 0 ? (incomeStatement.revenue / financialData.sharesOutstanding) * defaults.psRatio : 0;
+    const pbImpl = balanceSheet.totalEquity > 0 ? (balanceSheet.totalEquity / financialData.sharesOutstanding) * defaults.pbRatio : 0;
+    compsPerShare = peImpl * 0.40 + evImpl * 0.35 + psImpl * 0.15 + pbImpl * 0.10;
+  }
+
+  // FIX C4: Blended value = 60% DCF + 40% Comps (matching engine logic)
+  const blendedValue = compsPerShare > 0 ? dcfPerShare * 0.6 + compsPerShare * 0.4 : dcfPerShare;
+  const blendedUpside = ((blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
+  // C4 Fix: Unified recommendation with both verdict and action
+  let excelVerdict = 'FAIRLY VALUED';
+  if (blendedUpside > 10) excelVerdict = 'UNDERVALUED';
+  else if (blendedUpside < -10) excelVerdict = 'OVERVALUED';
+  let excelRecommendation = 'HOLD';
+  if (blendedUpside > 30) excelRecommendation = 'STRONG BUY';
+  else if (blendedUpside > 10) excelRecommendation = 'BUY';
+  else if (blendedUpside >= -10) excelRecommendation = 'HOLD';
+  else if (blendedUpside >= -30) excelRecommendation = 'SELL';
+  else excelRecommendation = 'STRONG SELL';
 
   r = writeRows(ws1, [
     [],
-    ['Average Fair Value:', avgFairValue],
+    ['DCF Fair Value (per share):', dcfPerShare],
+    ['Comparable Fair Value (per share):', compsPerShare],
+    ['Blended Fair Value (60/40):', blendedValue],
+    ['Upside / (Downside):', blendedUpside / 100],
     [],
     ['Currency:', ccy],
     ['CAPM Method:', assumptions.capmMethod === 'B' ? 'B \u2014 USD Build-Up' : 'A \u2014 Local Currency'],
     [],
-    ['Investment Recommendation'],
-    [dcfUpside > 10 ? 'UNDERVALUED - BUY' : dcfUpside < -10 ? 'OVERVALUED - SELL' : 'FAIRLY VALUED - HOLD'],
+    ['Verdict:', excelVerdict],
+    ['Investment Recommendation:', excelRecommendation],
     [],
     ['Financial Health & Quality'],
     ['Quality Score:', `${qualityResult.grade} (${qualityResult.totalScore}/40)`],
@@ -375,10 +409,13 @@ export function exportToExcel(data: ExportData): void {
   // ============================================
   const ws6 = newSheet();
   r = 0;
-  const avgPE = comparables.length > 0 ? comparables.reduce((s, c) => s + c.peRatio, 0) / comparables.length : 0;
-  const avgEV = comparables.length > 0 ? comparables.reduce((s, c) => s + c.evEbitda, 0) / comparables.length : 0;
-  const avgPS = comparables.length > 0 ? comparables.reduce((s, c) => s + c.psRatio, 0) / comparables.length : 0;
-  const avgPB = comparables.length > 0 ? comparables.reduce((s, c) => s + c.pbRatio, 0) / comparables.length : 0;
+
+  // FIX C3: Use EGX defaults when no peer comparables are entered
+  const egxDefaults = EGYPTIAN_INDUSTRY_MULTIPLES['Default'];
+  const avgPE = comparables.length > 0 ? comparables.reduce((s, c) => s + c.peRatio, 0) / comparables.length : egxDefaults.peRatio;
+  const avgEV = comparables.length > 0 ? comparables.reduce((s, c) => s + c.evEbitda, 0) / comparables.length : egxDefaults.evEbitda;
+  const avgPS = comparables.length > 0 ? comparables.reduce((s, c) => s + c.psRatio, 0) / comparables.length : egxDefaults.psRatio;
+  const avgPB = comparables.length > 0 ? comparables.reduce((s, c) => s + c.pbRatio, 0) / comparables.length : egxDefaults.pbRatio;
 
   r = writeRows(ws6, [
     ['COMPARABLE COMPANIES ANALYSIS'],
@@ -387,25 +424,37 @@ export function exportToExcel(data: ExportData): void {
     [],
     ['Company', 'P/E Ratio', 'EV/EBITDA', 'P/S Ratio', 'P/B Ratio'],
     ...comparables.map(c => [c.name, c.peRatio, c.evEbitda, c.psRatio, c.pbRatio] as (string | number)[]),
+    ...(comparables.length === 0 ? [['EGX Market Averages (Default)', egxDefaults.peRatio, egxDefaults.evEbitda, egxDefaults.psRatio, egxDefaults.pbRatio] as (string | number)[]] : []),
     [],
     ['Average', avgPE, avgEV, avgPS, avgPB],
   ], r, [undefined, FMT_RATIO, FMT_RATIO, FMT_RATIO, FMT_RATIO]);
 
+  // Calculate implied valuations using weighted comps (40% P/E + 35% EV/EBITDA + 15% P/S + 10% P/B)
+  const eps = incomeStatement.netIncome / financialData.sharesOutstanding;
+  const peImpliedPrice = eps > 0 ? eps * avgPE : 0;
+  const evImpliedEV = ebitda > 0 ? ebitda * avgEV : 0;
+  const evImpliedEquity = evImpliedEV - totalDebt + balanceSheet.cash;
+  const evImpliedPerShare = evImpliedEquity / financialData.sharesOutstanding;
+  const psImpliedPrice = (incomeStatement.revenue / financialData.sharesOutstanding) * avgPS;
+  const pbImpliedPrice = (balanceSheet.totalEquity / financialData.sharesOutstanding) * avgPB;
+  const weightedCompsPrice = peImpliedPrice * 0.40 + evImpliedPerShare * 0.35 + psImpliedPrice * 0.15 + pbImpliedPrice * 0.10;
+
+  const impliedRows: [string, number, number, number, number, number][] = [
+    ['P/E (40%)', avgPE, incomeStatement.netIncome, incomeStatement.netIncome * avgPE, peImpliedPrice, ((peImpliedPrice - financialData.currentStockPrice) / financialData.currentStockPrice) * 100],
+    ['EV/EBITDA (35%)', avgEV, ebitda, evImpliedEquity, evImpliedPerShare, ((evImpliedPerShare - financialData.currentStockPrice) / financialData.currentStockPrice) * 100],
+    ['P/S (15%)', avgPS, incomeStatement.revenue, incomeStatement.revenue * avgPS, psImpliedPrice, ((psImpliedPrice - financialData.currentStockPrice) / financialData.currentStockPrice) * 100],
+    ['P/B (10%)', avgPB, balanceSheet.totalEquity, balanceSheet.totalEquity * avgPB, pbImpliedPrice, ((pbImpliedPrice - financialData.currentStockPrice) / financialData.currentStockPrice) * 100],
+  ];
+
   r = writeRows(ws6, [
     [],
     [],
-    ['Implied Valuations'],
+    ['Implied Valuations (Weighted: 40% P/E + 35% EV/EBITDA + 15% P/S + 10% P/B)'],
     [],
-    ['Method', 'Comparable Multiple', `Company Metric (${ccy})`, `Implied Value (${ccy})`, `Per Share (${ccy})`, 'Upside (%)'],
-    ...compResults.map(cr => {
-      const mult = cr.method.includes('P/E') ? avgPE :
-        cr.method.includes('EV/EBITDA') ? avgEV :
-          cr.method.includes('P/S') ? avgPS : avgPB;
-      const metric = cr.method.includes('P/E') ? incomeStatement.netIncome :
-        cr.method.includes('EV/EBITDA') ? ebitda :
-          cr.method.includes('P/S') ? incomeStatement.revenue : balanceSheet.totalEquity;
-      return [cr.method, mult, metric, cr.value, cr.perShare, cr.upside] as (string | number)[];
-    }),
+    ['Method (Weight)', 'Multiple', `Company Metric (${ccy})`, `Implied Value (${ccy})`, `Per Share (${ccy})`, 'Upside (%)'],
+    ...impliedRows.map(row => row as (string | number)[]),
+    [],
+    ['Weighted Comps Value', '', '', '', weightedCompsPrice, ((weightedCompsPrice - financialData.currentStockPrice) / financialData.currentStockPrice) * 100],
   ], r, [undefined, FMT_RATIO, FMT_CURRENCY, FMT_CURRENCY, FMT_CURRENCY, FMT_DEC2]);
 
   ws6['!cols'] = [{ wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 14 }];
@@ -437,7 +486,7 @@ export function exportToExcel(data: ExportData): void {
     ['EBITDA Margin', ebitdaMargin, 'EBITDA / Revenue'],
     ['Return on Equity (ROE)', roe, 'Net Income / Equity'],
     ['Return on Assets (ROA)', roa, 'Net Income / Assets'],
-    ['ROIC', roic, 'NOPAT / Invested Capital'],
+    ['ROIC (NOPAT / Invested Capital)', roic, 'NOPAT / (Equity + Debt − Cash)'],
   ], r, [undefined, '0.00%', undefined]);
 
   r = writeRows(ws7, [
@@ -723,10 +772,12 @@ export function exportToExcel(data: ExportData): void {
     waccAxis.push(Math.max(baseWACC + i, 1)); // floor at 1%
   }
 
-  // Build terminal growth axis (7 values: base ± 3%, floor at 0%)
+  // FIX C6: Build growth axis centered on terminal growth ± 3%
+  // Floor at 5% (Egypt minimum reasonable), ceiling at WACC − 1%
   const gAxis: number[] = [];
   for (let i = -3; i <= 3; i++) {
-    gAxis.push(Math.max(baseG + i, 0));
+    const g = baseG + i;
+    gAxis.push(Math.max(5, Math.min(baseWACC - 1, g)));
   }
 
   r = writeRows(ws11, [
@@ -772,39 +823,79 @@ export function exportToExcel(data: ExportData): void {
   const ws12 = newSheet();
   r = 0;
 
-  // Scenario parameters
-  const bearRevGrowth = assumptions.revenueGrowthRate * 0.4;
-  const bearWACC = assumptions.discountRate + 2.5;
-  const rawBearTermG = assumptions.terminalGrowthRate * 0.6;
-  const bearTermG = Math.min(rawBearTermG, bearWACC - 1);
-  const bearMargin = assumptions.ebitdaMargin - 1.5;
+  // C1 Fix: Use shared SCENARIO_PARAMS for consistency across Engine/PDF/Excel
+  const SP = SCENARIO_PARAMS_IMPORT;
+
+  // Calculate scenarios using shared function from dcf.ts
+  const scenarioCalcShared = (scenario: 'bear' | 'base' | 'bull') => {
+    const p = SP[scenario];
+    const sa = {
+      ...assumptions,
+      revenueGrowthRate: assumptions.revenueGrowthRate * p.revenueGrowthMultiplier,
+      discountRate: Math.max(2, assumptions.discountRate + p.waccAdjustmentPP),
+      terminalGrowthRate: Math.min(
+        assumptions.terminalGrowthRate * p.terminalGrowthMultiplier,
+        Math.max(2, assumptions.discountRate + p.waccAdjustmentPP) - 1
+      ),
+    };
+    // Per-year margin adjustment via custom projection
+    if (p.marginAdjPerYear !== 0) {
+      let rev = financialData.incomeStatement.revenue;
+      let sumPV = 0, lastFCF = 0;
+      const taxR = sa.taxRate / 100;
+      const w = sa.discountRate / 100;
+      for (let yr = 1; yr <= sa.projectionYears; yr++) {
+        const prevRev = rev;
+        rev *= (1 + sa.revenueGrowthRate / 100);
+        const adjMargin = sa.ebitdaMargin + (p.marginAdjPerYear * 100 * yr);
+        const ebitda = rev * (adjMargin / 100);
+        const da = rev * (sa.daPercent / 100);
+        const nopat = (ebitda - da) * (1 - taxR);
+        const capex = rev * (sa.capexPercent / 100);
+        const dwc = (rev - prevRev) * (sa.deltaWCPercent / 100);
+        const fcf = nopat + da - capex - dwc;
+        sumPV += fcf / Math.pow(1 + w, yr);
+        lastFCF = fcf;
+      }
+      const tg = sa.terminalGrowthRate / 100;
+      const tv = w > tg ? (lastFCF * (1 + tg)) / (w - tg) : lastFCF * 12;
+      const ev = sumPV + tv / Math.pow(1 + w, sa.projectionYears);
+      const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+      const equity = ev - totalDebt + financialData.balanceSheet.cash;
+      return equity / financialData.sharesOutstanding;
+    }
+    const { value } = calculateDCF(financialData, sa);
+    return value / financialData.sharesOutstanding;
+  };
+
+  const bearRevGrowth = assumptions.revenueGrowthRate * SP.bear.revenueGrowthMultiplier;
+  const bearWACC = Math.max(2, assumptions.discountRate + SP.bear.waccAdjustmentPP);
+  const bearTermG = Math.min(assumptions.terminalGrowthRate * SP.bear.terminalGrowthMultiplier, bearWACC - 1);
+  const bearMargin = assumptions.ebitdaMargin; // margin adjusted per-year inside calc
 
   const baseRevGrowth = assumptions.revenueGrowthRate;
   const baseWACCVal = assumptions.discountRate;
   const baseTermG = assumptions.terminalGrowthRate;
   const baseMargin = assumptions.ebitdaMargin;
 
-  const bullRevGrowth = assumptions.revenueGrowthRate * 2.0;
-  const bullWACC = Math.max(assumptions.discountRate - 2.5, 2);
-  const rawBullTermG = assumptions.terminalGrowthRate * 1.5;
-  const bullTermG = Math.min(rawBullTermG, bullWACC - 1); // FIX-6: clamp
-  const bullMargin = assumptions.ebitdaMargin + 2.5;
+  const bullRevGrowth = assumptions.revenueGrowthRate * SP.bull.revenueGrowthMultiplier;
+  const bullWACC = Math.max(2, assumptions.discountRate + SP.bull.waccAdjustmentPP);
+  const bullTermG = Math.min(assumptions.terminalGrowthRate * SP.bull.terminalGrowthMultiplier, bullWACC - 1);
+  const bullMargin = assumptions.ebitdaMargin; // margin adjusted per-year inside calc
 
-  // Recalculate each scenario
-  const scenarioCalc = (revG: number, waccS: number, termG: number, marginS: number) => {
-    const sa = { ...assumptions, revenueGrowthRate: revG, discountRate: waccS, terminalGrowthRate: termG, ebitdaMargin: marginS };
-    const { value } = calculateDCF(financialData, sa);
-    return value / financialData.sharesOutstanding;
-  };
-
-  const bearPrice = scenarioCalc(bearRevGrowth, bearWACC, bearTermG, bearMargin);
-  const basePrice = scenarioCalc(baseRevGrowth, baseWACCVal, baseTermG, baseMargin);
-  const bullPrice = scenarioCalc(bullRevGrowth, bullWACC, bullTermG, bullMargin);
+  const bearPrice = scenarioCalcShared('bear');
+  const basePrice = scenarioCalcShared('base');
+  const bullPrice = scenarioCalcShared('bull');
 
   const bearProb = assumptions.bearProbability || 25;
   const baseProb = assumptions.baseProbability || 50;
   const bullProb = assumptions.bullProbability || 25;
   const weightedPrice = (bearPrice * bearProb + basePrice * baseProb + bullPrice * bullProb) / 100;
+
+  // M2: Add vs Current % column
+  const bearVsCurrent = financialData.currentStockPrice > 0 ? (bearPrice - financialData.currentStockPrice) / financialData.currentStockPrice : 0;
+  const baseVsCurrent = financialData.currentStockPrice > 0 ? (basePrice - financialData.currentStockPrice) / financialData.currentStockPrice : 0;
+  const bullVsCurrent = financialData.currentStockPrice > 0 ? (bullPrice - financialData.currentStockPrice) / financialData.currentStockPrice : 0;
 
   r = writeRows(ws12, [
     ['SCENARIO ANALYSIS — Section 5.5'],
@@ -816,6 +907,7 @@ export function exportToExcel(data: ExportData): void {
     ['WACC', bearWACC / 100, baseWACCVal / 100, bullWACC / 100],
     [],
     ['Implied Share Price', bearPrice, basePrice, bullPrice],
+    ['vs Current (%)', bearVsCurrent, baseVsCurrent, bullVsCurrent],
     ['Probability Weight', bearProb / 100, baseProb / 100, bullProb / 100],
     [],
     ['Probability-Weighted Value', weightedPrice],
@@ -824,9 +916,9 @@ export function exportToExcel(data: ExportData): void {
   ], r, [undefined, '0.00%', '0.00%', '0.00%']);
 
   // Override price/value cells to currency
-  setCell(ws12, r - 6, 1, bearPrice, FMT_CURRENCY);
-  setCell(ws12, r - 6, 2, basePrice, FMT_CURRENCY);
-  setCell(ws12, r - 6, 3, bullPrice, FMT_CURRENCY);
+  setCell(ws12, r - 7, 1, bearPrice, FMT_CURRENCY);
+  setCell(ws12, r - 7, 2, basePrice, FMT_CURRENCY);
+  setCell(ws12, r - 7, 3, bullPrice, FMT_CURRENCY);
   setCell(ws12, r - 3, 1, weightedPrice, FMT_CURRENCY);
   setCell(ws12, r - 2, 1, financialData.currentStockPrice, FMT_CURRENCY);
   setCell(ws12, r - 1, 1, financialData.currentStockPrice > 0 ? (weightedPrice - financialData.currentStockPrice) / financialData.currentStockPrice : 0, '0.00%');

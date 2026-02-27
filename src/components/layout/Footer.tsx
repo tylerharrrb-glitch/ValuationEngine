@@ -14,7 +14,7 @@ export const Footer: React.FC<FooterProps> = ({ isDarkMode, textMutedClass }) =>
     <footer className={`border-t py-6 mt-8 ${isDarkMode ? 'border-zinc-800' : 'border-gray-200'}`}>
       <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <span className={`text-xs font-semibold tracking-wider uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-          WOLF Valuation Engine v2.0
+          WOLF Valuation Engine v2.7
         </span>
         <p className={`text-[11px] text-center max-w-lg ${textMutedClass}`}>
           Financial data provided by{' '}

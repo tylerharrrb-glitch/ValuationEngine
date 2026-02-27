@@ -59,7 +59,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
   useEffect(() => {
     // Initialize Worker
     workerRef.current = new Worker(new URL('../../workers/monteCarlo.worker.ts', import.meta.url));
-    
+
     workerRef.current.onmessage = (e) => {
       const { success, result, error } = e.data;
       if (success) {
@@ -82,8 +82,8 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       // Small debounce to avoid flashing or queued msg issues if user types fast
       const timer = setTimeout(() => {
         workerRef.current?.postMessage({
-           financialData,
-           assumptions: adjustedAssumptions
+          financialData,
+          assumptions: adjustedAssumptions
         });
       }, 500);
       return () => clearTimeout(timer);
@@ -122,7 +122,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis dataKey="year" stroke={axisStroke} />
               <YAxis stroke={axisStroke} />
-              <RechartsTooltip contentStyle={tooltipStyle} labelStyle={{ color: labelColor }} itemStyle={{ color: labelColor }} />
+              <RechartsTooltip contentStyle={tooltipStyle} labelStyle={{ color: labelColor }} itemStyle={{ color: labelColor }} formatter={(value: number | string | undefined) => [formatPrice(Number(value || 0), currency), undefined]} />
               <Legend />
               <Area type="monotone" dataKey="Revenue" stroke="#ef4444" fillOpacity={1} fill="url(#colorRevenue)" />
               <Area type="monotone" dataKey="FCF" stroke="#22c55e" fillOpacity={1} fill="url(#colorFCF)" />
@@ -158,45 +158,65 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       {/* Sensitivity: WACC vs Terminal Growth */}
       <div className={`p-6 rounded-xl border ${cardClass}`}>
         <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
-          <Tooltip term="WACC">Sensitivity Analysis: WACC vs Terminal Growth</Tooltip>
+          <Tooltip term="WACC">Sensitivity: DCF Fair Value ({currency}) — WACC vs Terminal Growth</Tooltip>
         </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={textMutedClass}>
-                <th className={`py-2 px-3 text-left font-semibold sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>WACC \ Growth</th>
-                {[1.5, 2.0, 2.5, 3.0, 3.5].map(g => <th key={g} className="py-2 px-3 text-right font-semibold">{g}%</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {[8, 9, 10, 11, 12].map(wacc => (
-                <tr key={wacc} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
-                  <td className={`py-2 px-3 font-medium ${textClass} sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>{wacc}%</td>
-                  {[1.5, 2.0, 2.5, 3.0, 3.5].map(growth => {
-                    const sumPV = dcfProjections.reduce((sum, p) => {
-                      const df = Math.pow(1 + wacc / 100, dcfProjections.indexOf(p) + 1);
-                      return sum + p.freeCashFlow / df;
-                    }, 0);
-                    const lastFCF = dcfProjections[dcfProjections.length - 1]?.freeCashFlow || 0;
-                    const tv = (lastFCF * (1 + growth / 100)) / ((wacc - growth) / 100);
-                    const lastDF = Math.pow(1 + wacc / 100, dcfProjections.length);
-                    const ev = sumPV + tv / lastDF;
-                    const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-                    const equity = ev - totalDebt + financialData.balanceSheet.cash;
-                    const price = Math.max(equity / financialData.sharesOutstanding, 0);
-                    const vs = ((price - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
-                    const isBase = Math.abs(wacc - adjustedAssumptions.discountRate) < 0.5 && Math.abs(growth - adjustedAssumptions.terminalGrowthRate) < 0.3;
-                    return (
-                      <td key={growth} className={`py-2 px-3 text-right ${isBase ? 'bg-red-500/20 font-bold' : ''} ${vs > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {formatPrice(price, currency)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* C1 Fix: Dynamic axes centered on actual computed WACC and growth */}
+        {(() => {
+          const baseW = adjustedAssumptions.discountRate;
+          const baseG = adjustedAssumptions.terminalGrowthRate;
+          const waccAxis = [baseW - 4, baseW - 2, baseW, baseW + 2, baseW + 4];
+          const growthAxis = [-3, -1.5, 0, 1.5, 3].map(d => {
+            const val = baseG + d;
+            return Math.max(4, Math.min(baseW - 1, val));
+          });
+          return (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className={textMutedClass}>
+                      <th className={`py-2 px-3 text-left font-semibold sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>WACC \ Growth</th>
+                      {growthAxis.map(g => <th key={g} className={`py-2 px-3 text-right font-semibold ${Math.abs(g - baseG) < 0.1 ? 'text-red-400' : ''}`}>{g.toFixed(1)}%{Math.abs(g - baseG) < 0.1 ? ' ★' : ''}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waccAxis.map(wacc => (
+                      <tr key={wacc} className={`${isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'} ${Math.abs(wacc - baseW) < 0.1 ? (isDarkMode ? 'bg-zinc-900' : 'bg-gray-50') : ''}`}>
+                        <td className={`py-2 px-3 font-medium ${textClass} sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'} ${Math.abs(wacc - baseW) < 0.1 ? 'text-red-400 font-bold' : ''}`}>{wacc.toFixed(2)}%{Math.abs(wacc - baseW) < 0.1 ? ' ★' : ''}</td>
+                        {growthAxis.map(growth => {
+                          if (growth >= wacc) {
+                            return <td key={growth} className="py-2 px-3 text-right text-zinc-500">N/A</td>;
+                          }
+                          const sumPV = dcfProjections.reduce((sum, p) => {
+                            const df = Math.pow(1 + wacc / 100, dcfProjections.indexOf(p) + 1);
+                            return sum + p.freeCashFlow / df;
+                          }, 0);
+                          const lastFCF = dcfProjections[dcfProjections.length - 1]?.freeCashFlow || 0;
+                          const tv = (lastFCF * (1 + growth / 100)) / ((wacc - growth) / 100);
+                          const lastDF = Math.pow(1 + wacc / 100, dcfProjections.length);
+                          const ev = sumPV + tv / lastDF;
+                          const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+                          const equity = ev - totalDebt + financialData.balanceSheet.cash;
+                          const price = Math.max(equity / financialData.sharesOutstanding, 0);
+                          const vs = ((price - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
+                          const isBase = Math.abs(wacc - baseW) < 0.1 && Math.abs(growth - baseG) < 0.1;
+                          return (
+                            <td key={growth} className={`py-2 px-3 text-right ${isBase ? 'bg-red-500/20 font-bold ring-2 ring-red-500/50' : ''} ${vs > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {formatPrice(price, currency)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className={`mt-3 text-xs ${textMutedClass}`}>
+                ★ Base case WACC: {baseW.toFixed(2)}% | Terminal Growth: {baseG.toFixed(2)}%
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Sensitivity: Revenue Growth vs Margin Improvement */}
@@ -254,11 +274,11 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
         <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
           Monte Carlo Simulation (5,000 runs)
         </h3>
-        
+
         {isMCLoading && (
           <div className="flex flex-col items-center justify-center py-12">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-2"></div>
-             <p className={textMutedClass}>Running 5,000 scenarios...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-2"></div>
+            <p className={textMutedClass}>Running 5,000 scenarios...</p>
           </div>
         )}
 
@@ -350,10 +370,9 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
             Sector Benchmarking — {financialData.ticker} vs {industryMultiples.label}
           </h3>
           <div className="flex items-center gap-2">
-            <span className={`text-2xl font-bold ${
-              benchmark.overallScore >= 70 ? 'text-green-400' :
+            <span className={`text-2xl font-bold ${benchmark.overallScore >= 70 ? 'text-green-400' :
               benchmark.overallScore >= 50 ? 'text-yellow-400' : 'text-red-400'
-            }`}>{benchmark.overallScore}</span>
+              }`}>{benchmark.overallScore}</span>
             <span className={`text-sm ${textMutedClass}`}>/100</span>
           </div>
         </div>
@@ -380,24 +399,26 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                   <td className={`py-2 px-3 text-right ${textMutedClass}`}>{b.formatted.sector}</td>
                   <td className="py-2 px-3 text-center">
                     <div className="w-full bg-zinc-700 rounded-full h-1.5 mx-auto max-w-[80px]">
-                      <div className={`h-1.5 rounded-full ${
-                        b.percentile >= 70 ? 'bg-green-500' : b.percentile >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`} style={{ width: `${b.percentile}%` }} />
+                      <div className={`h-1.5 rounded-full ${b.percentile >= 70 ? 'bg-green-500' : b.percentile >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} style={{ width: `${b.percentile}%` }} />
                     </div>
                   </td>
                   <td className="py-2 px-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                      b.rating === 'top' ? 'text-green-400 bg-green-500/20' :
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${b.rating === 'top' ? 'text-green-400 bg-green-500/20' :
                       b.rating === 'above' ? 'text-blue-400 bg-blue-500/20' :
-                      b.rating === 'average' ? 'text-yellow-400 bg-yellow-500/20' :
-                      b.rating === 'below' ? 'text-orange-400 bg-orange-500/20' :
-                      'text-red-400 bg-red-500/20'
-                    }`}>{b.rating.toUpperCase()}</span>
+                        b.rating === 'average' ? 'text-yellow-400 bg-yellow-500/20' :
+                          b.rating === 'below' ? 'text-orange-400 bg-orange-500/20' :
+                            'text-red-400 bg-red-500/20'
+                      }`}>{b.rating.toUpperCase()}</span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        {/* M2: Benchmarking data source note */}
+        <div className={`mt-3 text-xs ${textMutedClass}`}>
+          Using EGX Market Average defaults. Add sector-specific peers for more accurate benchmarking.
         </div>
       </div>
     </div>

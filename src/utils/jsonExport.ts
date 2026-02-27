@@ -18,7 +18,7 @@ import {
     ValuationJSON,
 } from '../types/financial';
 
-const ENGINE_VERSION = '3.0.0';
+const ENGINE_VERSION = '4.0.0';
 
 export interface JSONExportInput {
     financialData: FinancialData;
@@ -59,6 +59,7 @@ export function generateValuationJSON(input: JSONExportInput): ValuationJSON {
                 ? '10-Year Egyptian Government Bond' : '10-Year US Treasury Bond',
             rf_date: assumptions.rfDate,
             discounting_convention: assumptions.discountingConvention === 'mid_year' ? 'MID_YEAR' : 'END_OF_YEAR',
+            accounting_standard: 'EAS',
         },
         inputs: {
             company_name: financialData.companyName,
@@ -113,6 +114,7 @@ export function generateValuationJSON(input: JSONExportInput): ValuationJSON {
                     shares_outstanding: financialData.sharesOutstanding,
                     intrinsic_value_per_share: dcfResult.impliedSharePrice,
                 },
+                terminal_growth_used: assumptions.terminalGrowthRate,
             },
             ddm: ddmResult,
             multiples: comparableMultiples,

@@ -26,7 +26,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
   const allValues = valuations.flatMap(v => [v.low, v.mid, v.high]).concat([currentPrice]);
   const dataMin = Math.min(...allValues);
   const dataMax = Math.max(...allValues);
-  
+
   // Calculate chart range with padding (20% on each side)
   const chartPadding = (dataMax - dataMin) * 0.25;
   const minValue = Math.max(0, dataMin - chartPadding);
@@ -39,13 +39,19 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
     return Math.max(0, Math.min(100, pos));
   };
 
-  const formatPrice = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
+  const formatPrice = (value: number | string) => {
+    // Safeguard: if value is somehow already a formatted string, strip existing prefix
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : value;
+    if (isNaN(numValue)) return 'N/A';
+    const formatted = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value);
+    }).format(numValue);
+    // For EGP, prefix manually to avoid double-prefix from Intl
+    if (currency === 'EGP') {
+      return `EGP ${formatted}`;
+    }
+    return `$${formatted}`;
   };
 
   // Calculate current price position
@@ -73,11 +79,11 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
 
       {/* Chart container with labels */}
       <div className="flex">
-        {/* Y-axis labels */}
-        <div className="w-28 flex-shrink-0">
+        {/* Y-axis labels — pt-[28px] matches the price scale header height + mb-4 */}
+        <div className="w-28 flex-shrink-0 pt-[28px]">
           {valuations.map((val, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`h-16 flex items-center text-sm font-medium text-right pr-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
             >
               {val.method}
@@ -99,7 +105,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
             {/* Current price vertical line - positioned within the bars container */}
             <div
               className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
-              style={{ 
+              style={{
                 left: `${currentPricePosition}%`,
               }}
             >
@@ -121,7 +127,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
                   <div className="flex-1 relative h-10">
                     {/* Background bar */}
                     <div className={`absolute inset-y-0 left-0 right-0 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}></div>
-                    
+
                     {/* Range bar */}
                     <div
                       className={`absolute inset-y-0 rounded-lg opacity-80 ${val.color}`}
@@ -130,26 +136,39 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
                         width: `${Math.max(width, 1)}%`,
                       }}
                     ></div>
-                    
+
                     {/* Mid point marker */}
                     <div
                       className="absolute top-0 bottom-0 w-1.5 bg-yellow-400 rounded-full shadow-lg z-10"
                       style={{ left: `${midPos}%`, transform: 'translateX(-50%)' }}
                     ></div>
 
-                    {/* Value labels below bar */}
-                    <div
-                      className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                      style={{ left: `${lowPos}%`, transform: 'translateX(-50%)' }}
-                    >
-                      {formatPrice(val.low)}
-                    </div>
-                    <div
-                      className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                      style={{ left: `${highPos}%`, transform: 'translateX(-50%)' }}
-                    >
-                      {formatPrice(val.high)}
-                    </div>
+                    {/* Value labels below bar — merge when positions overlap */}
+                    {(highPos - lowPos) < 8 ? (
+                      /* Single combined label when range is too narrow */
+                      <div
+                        className={`absolute top-full mt-1 text-xs font-medium whitespace-nowrap ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                        style={{ left: `${(lowPos + highPos) / 2}%`, transform: 'translateX(-50%)' }}
+                      >
+                        {formatPrice(val.low)} — {formatPrice(val.high)}
+                      </div>
+                    ) : (
+                      /* Two separate labels when there's enough space */
+                      <>
+                        <div
+                          className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                          style={{ left: `${lowPos}%`, transform: 'translateX(-50%)' }}
+                        >
+                          {formatPrice(val.low)}
+                        </div>
+                        <div
+                          className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                          style={{ left: `${highPos}%`, transform: 'translateX(-50%)' }}
+                        >
+                          {formatPrice(val.high)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -164,7 +183,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
           {valuations.map((val, index) => {
             const vsCurrentPercent = ((val.mid - currentPrice) / currentPrice) * 100;
             const isUpside = vsCurrentPercent > 0;
-            
+
             return (
               <div key={index} className={`p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-2 mb-1">

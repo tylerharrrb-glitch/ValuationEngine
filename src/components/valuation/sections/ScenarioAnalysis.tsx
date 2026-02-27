@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { FinancialData, ValuationAssumptions } from '../../../types/financial';
 import { ScenarioCases } from '../../../utils/calculations/scenarios';
 import { formatPrice, CurrencyCode } from '../../../utils/formatters';
+import { SCENARIO_PARAMS } from '../../../utils/constants/scenarioParams';
 
 interface Props {
   financialData: FinancialData;
@@ -14,14 +15,19 @@ interface Props {
   textClass: string;
   textMutedClass: string;
   currency: CurrencyCode;
+  blendedValue?: number;
+  blendedUpside?: number;
 }
 
 export const ScenarioAnalysis: React.FC<Props> = ({
   financialData, adjustedAssumptions, scenarioCases, upside,
   isDarkMode, cardClass, textClass, textMutedClass, currency,
+  blendedValue, blendedUpside,
 }) => {
   const bearVsCurrent = ((scenarioCases.bear - financialData.currentStockPrice) / financialData.currentStockPrice * 100);
   const bullVsCurrent = ((scenarioCases.bull - financialData.currentStockPrice) / financialData.currentStockPrice * 100);
+  const bearP = SCENARIO_PARAMS.bear;
+  const bullP = SCENARIO_PARAMS.bull;
 
   return (
     <div className={`p-6 rounded-xl border ${cardClass}`}>
@@ -40,9 +46,9 @@ export const ScenarioAnalysis: React.FC<Props> = ({
           </div>
           <div className="text-3xl font-bold text-red-400">{formatPrice(scenarioCases.bear, currency)}</div>
           <div className={`text-sm mt-2 ${textMutedClass}`}>
-            <div>• Revenue growth: {(adjustedAssumptions.revenueGrowthRate * 0.4).toFixed(1)}%</div>
-            <div>• WACC: {(adjustedAssumptions.discountRate + 2.5).toFixed(1)}%</div>
-            <div>• Margin compression: -1.5%/yr</div>
+            <div>• Revenue growth: {(adjustedAssumptions.revenueGrowthRate * bearP.revenueGrowthMultiplier).toFixed(1)}%</div>
+            <div>• WACC: {Math.max(adjustedAssumptions.discountRate + bearP.waccAdjustmentPP, 2).toFixed(1)}%</div>
+            <div>• Margin compression: {(bearP.marginAdjPerYear * 100).toFixed(1)}%/yr</div>
           </div>
           <div className={`mt-3 text-sm font-medium ${bearVsCurrent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             {bearVsCurrent.toFixed(1)}% vs current
@@ -78,9 +84,9 @@ export const ScenarioAnalysis: React.FC<Props> = ({
           </div>
           <div className="text-3xl font-bold text-green-400">{formatPrice(scenarioCases.bull, currency)}</div>
           <div className={`text-sm mt-2 ${textMutedClass}`}>
-            <div>• Revenue growth: {(adjustedAssumptions.revenueGrowthRate * 2.0).toFixed(1)}%</div>
-            <div>• WACC: {Math.max(adjustedAssumptions.discountRate - 2.5, 2).toFixed(1)}%</div>
-            <div>• Margin expansion: +2.5%/yr</div>
+            <div>• Revenue growth: {(adjustedAssumptions.revenueGrowthRate * bullP.revenueGrowthMultiplier).toFixed(1)}%</div>
+            <div>• WACC: {Math.max(adjustedAssumptions.discountRate + bullP.waccAdjustmentPP, 2).toFixed(1)}%</div>
+            <div>• Margin expansion: +{(bullP.marginAdjPerYear * 100).toFixed(1)}%/yr</div>
           </div>
           <div className={`mt-3 text-sm font-medium ${bullVsCurrent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             +{bullVsCurrent.toFixed(1)}% vs current
@@ -125,6 +131,15 @@ export const ScenarioAnalysis: React.FC<Props> = ({
           <span className="text-xs text-red-400">{formatPrice(scenarioCases.bear, currency)}</span>
           <span className={`text-xs ${textMutedClass}`}>Current: {formatPrice(financialData.currentStockPrice, currency)}</span>
           <span className="text-xs text-green-400">{formatPrice(scenarioCases.bull, currency)}</span>
+        </div>
+      </div>
+      {/* S3: Blended context note */}
+      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
+        <div className={`text-xs ${textMutedClass}`}>
+          Scenario values reflect DCF-only analysis (varying growth, WACC, and margins).
+          {blendedValue !== undefined && blendedUpside !== undefined && (
+            <span className="font-medium"> WOLF Blended Target Price (60% DCF + 40% Comps): {formatPrice(blendedValue, currency)} ({blendedUpside >= 0 ? '+' : ''}{blendedUpside.toFixed(2)}% upside)</span>
+          )}
         </div>
       </div>
     </div>

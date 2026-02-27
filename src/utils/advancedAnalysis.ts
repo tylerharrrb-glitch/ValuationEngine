@@ -89,18 +89,25 @@ export function calculateReverseDCF(
   const growthGap = impliedGrowth - assumptions.revenueGrowthRate;
   const impliedFCFMargin = baseFCFMargin + (assumptions.marginImprovement / 100) * years;
 
+  // FIX ENH-6: Proper gap-based interpretation thresholds
   let marketExpectation: 'aggressive' | 'reasonable' | 'conservative' = 'reasonable';
   let narrative = '';
+  const absGap = Math.abs(growthGap);
+  let gapDesc = '';
+  if (absGap < 2) gapDesc = 'closely in line with';
+  else if (absGap < 5) gapDesc = 'moderately ' + (impliedGrowth > assumptions.revenueGrowthRate ? 'higher than' : 'lower than');
+  else if (absGap < 10) gapDesc = 'significantly ' + (impliedGrowth > assumptions.revenueGrowthRate ? 'higher than' : 'lower than');
+  else gapDesc = 'substantially ' + (impliedGrowth > assumptions.revenueGrowthRate ? 'higher than' : 'lower than');
 
-  if (impliedGrowth > assumptions.revenueGrowthRate * 1.5) {
+  if (absGap >= 5 && impliedGrowth > assumptions.revenueGrowthRate) {
     marketExpectation = 'aggressive';
-    narrative = `The market is pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — significantly more optimistic than our ${assumptions.revenueGrowthRate}% base case. This suggests the stock could be overvalued if growth disappoints.`;
-  } else if (impliedGrowth < assumptions.revenueGrowthRate * 0.5) {
+    narrative = `The market is pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — ${gapDesc} our ${assumptions.revenueGrowthRate.toFixed(1)}% base case (gap: ${growthGap.toFixed(1)}pp). This suggests the stock could be overvalued if growth disappoints.`;
+  } else if (absGap >= 5 && impliedGrowth < assumptions.revenueGrowthRate) {
     marketExpectation = 'conservative';
-    narrative = `The market is only pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — much lower than our ${assumptions.revenueGrowthRate}% base case. If the company delivers, there is significant upside.`;
+    narrative = `The market is only pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — ${gapDesc} our ${assumptions.revenueGrowthRate.toFixed(1)}% base case (gap: ${growthGap.toFixed(1)}pp). If the company delivers, there is significant upside.`;
   } else {
     marketExpectation = 'reasonable';
-    narrative = `The market is pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — roughly in line with our ${assumptions.revenueGrowthRate}% base case. The stock appears to be fairly valued.`;
+    narrative = `The market is pricing in ${impliedGrowth.toFixed(1)}% annual revenue growth — ${gapDesc} our ${assumptions.revenueGrowthRate.toFixed(1)}% base case (gap: ${growthGap.toFixed(1)}pp). The stock appears to be fairly valued.`;
   }
 
   return {
@@ -146,25 +153,31 @@ export function runMonteCarloSimulation(
   numSimulations: number = 5000
 ): MonteCarloResult {
   const results: number[] = [];
-  const baseFCFMargin = financialData.incomeStatement.revenue > 0
-    ? financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue
-    : 0.15;
+  // C3 Fix: Use FCFF buildup (NOPAT + D&A − CapEx − ΔWC) instead of legacy FCF margin
+  const taxRate = assumptions.taxRate / 100;
 
   for (let sim = 0; sim < numSimulations; sim++) {
     // Add random variation to key parameters
     const revGrowthVar = assumptions.revenueGrowthRate + gaussianRandom() * 4;  // ±4% std dev
     const waccVar = Math.max(2, assumptions.discountRate + gaussianRandom() * 1.5); // ±1.5% std dev
     const termGrowthVar = Math.max(0, Math.min(waccVar - 0.5, assumptions.terminalGrowthRate + gaussianRandom() * 0.8)); // ±0.8% std dev
-    const marginVar = assumptions.marginImprovement + gaussianRandom() * 0.5; // ±0.5% std dev
+    const marginVar = gaussianRandom() * 1.5; // ±1.5% std dev on EBITDA margin
 
     let revenue = financialData.incomeStatement.revenue;
     let sumPV = 0;
     let lastFCF = 0;
 
     for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      const prevRevenue = revenue;
       revenue = revenue * (1 + revGrowthVar / 100);
-      const margin = baseFCFMargin + (marginVar / 100) * yr;
-      const fcf = revenue * Math.max(margin, 0.01);
+      const ebitdaMargin = (assumptions.ebitdaMargin + marginVar) / 100;
+      const ebitda = revenue * ebitdaMargin;
+      const da = revenue * (assumptions.daPercent / 100);
+      const ebit = ebitda - da;
+      const nopat = ebit * (1 - taxRate);
+      const capex = revenue * (assumptions.capexPercent / 100);
+      const deltaWC = (revenue - prevRevenue) * (assumptions.deltaWCPercent / 100);
+      const fcf = nopat + da - capex - deltaWC;
       const df = Math.pow(1 + waccVar / 100, yr);
       sumPV += fcf / df;
       lastFCF = fcf;
@@ -220,14 +233,20 @@ export function runMonteCarloSimulation(
   const aboveCurrentPrice = results.filter(p => p > financialData.currentStockPrice).length;
   const probabilityAboveCurrentPrice = (aboveCurrentPrice / n) * 100;
 
-  // Calculate base case DCF for comparison
+  // Calculate base case DCF for comparison (using FCFF buildup)
   let baseRevenue = financialData.incomeStatement.revenue;
   let baseSumPV = 0;
   let baseLastFCF = 0;
   for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+    const prevBaseRev = baseRevenue;
     baseRevenue *= (1 + assumptions.revenueGrowthRate / 100);
-    const margin = baseFCFMargin + (assumptions.marginImprovement / 100) * yr;
-    const fcf = baseRevenue * margin;
+    const ebitda = baseRevenue * (assumptions.ebitdaMargin / 100);
+    const da = baseRevenue * (assumptions.daPercent / 100);
+    const ebit = ebitda - da;
+    const nopat = ebit * (1 - taxRate);
+    const capex = baseRevenue * (assumptions.capexPercent / 100);
+    const dwc = (baseRevenue - prevBaseRev) * (assumptions.deltaWCPercent / 100);
+    const fcf = nopat + da - capex - dwc;
     const df = Math.pow(1 + assumptions.discountRate / 100, yr);
     baseSumPV += fcf / df;
     baseLastFCF = fcf;

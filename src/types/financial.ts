@@ -353,6 +353,7 @@ export interface ValuationJSON {
     rf_instrument: string;
     rf_date: string;
     discounting_convention: 'END_OF_YEAR' | 'MID_YEAR';
+    accounting_standard?: string;
   };
   inputs: Record<string, unknown>;
   calculated: {
@@ -382,6 +383,7 @@ export interface ValuationJSON {
         shares_outstanding: number;
         intrinsic_value_per_share: number;
       };
+      terminal_growth_used?: number;
     };
     ddm: DDMResult;
     multiples: Record<string, number>;
