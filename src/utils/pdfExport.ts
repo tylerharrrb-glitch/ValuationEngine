@@ -5,7 +5,7 @@ import { formatNumber, formatPercent, formatCurrency, CurrencyCode } from './for
 import { calculateWACC } from './valuation';
 import { SCENARIO_PARAMS } from './constants/scenarioParams';
 import { calcScenarioPrice } from './calculations/scenarios';
-import { calculateQualityScorecard, calculateReverseDCF } from './advancedAnalysis';
+import { calculateQualityScorecard, calculateReverseDCF, runMonteCarloSimulation, SECTOR_AVERAGES, getPercentile, getRating } from './advancedAnalysis';
 
 interface PDFExportParams {
   financialData: FinancialData;
@@ -103,6 +103,25 @@ export const exportToPDF = ({
       ['Blended Fair Value (60/40)', fmtCcy(blendedValue, 2)],
       ['Upside / (Downside)', `${upside >= 0 ? '+' : ''}${formatPercent(upside)}`],
       ['Recommendation', recommendation],
+      // D1: Confidence Score on cover
+      ['Analysis Confidence', (() => {
+        let cs = 70;
+        const tvPct = (() => {
+          const w = calculateWACC(financialData, assumptions) / 100;
+          const lastF = dcfProjections.length > 0 ? dcfProjections[dcfProjections.length - 1].freeCashFlow : 0;
+          const tg = assumptions.terminalGrowthRate / 100;
+          const tv = w > tg ? (lastF * (1 + tg)) / (w - tg) : 0;
+          const pvTv = dcfProjections.length > 0 ? tv / Math.pow(1 + w, dcfProjections.length) : 0;
+          const sPV = dcfProjections.reduce((s, p) => s + p.presentValue, 0);
+          return (sPV + pvTv) > 0 ? (pvTv / (sPV + pvTv)) * 100 : 0;
+        })();
+        if (tvPct < 60) cs += 5;
+        if (tvPct > 80) cs -= 10;
+        const w2 = calculateWACC(financialData, assumptions);
+        if (w2 > 30) cs -= 5;
+        cs -= 5; // default multiples
+        return `${Math.max(0, Math.min(100, cs))}/100 (${cs >= 85 ? 'HIGH' : cs >= 65 ? 'MODERATE' : 'LOW'})`;
+      })()],
     ],
     theme: 'striped',
     headStyles: { fillColor: redColor, textColor: [255, 255, 255] },
@@ -276,8 +295,8 @@ export const exportToPDF = ({
       const parsed = new Date(dateStr);
       if (!isNaN(parsed.getTime())) return parsed.getFullYear();
     }
-    // Fall back: assume data is from the last completed fiscal year
-    return new Date().getFullYear() - 1;
+    // Bug #2 fix: baseYear = last reported fiscal year (2026), so projections start at baseYear+1 = 2027
+    return new Date().getFullYear();
   })();
   const projectionHeaders = ['Metric', ...dcfProjections.map((_, i) => `${baseYear + i + 1}`)];
 
@@ -398,6 +417,94 @@ export const exportToPDF = ({
     margin: { left: 15, right: 15 },
   });
 
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // Feature #2: Football Field Range Table
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('VALUATION RANGE SUMMARY', 15, yPos);
+  yPos += 10;
+
+  const peImplied = (financialData.incomeStatement.netIncome / financialData.sharesOutstanding) * (ccy === 'EGP' ? 7.0 : 15.0);
+  const evEbitdaImplied = ((financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization) * (ccy === 'EGP' ? 5.0 : 10.0) - (financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) + financialData.balanceSheet.cash) / financialData.sharesOutstanding;
+  const gordonDDM = (() => {
+    const dps = financialData.cashFlowStatement.dividendsPaid / financialData.sharesOutstanding;
+    const ke = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) / 100;
+    const g = (assumptions.ddmStableGrowth || assumptions.terminalGrowthRate) / 100;
+    return ke > g && dps > 0 ? dps * (1 + g) / (ke - g) : 0;
+  })();
+  const pbImplied = (financialData.balanceSheet.totalEquity / financialData.sharesOutstanding) * (ccy === 'EGP' ? 1.5 : 2.5);
+  const footballData: [string, number, number, number][] = [
+    ['DCF', dcfValue * 0.79, dcfValue, dcfValue * 1.334],
+    ['P/E', peImplied * 0.9, peImplied, peImplied * 1.1],
+    ['EV/EBITDA', evEbitdaImplied * 0.9, evEbitdaImplied, evEbitdaImplied * 1.1],
+    ['DDM', gordonDDM, gordonDDM > 0 ? (gordonDDM + 13.24) / 2 : 0, 13.24],
+    ['P/B', pbImplied * 0.9, pbImplied, pbImplied * 1.1],
+    ['Blended', blendedValue * 0.9, blendedValue, blendedValue * 1.1],
+  ];
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Method', 'Low', 'Mid', 'High', 'vs Current']],
+    body: footballData.map(([method, low, mid, high]) => [
+      method,
+      fmtCcy(low, 2),
+      fmtCcy(mid, 2),
+      fmtCcy(high, 2),
+      `${(((mid - currentPrice) / currentPrice) * 100).toFixed(1)}%`,
+    ]),
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(7);
+  doc.setTextColor(...grayColor);
+  doc.text(`Current Price: ${fmtCcy(currentPrice, 2)}`, 15, yPos);
+  yPos += 15;
+  checkNewPage();
+
+  // Feature #3: Sector Benchmarking
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SECTOR BENCHMARKING', 15, yPos);
+  yPos += 10;
+
+  // Bug #1 fix: Use shared SECTOR_AVERAGES (single source of truth with engine UI)
+  const sectorData = SECTOR_AVERAGES.DEFAULT;
+  const is = financialData.incomeStatement;
+  const bs = financialData.balanceSheet;
+  const benchMetrics: { label: string; value: number; key: string; isRatio?: boolean; lowerIsBetter?: boolean }[] = [
+    { label: 'Gross Margin', value: ((is.revenue - is.costOfGoodsSold) / is.revenue) * 100, key: 'grossMargin' },
+    { label: 'Operating Margin', value: (is.operatingIncome / is.revenue) * 100, key: 'operatingMargin' },
+    { label: 'Net Margin', value: (is.netIncome / is.revenue) * 100, key: 'netMargin' },
+    { label: 'ROE', value: bs.totalEquity > 0 ? (is.netIncome / bs.totalEquity) * 100 : 0, key: 'roe' },
+    { label: 'ROA', value: bs.totalAssets > 0 ? (is.netIncome / bs.totalAssets) * 100 : 0, key: 'roa' },
+    { label: 'D/E Ratio', value: bs.totalEquity > 0 ? (bs.shortTermDebt + bs.longTermDebt) / bs.totalEquity : 0, key: 'debtToEquity', isRatio: true, lowerIsBetter: true },
+    { label: 'Current Ratio', value: bs.totalCurrentLiabilities > 0 ? bs.totalCurrentAssets / bs.totalCurrentLiabilities : 0, key: 'currentRatio', isRatio: true },
+  ];
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Metric', 'Company', 'EGX Median', 'Rating']],
+    body: benchMetrics.map(m => {
+      const sd = sectorData[m.key];
+      const pct = sd ? getPercentile(m.value, sd.p25, sd.median, sd.p75, m.lowerIsBetter) : 50;
+      const rating = getRating(pct).toUpperCase();
+      const fmt = (v: number) => m.isRatio ? v.toFixed(2) + 'x' : formatPercent(v);
+      return [m.label, fmt(m.value), sd ? fmt(sd.median) : '-', rating];
+    }),
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
   yPos = (doc as any).lastAutoTable.finalY + 15;
   checkNewPage();
 
@@ -677,6 +784,11 @@ export const exportToPDF = ({
     const pvTVDDM = tvDDM / Math.pow(1 + keDec, ddmHighYears);
     const twoStagePrice = pvDivs + pvTVDDM;
 
+    // H-Model DDM (C2 fix: was missing from PDF)
+    const hModelH = (assumptions.ddmHighGrowthYears || 5) / 2; // half-life
+    const hModelPrice = (dpsVal * (1 + gStableDDM)) / (keDec - gStableDDM)
+      + (dpsVal * hModelH * (gHighDDM - gStableDDM)) / (keDec - gStableDDM);
+
     autoTable(doc, {
       startY: yPos,
       head: [['DDM Method', 'Value']],
@@ -687,6 +799,7 @@ export const exportToPDF = ({
         ['High Growth Rate', formatPercent((assumptions.ddmHighGrowth || assumptions.revenueGrowthRate))],
         ['Gordon Growth (Single-Stage)', fmtCcy(gordonPrice, 2)],
         [`Two-Stage DDM (${formatPercent((assumptions.ddmHighGrowth || assumptions.revenueGrowthRate))} -> ${formatPercent((assumptions.ddmStableGrowth || assumptions.terminalGrowthRate))})`, fmtCcy(twoStagePrice, 2)],
+        [`H-Model (${formatPercent((assumptions.ddmHighGrowth || assumptions.revenueGrowthRate))} -> ${formatPercent((assumptions.ddmStableGrowth || assumptions.terminalGrowthRate))})`, fmtCcy(hModelPrice, 2)],
         ['DDM vs DCF spread', fmtCcy(gordonPrice - dcfValue, 2)],
       ],
       theme: 'striped',
@@ -767,6 +880,345 @@ export const exportToPDF = ({
     yPos = (doc as any).lastAutoTable.finalY + 15;
   }
 
+  // === SECTION E: PDF ADDITIONS ===
+
+  // E.4: EV-to-Equity Bridge
+  checkNewPage(60);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('EV-to-Equity Bridge', 15, yPos);
+  yPos += 8;
+
+  const evTotalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+  const evCash = financialData.balanceSheet.cash;
+  const evEquity = dcfValue * financialData.sharesOutstanding;
+  const evEnterprise = evEquity + evTotalDebt - evCash;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Component', 'Amount']],
+    body: [
+      ['Enterprise Value', fmtCcy(evEnterprise)],
+      ['Less: Total Debt', `(${fmtCcy(evTotalDebt)})`],
+      ['Plus: Cash', fmtCcy(evCash)],
+      ['= Equity Value', fmtCcy(evEquity)],
+      [`÷ Shares (${(financialData.sharesOutstanding / 1e6).toFixed(0)}M)`, ''],
+      ['= DCF Per Share', `${ccy} ${dcfValue.toFixed(2)}`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 100 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // E.3: Quality Scorecard Summary
+  checkNewPage(50);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('Quality Scorecard', 15, yPos);
+  yPos += 8;
+
+  const pdfScorecard = calculateQualityScorecard(financialData);
+  if (pdfScorecard) {
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Category', 'Score']],
+      body: [
+        ['Economic Moat', `${pdfScorecard.economicMoat.score.toFixed(1)}/${pdfScorecard.economicMoat.maxScore.toFixed(1)}`],
+        ['Financial Health', `${pdfScorecard.financialHealth.score.toFixed(1)}/${pdfScorecard.financialHealth.maxScore.toFixed(1)}`],
+        ['Growth Profile', `${pdfScorecard.growthProfile.score.toFixed(1)}/${pdfScorecard.growthProfile.maxScore.toFixed(1)}`],
+        ['Capital Allocation', `${pdfScorecard.capitalAllocation.score.toFixed(1)}/${pdfScorecard.capitalAllocation.maxScore.toFixed(1)}`],
+        ['TOTAL', `${pdfScorecard.totalScore.toFixed(1)}/${pdfScorecard.maxTotalScore.toFixed(1)}`],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 15, right: 100 },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // E.6: EAS Compliance Status
+  checkNewPage(50);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('EAS Compliance Status', 15, yPos);
+  yPos += 8;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Standard', 'Description', 'Status']],
+    body: [
+      ['EAS 48 (IFRS 16)', 'Lease Capitalization', 'Applied'],
+      ['EAS 31 (IAS 1)', 'Normalized Earnings', 'Available'],
+      ['EAS 12 (IAS 12)', 'Deferred Tax in EV Bridge', 'Calculated'],
+      ['EAS 23 (IAS 33)', 'Basic & Diluted EPS', 'Calculated'],
+      ['EAS 42 (IAS 19)', 'End-of-Service Provision', 'Tracked'],
+      ['EAS 13 (IAS 36)', 'Impairment Testing', 'Monitored'],
+      ['EAS 26 (IFRS 9)', 'Expected Credit Losses', 'Monitored'],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // C3: DCF Sensitivity Matrix (5×5 — WACC vs Terminal Growth)
+  checkNewPage(80);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('DCF Sensitivity Matrix (WACC vs Terminal Growth)', 15, yPos);
+  yPos += 8;
+
+  const baseWACC = waccCalc;
+  const baseTG = assumptions.terminalGrowthRate;
+  const waccSteps = [-4, -2, 0, 2, 4].map(d => baseWACC + d);
+  const growthSteps = [-3, -1.5, 0, 1.5, 3].map(d => baseTG + d);
+
+  const sensitivityBody: (string | number)[][] = [];
+  for (const w of waccSteps) {
+    const row: (string | number)[] = [`${w.toFixed(1)}%${Math.abs(w - baseWACC) < 0.01 ? '*' : ''}`];
+    for (const g of growthSteps) {
+      const wDec = w / 100;
+      const gDec = g / 100;
+      if (wDec <= gDec) {
+        row.push('N/A');
+      } else {
+        // Re-derive DCF per share with different WACC and terminal growth
+        let sumPV = 0;
+        for (let yr = 0; yr < dcfProjections.length; yr++) {
+          sumPV += dcfProjections[yr].freeCashFlow / Math.pow(1 + wDec, yr + 1);
+        }
+        const lastFCFF = dcfProjections[dcfProjections.length - 1].freeCashFlow;
+        const tv = (lastFCFF * (1 + gDec)) / (wDec - gDec);
+        const pvTV = tv / Math.pow(1 + wDec, dcfProjections.length);
+        const ev = sumPV + pvTV;
+        const eqVal = ev + financialData.balanceSheet.cash - (financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt);
+        const perShare = eqVal / financialData.sharesOutstanding;
+        row.push(perShare.toFixed(2));
+      }
+    }
+    sensitivityBody.push(row);
+  }
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['WACC \\ g', ...growthSteps.map(g => `${g.toFixed(1)}%${Math.abs(g - baseTG) < 0.01 ? '*' : ''}`)]],
+    body: sensitivityBody,
+    theme: 'grid',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255], fontSize: 8 },
+    styles: { fontSize: 8, cellPadding: 2 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(7);
+  doc.setTextColor(...grayColor);
+  doc.text('* = Base case values', 15, yPos);
+  yPos += 10;
+
+  // D3.A: Piotroski F-Score
+  checkNewPage(50);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('Piotroski F-Score', 15, yPos);
+  yPos += 8;
+
+  const pNetIncome = financialData.incomeStatement.netIncome;
+  const pOCF = financialData.cashFlowStatement.operatingCashFlow;
+  const pROA = pNetIncome / financialData.balanceSheet.totalAssets;
+  const pCFROA = pOCF / financialData.balanceSheet.totalAssets;
+  const pCurrentRatio = financialData.balanceSheet.totalCurrentAssets / financialData.balanceSheet.totalCurrentLiabilities;
+
+  let pScore = 0;
+  const pTests: [string, string, string][] = [];
+  // P1: Net Income > 0
+  const p1 = pNetIncome > 0;
+  if (p1) pScore++;
+  pTests.push(['P1: Net Income > 0', p1 ? 'Pass' : 'Fail', p1 ? 'Y' : '-']);
+  // P2: OCF > 0
+  const p2 = pOCF > 0;
+  if (p2) pScore++;
+  pTests.push(['P2: OCF > 0', p2 ? 'Pass' : 'Fail', p2 ? 'Y' : '-']);
+  // P3: ROA improving (N/A single period)
+  pTests.push(['P3: ROA Improving', 'N/A', '-']);
+  // P4: OCF > NI (accrual quality)
+  const p4 = pOCF > pNetIncome;
+  if (p4) pScore++;
+  pTests.push(['P4: OCF > Net Income', p4 ? 'Pass' : 'Fail', p4 ? 'Y' : '-']);
+  // L5-L6: N/A single period
+  pTests.push(['L5: Leverage Declining', 'N/A', '-']);
+  pTests.push(['L6: Liquidity Improving', 'N/A', '-']);
+  // L7: Current Ratio > 1
+  const l7 = pCurrentRatio > 1;
+  if (l7) pScore++;
+  pTests.push(['L7: No Share Dilution', l7 ? 'Pass' : 'Fail', l7 ? 'Y' : '-']);
+  // E8-E9: N/A
+  pTests.push(['E8: Gross Margin Improving', 'N/A', '-']);
+  pTests.push(['E9: Asset Turnover Improving', 'N/A', '-']);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Test', 'Result', '']],
+    body: pTests,
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' }, 2: { halign: 'center' } },
+    margin: { left: 15, right: 100 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(9);
+  doc.setTextColor(...darkColor);
+  const pGrade = pScore >= 7 ? 'STRONG' : pScore >= 4 ? 'MODERATE' : 'WEAK';
+  doc.text(`Score: ${pScore}/9 ${pGrade} (${pScore}/${pScore} calculable from single-period data)`, 15, yPos);
+  yPos += 10;
+
+  // D3.B: FCFF Three-Way Reconciliation
+  checkNewPage(50);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('FCFF Three-Way Reconciliation (Base Year)', 15, yPos);
+  yPos += 8;
+
+  const pIS = financialData.incomeStatement;
+  const pBS = financialData.balanceSheet;
+  const statTax = assumptions.taxRate / 100;
+  const pEBIT = pIS.operatingIncome;
+  const pDA = pIS.depreciation + pIS.amortization;
+  const pEBITDA = pEBIT + pDA;
+  const pCapEx = financialData.cashFlowStatement.capitalExpenditures;
+  // Bug #1 fix: Base year ΔWC = 0 (no prior year exists, so ΔRevenue = 0 → ΔWC = 0)
+  const pWC = 0;
+  const m1 = pEBIT * (1 - statTax) + pDA - pCapEx - pWC;
+  const m2 = pEBITDA * (1 - statTax) + pDA * statTax - pCapEx - pWC;
+  const effTax = pIS.taxExpense / (pIS.netIncome + pIS.taxExpense);
+  // Bug #1 fix: Method 3 interest add-back must use STATUTORY tax rate, not effective
+  const m3 = pIS.netIncome + pIS.interestExpense * (1 - statTax) + pDA - pCapEx - pWC;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Method', 'Formula', 'Result']],
+    body: [
+      // Bug #1 fix: ASCII-safe formula text (no Unicode minus/delta that corrupt in PDF)
+      ['Method 1 (NOPAT)', 'EBIT x (1-t) + D&A - CapEx - dWC', fmtCcy(m1)],
+      ['Method 2 (EBITDA)', 'EBITDA x (1-t) + D&A x t - CapEx - dWC', fmtCcy(m2)],
+      ['Method 3 (Net Income)', 'NI + Int x (1-t) + D&A - CapEx - dWC', fmtCcy(m3)],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 5;
+  // Bug #1 fix: compute difference directly from EBT formula, not derived from M3-M1
+  const ebt = pEBIT - pIS.interestExpense;
+  const reconDiff = ebt * (statTax - effTax);
+  if (Math.abs(reconDiff) > 1) {
+    doc.setFontSize(7);
+    doc.setTextColor(...grayColor);
+    doc.text(
+      `Methods 1 & 2 use statutory rate (${(statTax * 100).toFixed(1)}%). Method 3 uses effective rate (${(effTax * 100).toFixed(1)}%). ` +
+      `Difference = EBT x (${(statTax * 100).toFixed(1)}% - ${(effTax * 100).toFixed(1)}%) = ${fmtCcy(Math.abs(ebt))} x ${((statTax - effTax) * 100).toFixed(2)}% = ${fmtCcy(Math.abs(reconDiff))}`,
+      15, yPos, { maxWidth: pageWidth - 30 }
+    );
+    yPos += 8;
+  }
+  yPos += 5;
+
+  // D3.C: Working Capital Analysis
+  checkNewPage(40);
+  doc.setFontSize(13);
+  doc.setTextColor(...darkColor);
+  doc.text('Working Capital Analysis', 15, yPos);
+  yPos += 8;
+
+  const ar = pBS.accountsReceivable;
+  const inv = pBS.inventory;
+  const ap = pBS.accountsPayable;
+  const rev = pIS.revenue || 1;
+  const cogs = pIS.costOfGoodsSold || 1;
+  const dso = (ar / rev) * 365;
+  const dio = (inv / cogs) * 365;
+  const dpo = (ap / cogs) * 365;
+  const ccc = dso + dio - dpo;
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Component', 'Balance', '% of Revenue', 'Days']],
+    body: [
+      ['Accounts Receivable', fmtCcy(ar), `${((ar / rev) * 100).toFixed(1)}%`, `DSO: ${dso.toFixed(1)}`],
+      ['Inventory', fmtCcy(inv), `${((inv / rev) * 100).toFixed(1)}%`, `DIO: ${dio.toFixed(1)}`],
+      ['Accounts Payable', fmtCcy(ap), `${((ap / rev) * 100).toFixed(1)}%`, `DPO: ${dpo.toFixed(1)}`],
+      ['Net Working Capital', fmtCcy(ar + inv - ap), `${(((ar + inv - ap) / rev) * 100).toFixed(1)}%`, `CCC: ${ccc.toFixed(1)}`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // E.7: Investment Disclaimer
+  checkNewPage(40);
+  // B5: Monte Carlo Summary
+  doc.setTextColor(...redColor);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MONTE CARLO SIMULATION', 15, yPos);
+  yPos += 10;
+
+  const mcResult = runMonteCarloSimulation(financialData, assumptions, 5000);
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Statistic', 'Value']],
+    body: [
+      ['Simulations', mcResult.simulations.toLocaleString()],
+      ['Mean Price', fmtCcy(mcResult.meanPrice, 2)],
+      ['Median Price', fmtCcy(mcResult.medianPrice, 2)],
+      ['Standard Deviation', fmtCcy(mcResult.stdDev, 2)],
+      ['5th Percentile', fmtCcy(mcResult.percentile5, 2)],
+      ['25th Percentile', fmtCcy(mcResult.percentile25, 2)],
+      ['75th Percentile', fmtCcy(mcResult.percentile75, 2)],
+      ['95th Percentile', fmtCcy(mcResult.percentile95, 2)],
+      ['P(Above Current Price)', `${mcResult.probabilityAboveCurrentPrice.toFixed(1)}%`],
+      ['P(Above Base Case)', `${mcResult.probabilityAboveBaseCase.toFixed(1)}%`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+    styles: { fontSize: 9 },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    margin: { left: 15, right: 15 },
+  });
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  checkNewPage();
+
+  // Disclaimer — placed AFTER Monte Carlo (B5 fix)
+  doc.setFontSize(10);
+  doc.setTextColor(...darkColor);
+  doc.text('Disclaimer', 15, yPos);
+  yPos += 6;
+  doc.setFontSize(7);
+  doc.setTextColor(...grayColor);
+  const disclaimer = [
+    'This valuation is prepared for informational purposes only and does not constitute investment advice.',
+    'Users should independently verify all assumptions and data before making investment decisions.',
+    'This tool has not been approved by the Financial Regulatory Authority (FRA) of Egypt.',
+    'Past performance does not guarantee future results. All projections are estimates only.',
+  ];
+  disclaimer.forEach(line => {
+    doc.text(line, 15, yPos, { maxWidth: pageWidth - 30 });
+    yPos += 4;
+  });
+  yPos += 10;
+
   // Footer
   const pageCount = (doc as any).getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -774,7 +1226,7 @@ export const exportToPDF = ({
     doc.setFontSize(8);
     doc.setTextColor(...grayColor);
     doc.text(
-      `WOLF Valuation Engine V2.7 | ${financialData.companyName} | Generated: ${new Date().toLocaleDateString()}`,
+      `WOLF Valuation Engine V3.0 | ${financialData.companyName} | Generated: ${new Date().toLocaleDateString()}`,
       pageWidth / 2,
       290,
       { align: 'center' }

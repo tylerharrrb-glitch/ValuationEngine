@@ -9,6 +9,7 @@
 /** Egyptian tax categories per Section 3.4 */
 export const EGYPT_TAX_CATEGORIES = {
   standard: { rate: 22.5, label: 'Standard Corporate Tax (DEFAULT)', applies: 'Most Egyptian companies' },
+  industrial_zone: { rate: 0, label: 'Industrial Zone (First 5 Years)', applies: 'Industrial free zone — reverts to 22.5% after year 5' },
   oil_gas: { rate: 40.55, label: 'Oil & Gas Companies', applies: 'Petroleum sector companies' },
   suez_canal: { rate: 40.0, label: 'Suez Canal / EGPC / CBE', applies: 'Specific state entities' },
   free_zone: { rate: 0, label: 'Free Zone (Export Income)', applies: 'Free economic zone exports' },
@@ -40,10 +41,29 @@ export const MARKET_DEFAULTS = {
     currency: 'EGP' as const,
     currencySymbol: 'EGP',
     label: '🇪🇬 Egypt',
-    description: '10-Year Egyptian Government Bond Yield',  // BUG FIX: was "Egyptian T-Bill Rate (91-Day)"
+    description: '10-Year Egyptian Government Bond Yield',
     marketDescription: 'Egypt - Emerging Market (EGX)',
-    riskFreeDescription: '10-Year Egyptian Government Bond Yield',  // BUG FIX
+    riskFreeDescription: '10-Year Egyptian Government Bond Yield',
     countryRiskPremium: 7.5,      // Damodaran for Egypt (Caa1/B-) — used ONLY in Method B
+
+    // B2: Structured CAPM method guidance
+    methodA: {
+      riskFreeRate: 22.0,         // 10-year Egyptian Government Bond (EGP)
+      erp: 5.5,                   // Mature Market ERP (Damodaran)
+      countryRiskPremium: 0,      // DO NOT ADD — already embedded in Rf
+      rationale: 'Local Rf incorporates Egypt sovereign risk. Use mature ERP only.',
+    },
+    methodB: {
+      riskFreeRate: 4.5,          // 10-year US Treasury
+      erp: 5.5,                   // Mature Market ERP
+      countryRiskPremium: 4.5,    // Egypt CRP (Damodaran — check for updates)
+      rationale: 'USD base with explicit country risk premium.',
+    },
+
+    // B2: Additional Egypt-specific rates
+    cbeBenchmarkRate: 27.25,      // CBE overnight lending corridor (Jan 2025)
+    dividendWithholdingTax: 10.0, // Article 46 bis Egyptian Tax Law — 10% on distributions
+    capitalGainsTax: 10.0,        // On listed securities
   },
 };
 
@@ -62,11 +82,14 @@ export const DEFAULT_INDUSTRY_MULTIPLES = {
   DEFAULT: { pe: 20, evEbitda: 12, ps: 3, pb: 4, label: 'Market Average' },
 };
 
-/** Egyptian industry multiples (different from US tech multiples) */
+/** Egyptian industry multiples — sector-specific EGX defaults (Feature #1 V9) */
 export const EGYPTIAN_INDUSTRY_MULTIPLES = {
-  BANKING: { pe: 5.5, evEbitda: 4.0, ps: 2.0, pb: 1.2, label: 'Egyptian Banks' },
-  TELECOM: { pe: 8.0, evEbitda: 4.5, ps: 1.5, pb: 1.8, label: 'Egyptian Telecom' },
-  CONSUMER: { pe: 12.0, evEbitda: 7.0, ps: 1.2, pb: 2.5, label: 'Egyptian Consumer/Food' },
-  REAL_ESTATE: { pe: 6.0, evEbitda: 8.0, ps: 2.0, pb: 0.8, label: 'Egyptian Real Estate' },
-  DEFAULT: { pe: 7.0, evEbitda: 5.0, ps: 1.2, pb: 1.5, label: 'EGX Market Average' },
+  BANKING: { pe: 5.5, evEbitda: 0, ps: 2.0, pb: 1.0, label: 'Banking', weights: [50, 0, 25, 25] },
+  REAL_ESTATE: { pe: 8.0, evEbitda: 7.0, ps: 1.5, pb: 0.8, label: 'Real Estate', weights: [40, 35, 15, 10] },
+  TELECOM: { pe: 12.0, evEbitda: 6.0, ps: 1.8, pb: 2.0, label: 'Telecom', weights: [40, 35, 15, 10] },
+  CONSUMER: { pe: 15.0, evEbitda: 8.0, ps: 1.0, pb: 2.5, label: 'Consumer/FMCG', weights: [40, 35, 15, 10] },
+  INDUSTRIAL: { pe: 7.0, evEbitda: 5.0, ps: 0.8, pb: 1.2, label: 'Industrial', weights: [40, 35, 15, 10] },
+  HEALTHCARE: { pe: 18.0, evEbitda: 10.0, ps: 2.0, pb: 3.0, label: 'Healthcare', weights: [40, 35, 15, 10] },
+  ENERGY: { pe: 6.0, evEbitda: 4.5, ps: 0.6, pb: 1.0, label: 'Energy', weights: [40, 35, 15, 10] },
+  DEFAULT: { pe: 7.0, evEbitda: 5.0, ps: 1.2, pb: 1.5, label: 'EGX Market Average', weights: [40, 35, 15, 10] },
 };

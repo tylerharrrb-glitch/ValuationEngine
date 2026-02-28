@@ -8,12 +8,14 @@ import { CurrencyCode } from '../../utils/formatters';
 import { InputField } from '../shared/InputField';
 import { StockSearch } from '../StockSearch';
 import { Tooltip } from '../Tooltip';
-import { MARKET_DEFAULTS, EGYPTIAN_TAX_CATEGORIES } from '../../constants/marketDefaults';
-import { formatPercent } from '../../utils/formatters';
+import { MARKET_DEFAULTS, EGYPTIAN_TAX_CATEGORIES, EGYPTIAN_INDUSTRY_MULTIPLES } from '../../constants/marketDefaults';
+import { formatPercent, formatNumber } from '../../utils/formatters';
 import { fetchAllPeerData, getSuggestedPeers } from '../../services/stockAPI';
 import { calculateWACC } from '../../utils/valuation';
+import { BalanceSheetValidation } from './BalanceSheetValidation';
+import { HistoricalDataPanel } from './HistoricalDataPanel';
 
-type InputSubTab = 'company' | 'income' | 'balance' | 'cashflow' | 'assumptions' | 'comparables';
+type InputSubTab = 'company' | 'income' | 'balance' | 'cashflow' | 'assumptions' | 'comparables' | 'historical';
 
 export interface InputTabProps {
   financialData: FinancialData;
@@ -42,6 +44,26 @@ export const InputTab: React.FC<InputTabProps> = ({
 }) => {
   const [inputSubTab, setInputSubTab] = useState<InputSubTab>('company');
   const [loadingPeers, setLoadingPeers] = useState(false);
+  const [selectedSector, setSelectedSector] = useState<string>('DEFAULT');
+
+  // B1: Auto-populate sector defaults when sector changes (Egypt only)
+  const handleSectorChange = (sector: string) => {
+    setSelectedSector(sector);
+    if (marketRegion === 'Egypt') {
+      const multiples = EGYPTIAN_INDUSTRY_MULTIPLES[sector as keyof typeof EGYPTIAN_INDUSTRY_MULTIPLES] || EGYPTIAN_INDUSTRY_MULTIPLES.DEFAULT;
+      const defaultComp: ComparableCompany = {
+        name: `EGX ${multiples.label} Avg`,
+        ticker: `EGX_${sector}`,
+        peRatio: multiples.pe,
+        evEbitda: multiples.evEbitda,
+        psRatio: multiples.ps || 1.2,
+        pbRatio: multiples.pb,
+        marketCap: 0,
+        revenue: 0,
+      };
+      updateComparables([defaultComp]);
+    }
+  };
 
   // Shared InputField props
   const fieldProps = { isDarkMode, textMutedClass, inputClass, currency };
@@ -110,6 +132,7 @@ export const InputTab: React.FC<InputTabProps> = ({
           { id: 'cashflow', label: 'Cash Flow' },
           { id: 'assumptions', label: 'Assumptions' },
           { id: 'comparables', label: 'Comparables' },
+          { id: 'historical', label: 'Historical' },
         ] as { id: InputSubTab; label: string }[]).map(({ id, label }) => (
           <button
             key={id}
@@ -143,7 +166,76 @@ export const InputTab: React.FC<InputTabProps> = ({
             <InputField label="Current Stock Price" value={financialData.currentStockPrice}
               onChange={(val) => updateFinancialData(prev => ({ ...prev, currentStockPrice: val as number }))}
               prefix={marketRegion === 'Egypt' ? 'EGP' : '$'} step="0.01" min={0} {...fieldProps} />
+            {/* C7: Fiscal Year End Selector */}
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>Fiscal Year End</label>
+              <select
+                value={financialData.fiscalYearEnd || 'dec'}
+                onChange={(e) => updateFinancialData(prev => ({ ...prev, fiscalYearEnd: e.target.value }))}
+                className={`w-full px-3 py-2 rounded-lg border ${inputClass}`}
+              >
+                <option value="dec">December 31</option>
+                <option value="jun">June 30 (Egyptian Banks)</option>
+                <option value="mar">March 31</option>
+                <option value="sep">September 30</option>
+              </select>
+            </div>
           </div>
+
+          {/* B1: Sector Dropdown (Egypt only) */}
+          {marketRegion === 'Egypt' && (
+            <div className="mt-4">
+              <label className={`block text-sm font-medium mb-1 ${textMutedClass}`}>EGX Sector</label>
+              <select
+                value={selectedSector}
+                onChange={e => handleSectorChange(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm ${inputClass}`}
+              >
+                {Object.entries(EGYPTIAN_INDUSTRY_MULTIPLES).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+              {selectedSector !== 'DEFAULT' && (
+                <p className="text-xs text-green-400 mt-1">
+                  Auto-populated {EGYPTIAN_INDUSTRY_MULTIPLES[selectedSector as keyof typeof EGYPTIAN_INDUSTRY_MULTIPLES]?.label || 'sector'} multiples
+                  {selectedSector === 'BANKING' && ' (EV/EBITDA N/A — weight redistributed)'}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* C8: EGX Quick-Access Tickers (Egypt only) */}
+          {marketRegion === 'Egypt' && (
+            <div className="mt-4">
+              <h4 className={`text-sm font-semibold mb-2 text-red-400 uppercase tracking-wide`}>EGX Quick Access</h4>
+              <div className="space-y-2">
+                {[
+                  { sector: 'Banking', tickers: ['COMI.CA', 'QNBA.CA', 'AIBC.CA'] },
+                  { sector: 'Real Estate', tickers: ['TMGH.CA', 'PHDC.CA', 'MDEV.CA', 'HELI.CA'] },
+                  { sector: 'Telecom & Industrial', tickers: ['ETEL.CA', 'SWDY.CA', 'ESRS.CA', 'AMOC.CA', 'ORWE.CA'] },
+                  { sector: 'Consumer & Healthcare', tickers: ['JUFO.CA', 'EAST.CA', 'EFID.CA', 'CCAP.CA'] },
+                ].map(({ sector, tickers }) => (
+                  <div key={sector}>
+                    <span className={`text-xs font-medium uppercase tracking-wide ${textMutedClass}`}>{sector}</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {tickers.map(t => (
+                        <button
+                          key={t}
+                          onClick={() => updateFinancialData(prev => ({ ...prev, ticker: t }))}
+                          className={`px-2 py-1 text-xs rounded font-mono transition-all ${financialData.ticker === t
+                            ? 'bg-red-600 text-white'
+                            : isDarkMode ? 'bg-zinc-800 text-gray-400 hover:bg-zinc-700 hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                          {t.replace('.CA', '')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -192,7 +284,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'totalCurrentAssets', label: 'Total Current Assets' },
             ].map(({ key, label }) => (
               <InputField key={key} label={label}
-                value={financialData.balanceSheet[key as keyof typeof financialData.balanceSheet]}
+                value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
@@ -212,7 +304,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'totalAssets', label: 'Total Assets' },
             ].map(({ key, label }) => (
               <InputField key={key} label={label}
-                value={financialData.balanceSheet[key as keyof typeof financialData.balanceSheet]}
+                value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
@@ -230,7 +322,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'totalCurrentLiabilities', label: 'Total Current Liabilities' },
             ].map(({ key, label }) => (
               <InputField key={key} label={label}
-                value={financialData.balanceSheet[key as keyof typeof financialData.balanceSheet]}
+                value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
@@ -247,7 +339,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'totalLiabilities', label: 'Total Liabilities' },
             ].map(({ key, label }) => (
               <InputField key={key} label={label}
-                value={financialData.balanceSheet[key as keyof typeof financialData.balanceSheet]}
+                value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
@@ -263,7 +355,30 @@ export const InputTab: React.FC<InputTabProps> = ({
                 ...prev, balanceSheet: { ...prev.balanceSheet, totalEquity: val as number }
               }))}
               {...fieldProps} />
+            {/* D1: Retained Earnings */}
+            <InputField label="Retained Earnings" value={financialData.balanceSheet.retainedEarnings ?? 0}
+              onChange={(val) => updateFinancialData(prev => ({
+                ...prev, balanceSheet: { ...prev.balanceSheet, retainedEarnings: val as number }
+              }))}
+              tooltip="Optional — for more accurate Altman Z-Score X2. If blank, Total Equity is used as proxy."
+              {...fieldProps} />
+            {/* D2: Minority Interest & Preferred Equity */}
+            <InputField label="Minority Interest" value={financialData.balanceSheet.minorityInterest ?? 0}
+              onChange={(val) => updateFinancialData(prev => ({
+                ...prev, balanceSheet: { ...prev.balanceSheet, minorityInterest: val as number }
+              }))}
+              tooltip="Non-controlling interest. Added to EV in the equity bridge."
+              {...fieldProps} />
+            <InputField label="Preferred Equity" value={financialData.balanceSheet.preferredEquity ?? 0}
+              onChange={(val) => updateFinancialData(prev => ({
+                ...prev, balanceSheet: { ...prev.balanceSheet, preferredEquity: val as number }
+              }))}
+              tooltip="Preferred shares outstanding. Deducted from equity in the bridge."
+              {...fieldProps} />
           </div>
+
+          {/* A3: Balance Sheet Auto-Validation */}
+          <BalanceSheetValidation financialData={financialData} isDarkMode={isDarkMode} currency={currency} />
         </div>
       )}
 
@@ -280,7 +395,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'netChangeInCash', label: 'Net Change in Cash' },
             ].map(({ key, label, tooltip, min }) => (
               <InputField key={key} label={label}
-                value={financialData.cashFlowStatement[key as keyof typeof financialData.cashFlowStatement]}
+                value={(financialData.cashFlowStatement[key as keyof typeof financialData.cashFlowStatement] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, cashFlowStatement: { ...prev.cashFlowStatement, [key]: val as number }
                 }))}
@@ -289,6 +404,32 @@ export const InputTab: React.FC<InputTabProps> = ({
                 {...fieldProps} />
             ))}
           </div>
+
+          {/* C1: Cash Flow Reconciliation */}
+          {(() => {
+            const fcf = financialData.cashFlowStatement.freeCashFlow || 0;
+            const divs = financialData.cashFlowStatement.dividendsPaid || 0;
+            const net = financialData.cashFlowStatement.netChangeInCash || 0;
+            const other = net - (fcf - divs);
+            const hasGap = Math.abs(other) > 0 && fcf > 0;
+            return hasGap ? (
+              <div className={`mt-4 p-4 rounded-lg border ${isDarkMode ? 'border-zinc-700 bg-zinc-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                <h4 className={`text-sm font-semibold mb-2 ${textClass}`}>Cash Flow Reconciliation</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className={textMutedClass}>Free Cash Flow</span><span className={textClass}>+{formatNumber(fcf)}</span></div>
+                  <div className="flex justify-between"><span className={textMutedClass}>Dividends Paid</span><span className="text-red-400">-{formatNumber(divs)}</span></div>
+                  <div className="flex justify-between"><span className={textMutedClass}>Other Financing/Investing</span><span className={other >= 0 ? 'text-green-400' : 'text-red-400'}>{other >= 0 ? '+' : ''}{formatNumber(other)}</span></div>
+                  <div className={`flex justify-between border-t pt-1 ${isDarkMode ? 'border-zinc-600' : 'border-gray-300'} font-bold`}>
+                    <span className={textClass}>Net Change in Cash</span>
+                    <span className={textClass}>{net >= 0 ? '+' : ''}{formatNumber(net)}</span>
+                  </div>
+                </div>
+                <div className={`mt-2 text-xs p-2 rounded ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                  ℹ️ Cash flow gap of {formatNumber(Math.abs(other))} detected. FCF less Dividends ({formatNumber(fcf - divs)}) ≠ Net Change in Cash ({formatNumber(net)}). This represents other financing or investing activities (e.g., debt repayment, equity issuance).
+                </div>
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -438,9 +579,17 @@ export const InputTab: React.FC<InputTabProps> = ({
               WACC Components
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <InputField label="Risk-Free Rate" value={assumptions.riskFreeRate}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, riskFreeRate: val as number }))}
-                suffix="%" tooltip="Risk-Free Rate" step="0.1" {...fieldProps} />
+              <div>
+                <InputField label="Risk-Free Rate" value={assumptions.riskFreeRate}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, riskFreeRate: val as number }))}
+                  suffix="%" tooltip="Risk-Free Rate" step="0.1" {...fieldProps} />
+                {/* C6: CBE Rate Reference Display */}
+                {marketRegion === 'Egypt' && (
+                  <div className={`text-xs mt-1 ${textMutedClass}`}>
+                    CBE Benchmark: 27.25% | 10Y Bond: ~22-24%
+                  </div>
+                )}
+              </div>
               <InputField label="Equity Risk Premium" value={assumptions.marketRiskPremium}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, marketRiskPremium: val as number }))}
                 suffix="%" tooltip="Equity Risk Premium" step="0.1" {...fieldProps} />
@@ -482,9 +631,9 @@ export const InputTab: React.FC<InputTabProps> = ({
                   </select>
                 </div>
               ) : (
-                <InputField label="Tax Rate" value={assumptions.taxRate}
+                <InputField label="Statutory Tax Rate (for WACC & Projections)" value={assumptions.taxRate}
                   onChange={(val) => updateAssumptions(prev => ({ ...prev, taxRate: val as number }))}
-                  suffix="%" step="0.1" min={0} {...fieldProps} />
+                  suffix="%" step="0.1" min={0} tooltip="Used for WACC tax shield Kd×(1-t) and NOPAT in DCF projections EBIT×(1-t). May differ from effective rate." {...fieldProps} />
               )}
             </div>
 
@@ -534,15 +683,54 @@ export const InputTab: React.FC<InputTabProps> = ({
               <InputField label="Revenue Growth Rate" value={assumptions.revenueGrowthRate}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, revenueGrowthRate: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />
-              <InputField label="EBITDA Margin" value={assumptions.ebitdaMargin}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, ebitdaMargin: val as number }))}
-                suffix="%" step="0.1" {...fieldProps} />
-              <InputField label="D&A (% of Revenue)" value={assumptions.daPercent}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, daPercent: val as number }))}
-                suffix="%" step="0.1" {...fieldProps} />
-              <InputField label="CapEx (% of Revenue)" value={assumptions.capexPercent}
-                onChange={(val) => updateAssumptions(prev => ({ ...prev, capexPercent: val as number }))}
-                suffix="%" step="0.1" {...fieldProps} />
+              {/* A2: EBITDA Margin with historical badge */}
+              <div>
+                <InputField label="EBITDA Margin (Projection)" value={assumptions.ebitdaMargin}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, ebitdaMargin: val as number }))}
+                  suffix="%" step="0.1" tooltip="Forward projection assumption for DCF — does NOT need to match historical." {...fieldProps} />
+                {(() => {
+                  const rev = financialData.incomeStatement.revenue;
+                  const ebitda = financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;
+                  if (rev <= 0) return null;
+                  const hist = (ebitda / rev) * 100;
+                  const delta = assumptions.ebitdaMargin - hist;
+                  const absDelta = Math.abs(delta);
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
+                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                })()}
+              </div>
+              {/* A2: D&A% with historical badge */}
+              <div>
+                <InputField label="D&A (% of Revenue)" value={assumptions.daPercent}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, daPercent: val as number }))}
+                  suffix="%" step="0.1" tooltip="Forward projection — historical D&A% shown below." {...fieldProps} />
+                {(() => {
+                  const rev = financialData.incomeStatement.revenue;
+                  const da = financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;
+                  if (rev <= 0) return null;
+                  const hist = (da / rev) * 100;
+                  const delta = assumptions.daPercent - hist;
+                  const absDelta = Math.abs(delta);
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
+                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                })()}
+              </div>
+              {/* A2: CapEx% with historical badge */}
+              <div>
+                <InputField label="CapEx (% of Revenue)" value={assumptions.capexPercent}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, capexPercent: val as number }))}
+                  suffix="%" step="0.1" tooltip="Forward projection — historical CapEx% shown below." {...fieldProps} />
+                {(() => {
+                  const rev = financialData.incomeStatement.revenue;
+                  const capex = Math.abs(financialData.cashFlowStatement.capitalExpenditures);
+                  if (rev <= 0) return null;
+                  const hist = (capex / rev) * 100;
+                  const delta = assumptions.capexPercent - hist;
+                  const absDelta = Math.abs(delta);
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
+                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                })()}
+              </div>
               <InputField label="ΔWC (% of ΔRevenue)" value={assumptions.deltaWCPercent}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, deltaWCPercent: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />
@@ -648,6 +836,36 @@ export const InputTab: React.FC<InputTabProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* B1: Scenario Configuration */}
+          <div className="mb-6">
+            <h4 className={`text-sm font-semibold mb-3 text-purple-400 uppercase tracking-wide`}>
+              Scenario Configuration
+            </h4>
+            <div className={`p-4 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-purple-50 border-purple-200'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h5 className="text-red-400 font-medium text-sm mb-2">🐻 Bear Case</h5>
+                  <div className="space-y-1">
+                    <div className={`text-xs ${textMutedClass}`}>Growth: {(assumptions.revenueGrowthRate * 0.40).toFixed(1)}% (base × 0.40)</div>
+                    <div className={`text-xs ${textMutedClass}`}>WACC: {(assumptions.discountRate + 2.5).toFixed(1)}% (base + 2.5pp)</div>
+                    <div className={`text-xs text-red-400`}>Margin: −1.5%/yr compression</div>
+                  </div>
+                </div>
+                <div>
+                  <h5 className="text-green-400 font-medium text-sm mb-2">🐂 Bull Case</h5>
+                  <div className="space-y-1">
+                    <div className={`text-xs ${textMutedClass}`}>Growth: {(assumptions.revenueGrowthRate * 2.0).toFixed(1)}% (base × 2.00)</div>
+                    <div className={`text-xs ${textMutedClass}`}>WACC: {Math.max(2, assumptions.discountRate - 2.5).toFixed(1)}% (base − 2.5pp)</div>
+                    <div className={`text-xs text-green-400`}>Margin: +2.5%/yr expansion</div>
+                  </div>
+                </div>
+              </div>
+              <div className={`mt-2 text-xs ${textMutedClass}`}>
+                Terminal growth: Bear × 0.75, Bull × 1.25. Params shared across Engine/PDF/Excel.
+              </div>
             </div>
           </div>
 
@@ -814,6 +1032,17 @@ export const InputTab: React.FC<InputTabProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* B2: Historical Data */}
+      {inputSubTab === 'historical' && (
+        <HistoricalDataPanel
+          financialData={financialData}
+          updateFinancialData={updateFinancialData}
+          isDarkMode={isDarkMode}
+          textMutedClass={textMutedClass}
+          inputClass={inputClass}
+        />
       )}
     </div>
   );

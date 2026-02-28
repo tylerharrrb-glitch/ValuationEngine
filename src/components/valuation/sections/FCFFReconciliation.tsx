@@ -53,10 +53,12 @@ export const FCFFReconciliation: React.FC<Props> = ({
 
     let mismatchExplanation = '';
     if (!m13Match && taxGap > 0.005) {
-        mismatchExplanation = `Methods 1–2 use statutory tax (${(taxRate * 100).toFixed(1)}%). ` +
-            `Method 3 uses actual Net Income (effective tax: ${(effectiveTax * 100).toFixed(1)}%). ` +
-            `Difference: ${(diff / 1e6).toFixed(1)}M = EBIT × (statutory − effective). ` +
-            `This is normal. Projections use statutory rate.`;
+        const ebt = is.operatingIncome - is.interestExpense;
+        mismatchExplanation = `Methods 1 & 2 compute NOPAT using the statutory tax rate (${(taxRate * 100).toFixed(1)}%). ` +
+            `Method 3 starts from reported Net Income, which reflects the effective tax rate (${(effectiveTax * 100).toFixed(1)}%). ` +
+            `The reconciling difference = EBT × (statutory − effective) = ${formatCurrencyShort(Math.abs(ebt), currency)} × ` +
+            `(${(taxRate * 100).toFixed(1)}% − ${(effectiveTax * 100).toFixed(1)}%) = ${formatCurrencyShort(Math.abs(diff), currency)}. ` +
+            `This is normal. All DCF projections use the statutory rate.`;
     }
 
     const rows = [

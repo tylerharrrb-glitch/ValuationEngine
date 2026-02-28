@@ -1,0 +1,135 @@
+/**
+ * D1: Analysis Confidence Score
+ * Scoring: Base 70 + bonuses/penalties based on data quality and model health.
+ */
+import React from 'react';
+import { FinancialData, ValuationAssumptions, ComparableCompany } from '../../../types/financial';
+
+interface ConfidenceScoreProps {
+    financialData: FinancialData;
+    assumptions: ValuationAssumptions;
+    comparables: ComparableCompany[];
+    tvPercent: number; // Terminal Value as % of EV
+    waccRate: number;  // WACC as percentage
+    isDarkMode: boolean;
+    isFromAPI?: boolean;
+}
+
+export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
+    financialData, assumptions, comparables, tvPercent, waccRate, isDarkMode, isFromAPI = false,
+}) => {
+    let score = 70;
+    const factors: { label: string; delta: number; reason: string }[] = [];
+
+    // +10 if data from API (not manual entry)
+    if (isFromAPI) {
+        score += 10;
+        factors.push({ label: 'API Data', delta: +10, reason: 'Financial data sourced from API' });
+    }
+
+    // +5 if TV < 60% of EV
+    if (tvPercent < 60) {
+        score += 5;
+        factors.push({ label: 'TV Health', delta: +5, reason: `TV = ${tvPercent.toFixed(1)}% of EV (< 60%)` });
+    }
+
+    // +5 if custom comparable peers (not default multiples)
+    const hasCustomPeers = comparables.length > 0;
+    if (hasCustomPeers) {
+        score += 5;
+        factors.push({ label: 'Custom Peers', delta: +5, reason: 'Custom comparable companies provided' });
+    }
+
+    // +5 if sector-specific multiples are used (not EGX_DEFAULT)
+    const hasSectorMultiples = comparables.some(c => c.ticker?.startsWith('EGX_') && !c.ticker?.includes('DEFAULT'));
+    if (hasSectorMultiples) {
+        score += 5;
+        factors.push({ label: 'Sector Multiples', delta: +5, reason: 'Sector-specific EGX multiples selected' });
+    }
+
+    // +5 if multi-period historical data available (B2)
+    const hasHistorical = (financialData as any).historicalData?.length >= 2;
+    if (hasHistorical) {
+        score += 5;
+        factors.push({ label: 'Historical Data', delta: +5, reason: 'Multi-period historical data provided' });
+    }
+
+    // +5 if TV is between 40-60% (well-balanced model)
+    if (tvPercent >= 40 && tvPercent <= 60) {
+        score += 5;
+        factors.push({ label: 'Balanced Model', delta: +5, reason: `TV/EV = ${tvPercent.toFixed(1)}% (well-balanced 40-60% range)` });
+    }
+
+    // -10 if TV > 80% of EV
+    if (tvPercent > 80) {
+        score -= 10;
+        factors.push({ label: 'TV Risk', delta: -10, reason: `TV = ${tvPercent.toFixed(1)}% of EV (> 80% — high reliance)` });
+    }
+
+    // -5 if EGX default multiples only (no custom peers)
+    if (!hasCustomPeers) {
+        score -= 5;
+        factors.push({ label: 'Default Multiples', delta: -5, reason: 'Using default EGX/market multiples' });
+    }
+
+    // -5 if WACC > 30%
+    if (waccRate > 30) {
+        score -= 5;
+        factors.push({ label: 'High WACC', delta: -5, reason: `WACC = ${waccRate.toFixed(1)}% (> 30%)` });
+    }
+
+    // -5 if revenue growth > 2× nominal GDP growth (aggressive projection)
+    const nominalGDP = 16; // Egypt ~16% nominal GDP growth
+    if (assumptions.revenueGrowthRate > nominalGDP * 2) {
+        score -= 5;
+        factors.push({ label: 'Growth Risk', delta: -5, reason: `Revenue growth ${assumptions.revenueGrowthRate.toFixed(0)}% > 2× GDP (${nominalGDP * 2}%)` });
+    }
+
+    // Clamp to 0-100
+    score = Math.max(0, Math.min(100, score));
+
+    const color = score >= 85 ? 'text-green-400' : score >= 65 ? 'text-yellow-400' : 'text-red-400';
+    const bgColor = score >= 85
+        ? (isDarkMode ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200')
+        : score >= 65
+            ? (isDarkMode ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200')
+            : (isDarkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200');
+    const grade = score >= 85 ? 'HIGH' : score >= 65 ? 'MODERATE' : 'LOW';
+
+    return (
+        <div className={`p-4 rounded-xl border ${bgColor}`}>
+            <div className="flex items-center justify-between mb-3">
+                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Analysis Confidence
+                </h3>
+                <div className="flex items-center gap-2">
+                    <span className={`text-2xl font-bold ${color}`}>{score}</span>
+                    <span className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'}`}>/100</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${score >= 85 ? 'bg-green-500/20 text-green-400' :
+                        score >= 65 ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-red-500/20 text-red-400'
+                        }`}>{grade}</span>
+                </div>
+            </div>
+            {/* Progress bar */}
+            <div className={`w-full h-2 rounded-full ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'} mb-3`}>
+                <div
+                    className={`h-2 rounded-full transition-all ${score >= 85 ? 'bg-green-500' : score >= 65 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                    style={{ width: `${score}%` }}
+                />
+            </div>
+            {/* Factor breakdown */}
+            <div className="space-y-1">
+                {factors.map((f, i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                        <span className={isDarkMode ? 'text-zinc-400' : 'text-gray-600'}>{f.reason}</span>
+                        <span className={f.delta > 0 ? 'text-green-400' : 'text-red-400'}>
+                            {f.delta > 0 ? '+' : ''}{f.delta}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};

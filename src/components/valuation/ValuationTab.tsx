@@ -28,7 +28,13 @@ import { ReverseDCFSection } from './sections/ReverseDCFSection';
 
 import { QualityScorecard } from './sections/QualityScorecard';
 import { EASComplianceSection } from './sections/EASComplianceSection';
+import { PiotroskiFScore } from './sections/PiotroskiFScore';
+import { EVBridgeChart } from './sections/EVBridgeChart';
 import { CalculationAuditTrail } from '../shared/CalculationAuditTrail';
+import { FXSensitivity } from './sections/FXSensitivity';
+import { WorkingCapitalDetail } from './sections/WorkingCapitalDetail';
+import { ConfidenceScore } from './sections/ConfidenceScore';
+import { SaveLoadPanel } from './sections/SaveLoadPanel';
 
 export interface ValuationTabProps {
   financialData: FinancialData;
@@ -61,6 +67,7 @@ export interface ValuationTabProps {
   textClass: string;
   textMutedClass: string;
   currency: CurrencyCode;
+  handleLoadValuation: (data: { financialData: FinancialData; assumptions: ValuationAssumptions; comparables: ComparableCompany[] }) => void;
 }
 
 export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
@@ -70,11 +77,22 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
     hasValidComparables, industryMultiples, keyMetrics, recommendation,
     scenarioCases, scenario, valuationStyle, setValuationStyle,
     marketRegion, isDarkMode, cardClass, textClass, textMutedClass, currency,
-    historyIndex, historyLength, lastSaved } = props;
+    historyIndex, historyLength, lastSaved, handleLoadValuation } = props;
 
   const themeProps = { isDarkMode, cardClass, textClass, textMutedClass, currency };
   const reverseDCF = calculateReverseDCF(financialData, adjustedAssumptions);
   const scorecard = calculateQualityScorecard(financialData);
+
+  // D1: Confidence Score — compute TV% for scoring
+  const waccDec = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) * (financialData.currentStockPrice * financialData.sharesOutstanding) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) + (assumptions.costOfDebt * (1 - assumptions.taxRate / 100)) * ((financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt));
+  const waccDecFraction = waccDec / 100;
+  const lastFCFF = dcfProjections.length > 0 ? dcfProjections[dcfProjections.length - 1].freeCashFlow : 0;
+  const tgDec = adjustedAssumptions.terminalGrowthRate / 100;
+  const tvCalc = waccDecFraction > tgDec ? (lastFCFF * (1 + tgDec)) / (waccDecFraction - tgDec) : 0;
+  const pvTV = dcfProjections.length > 0 ? tvCalc / Math.pow(1 + waccDecFraction, dcfProjections.length) : 0;
+  const sumPV = dcfProjections.reduce((s, p) => s + p.presentValue, 0);
+  const totalEV = sumPV + pvTV;
+  const tvPercent = totalEV > 0 ? (pvTV / totalEV) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -90,6 +108,23 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         financialData={financialData} assumptions={assumptions}
         adjustedAssumptions={adjustedAssumptions} hasValidComparables={hasValidComparables}
         industryMultiples={industryMultiples} marketRegion={marketRegion} {...themeProps}
+      />
+      {/* D1: Confidence Score */}
+      <ConfidenceScore
+        financialData={financialData}
+        assumptions={assumptions}
+        comparables={props.comparables}
+        tvPercent={tvPercent}
+        waccRate={waccDec}
+        isDarkMode={isDarkMode}
+      />
+      {/* B4: Save/Load */}
+      <SaveLoadPanel
+        financialData={financialData}
+        assumptions={assumptions}
+        comparables={props.comparables}
+        onLoad={handleLoadValuation}
+        isDarkMode={isDarkMode}
       />
       {/* Method Explainer */}
       <div className={`p-5 rounded-xl border ${isDarkMode ? 'bg-zinc-900/80 border-zinc-700' : 'bg-amber-50 border-amber-200'}`}>
@@ -124,6 +159,10 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         blendedUpside={financialData.currentStockPrice > 0 ? (blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice * 100 : 0}
         {...themeProps}
       />
+      {/* C9: FX Sensitivity (Egypt only) */}
+      {marketRegion === 'Egypt' && (
+        <FXSensitivity dcfPrice={dcfValue} {...themeProps} />
+      )}
       <ValuationSummaryCards
         financialData={financialData} dcfValue={dcfValue} comparableValue={comparableValue}
         blendedValue={blendedValue} dcfWeight={dcfWeight} compsWeight={compsWeight}
@@ -143,15 +182,35 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       <FCFFReconciliation
         financialData={financialData} assumptions={adjustedAssumptions} {...themeProps}
       />
-      <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} {...themeProps} />
+      {/* C3: EV-to-Equity Bridge */}
+      {(() => {
+        const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+        const cash = financialData.balanceSheet.cash;
+        const equityVal = dcfValue * financialData.sharesOutstanding;
+        const ev = equityVal + totalDebt - cash;
+        return (
+          <EVBridgeChart
+            enterpriseValue={ev}
+            totalDebt={totalDebt}
+            cash={cash}
+            equityValue={equityVal}
+            sharesOutstanding={financialData.sharesOutstanding}
+            perSharePrice={dcfValue}
+            {...themeProps}
+          />
+        );
+      })()}
+      <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} marketRegion={marketRegion} {...themeProps} />
+      <WorkingCapitalDetail financialData={financialData} {...themeProps} />
       <DDMValuation financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <ReverseDCFSection reverseDCF={reverseDCF} {...themeProps} />
       <QualityScorecard scorecard={scorecard} {...themeProps} />
+      <PiotroskiFScore financialData={financialData} {...themeProps} />
       <EASComplianceSection financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <AIReport
         financialData={financialData} assumptions={adjustedAssumptions}
         dcfValue={dcfValue} comparableValue={comparableValue}
-        scenario={scenario} isDarkMode={isDarkMode}
+        scenario={scenario} isDarkMode={isDarkMode} currency={currency}
       />
     </div>
   );

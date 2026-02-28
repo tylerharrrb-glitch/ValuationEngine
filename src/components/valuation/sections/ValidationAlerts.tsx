@@ -72,6 +72,37 @@ export const ValidationAlerts: React.FC<Props> = ({
     alerts.push({ type: 'info', message: `🏦 Bank Valuation: Using P/E (60%) and P/B (40%) weighting. EV/EBITDA is excluded as it is not meaningful for financial institutions. Consider ROE and Net Interest Margin for additional analysis.` });
   }
 
+  // === SECTION D EDGE CASES ===
+
+  // D1: Revenue = 0 → hard block
+  if (financialData.incomeStatement.revenue === 0) {
+    alerts.push({ type: 'error', message: 'Revenue cannot be zero. Enter income statement data to proceed with valuation calculations.' });
+  }
+
+  // D3: Negative equity → warn
+  if (financialData.balanceSheet.totalEquity < 0) {
+    alerts.push({ type: 'warning', message: 'Negative equity detected. P/B ratio and book value metrics may be misleading. Ensure this reflects actual financial distress.' });
+  }
+
+  // D4: DPS = 0 → DDM not applicable (Bug #2 fix: also derive DPS from dividendsPaid)
+  const derivedDPS = (financialData.cashFlowStatement.dividendsPaid > 0 && financialData.sharesOutstanding > 0)
+    ? financialData.cashFlowStatement.dividendsPaid / financialData.sharesOutstanding
+    : 0;
+  const effectiveDPS = financialData.dividendsPerShare > 0 ? financialData.dividendsPerShare : derivedDPS;
+  if (effectiveDPS === 0) {
+    alerts.push({ type: 'info', message: 'DDM: Not Applicable — Company pays no dividends. Dividend Discount Models require positive DPS.' });
+  }
+
+  // D6: Beta ≤ 0 → unusual
+  if (assumptions.beta <= 0) {
+    alerts.push({ type: 'warning', message: `Beta ≤ 0 is unusual. β < 0 implies negative market correlation (rare). β = 0 implies risk-free, which is incorrect for equity. Typical range: 0.3 to 3.0.` });
+  }
+
+  // D7: Projection growth > 50%
+  if (adjustedAssumptions.revenueGrowthRate > 50) {
+    alerts.push({ type: 'warning', message: `Revenue growth > 50% is very aggressive. Verify this assumption — hypergrowth is difficult to sustain.` });
+  }
+
   // Investment disclaimer — always present
   alerts.push({ type: 'info', message: `Past performance does not guarantee future results. Verify all data independently before making investment decisions.` });
 
@@ -81,8 +112,8 @@ export const ValidationAlerts: React.FC<Props> = ({
     <div className="space-y-2">
       {alerts.map((alert, i) => (
         <div key={i} className={`flex items-center gap-3 p-3 rounded-lg ${alert.type === 'error' ? 'bg-red-500/20 border border-red-500/50'
-            : alert.type === 'info' ? 'bg-blue-500/20 border border-blue-500/50'
-              : 'bg-yellow-500/20 border border-yellow-500/50'
+          : alert.type === 'info' ? 'bg-blue-500/20 border border-blue-500/50'
+            : 'bg-yellow-500/20 border border-yellow-500/50'
           }`}>
           <AlertTriangle size={20} className={
             alert.type === 'error' ? 'text-red-400' : alert.type === 'info' ? 'text-blue-400' : 'text-yellow-400'

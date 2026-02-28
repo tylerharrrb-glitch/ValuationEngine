@@ -42,6 +42,14 @@ export interface BalanceSheet {
   totalLiabilities: number;
   // Equity
   totalEquity: number;
+  /** B4: Optional — for more accurate Altman Z-Score X2 (proxy: totalEquity if blank) */
+  retainedEarnings?: number;
+  /** B6: Non-controlling interest for EV bridge */
+  minorityInterest?: number;
+  /** B6: Preferred equity for EV bridge */
+  preferredEquity?: number;
+  /** C4/B6: End-of-service provision per EAS 42 — treated as debt-like for EV */
+  endOfServiceProvision?: number;
 }
 
 export interface CashFlowStatement {
@@ -50,6 +58,22 @@ export interface CashFlowStatement {
   freeCashFlow: number;
   dividendsPaid: number;
   netChangeInCash: number;
+  /** B3: Other financing/investing activities for cash reconciliation */
+  otherFinancingActivities?: number;
+}
+
+export interface HistoricalYear {
+  year: number;
+  revenue: number;
+  netIncome: number;
+  totalAssets: number;
+  totalEquity: number;
+  operatingCashFlow: number;
+  capex: number;
+  grossMargin: number; // as percentage
+  longTermDebt: number;
+  currentRatio: number;
+  sharesOutstanding: number;
 }
 
 export interface FinancialData {
@@ -63,9 +87,13 @@ export interface FinancialData {
   sector?: string;
   /** Dividends per share (for DDM models) */
   dividendsPerShare: number;
+  /** C7: Fiscal year end (dec, jun, mar, sep) */
+  fiscalYearEnd?: string;
   incomeStatement: IncomeStatement;
   balanceSheet: BalanceSheet;
   cashFlowStatement: CashFlowStatement;
+  /** B2: Multi-period historical data (optional, 2-5 prior years) */
+  historicalData?: HistoricalYear[];
 }
 
 // ============================================

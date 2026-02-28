@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Loader2, Copy, Check, FileText } from 'lucide-react';
 import { FinancialData, ValuationAssumptions } from '../types/financial';
 import { formatNumber, formatPercent, formatCurrency } from '../utils/formatters';
+import { CurrencyCode } from '../utils/formatters';
 
 interface AIReportProps {
   financialData: FinancialData;
@@ -10,6 +11,7 @@ interface AIReportProps {
   comparableValue: number;
   scenario: 'bear' | 'base' | 'bull';
   isDarkMode: boolean;
+  currency?: CurrencyCode;
 }
 
 export const AIReport: React.FC<AIReportProps> = ({
@@ -19,6 +21,7 @@ export const AIReport: React.FC<AIReportProps> = ({
   comparableValue,
   scenario,
   isDarkMode,
+  currency = 'USD',
 }) => {
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,13 +29,13 @@ export const AIReport: React.FC<AIReportProps> = ({
 
   const generateReport = async () => {
     setLoading(true);
-    
+
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     const { incomeStatement, balanceSheet } = financialData;
     const totalDebt = balanceSheet.shortTermDebt + balanceSheet.longTermDebt;
-    
+
     // Calculate key metrics
     const currentPrice = financialData.currentStockPrice;
     const blendedValue = (dcfValue * 0.6 + comparableValue * 0.4);
@@ -41,10 +44,10 @@ export const AIReport: React.FC<AIReportProps> = ({
     const netMargin = incomeStatement.netIncome / incomeStatement.revenue * 100;
     const roe = incomeStatement.netIncome / balanceSheet.totalEquity * 100;
     const debtToEquity = totalDebt / balanceSheet.totalEquity;
-    
-    // Determine recommendation
+
+    // Determine recommendation — aligned with engine thresholds
     let recommendation = '';
-    if (upside > 20) {
+    if (upside > 30) {
       recommendation = 'STRONG BUY';
     } else if (upside > 10) {
       recommendation = 'BUY';
@@ -55,6 +58,9 @@ export const AIReport: React.FC<AIReportProps> = ({
     } else {
       recommendation = 'STRONG SELL';
     }
+
+    // Currency-aware formatting helper
+    const fmtC = (v: number) => formatCurrency(v, 0, currency);
 
     // Generate the report
     const scenarioText = {
@@ -71,7 +77,7 @@ export const AIReport: React.FC<AIReportProps> = ({
 
 ### Executive Summary
 
-Based on our comprehensive ${scenarioText[scenario]} analysis, **${financialData.companyName}** presents a **${recommendation}** opportunity with a blended fair value of **${formatCurrency(blendedValue)}** per share, representing a **${upside > 0 ? '+' : ''}${formatPercent(upside)}** ${upside > 0 ? 'upside' : 'downside'} from the current price of ${formatCurrency(currentPrice)}.
+Based on our comprehensive ${scenarioText[scenario]} analysis, **${financialData.companyName}** presents a **${recommendation}** opportunity with a blended fair value of **${fmtC(blendedValue)}** per share, representing a **${upside > 0 ? '+' : ''}${formatPercent(upside)}** ${upside > 0 ? 'upside' : 'downside'} from the current price of ${fmtC(currentPrice)}.
 
 ---
 
@@ -79,9 +85,9 @@ Based on our comprehensive ${scenarioText[scenario]} analysis, **${financialData
 
 | Method | Fair Value | Weight |
 |--------|------------|--------|
-| DCF Analysis | ${formatCurrency(dcfValue)} | 60% |
-| Comparable Companies | ${formatCurrency(comparableValue)} | 40% |
-| **Blended Value** | **${formatCurrency(blendedValue)}** | 100% |
+| DCF Analysis | ${fmtC(dcfValue)} | 60% |
+| Comparable Companies | ${fmtC(comparableValue)} | 40% |
+| **Blended Value** | **${fmtC(blendedValue)}** | 100% |
 
 ---
 
@@ -116,7 +122,7 @@ ${upside > 10 ? `
 ` : upside < -10 ? `
 **Bearish Factors:**
 - The stock appears overvalued based on our ${scenarioText[scenario]} DCF model
-- Current price of ${formatCurrency(currentPrice)} exceeds our fair value estimate
+- Current price of ${fmtC(currentPrice)} exceeds our fair value estimate
 - ${netMargin < 10 ? 'Margin pressure may limit earnings growth' : ''}
 - Market expectations may be too optimistic
 ` : `
@@ -141,12 +147,12 @@ ${upside > 10 ? `
 
 **${recommendation}**
 
-${recommendation.includes('BUY') ? 
-  `We recommend accumulating shares below ${formatCurrency(blendedValue * 0.9)} for optimal entry.` :
-  recommendation.includes('SELL') ?
-  `We recommend reducing positions and reallocating capital to better opportunities.` :
-  `We recommend holding current positions and monitoring for better entry points.`
-}
+${recommendation.includes('BUY') ?
+        `We recommend accumulating shares below ${fmtC(blendedValue * 0.9)} for optimal entry.` :
+        recommendation.includes('SELL') ?
+          `We recommend reducing positions and reallocating capital to better opportunities.` :
+          `We recommend holding current positions and monitoring for better entry points.`
+      }
 
 ---
 
@@ -184,7 +190,7 @@ ${recommendation.includes('BUY') ?
               </p>
             </div>
           </div>
-          
+
           <button
             onClick={generateReport}
             disabled={loading}
@@ -210,11 +216,10 @@ ${recommendation.includes('BUY') ?
           <div className="flex justify-end mb-3">
             <button
               onClick={copyToClipboard}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                isDarkMode 
-                  ? 'bg-zinc-700 hover:bg-zinc-600 text-gray-300'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${isDarkMode
+                ? 'bg-zinc-700 hover:bg-zinc-600 text-gray-300'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
             >
               {copied ? (
                 <>
@@ -229,41 +234,109 @@ ${recommendation.includes('BUY') ?
               )}
             </button>
           </div>
-          
-          <div className={`p-6 rounded-lg font-mono text-sm whitespace-pre-wrap leading-relaxed ${
-            isDarkMode ? 'bg-zinc-900 text-gray-300' : 'bg-gray-50 text-gray-700'
-          }`}>
-            {report.split('\n').map((line, index) => {
-              // Simple markdown-like rendering
-              if (line.startsWith('# ')) {
-                return <h1 key={index} className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>{line.replace('# ', '')}</h1>;
+
+          <div className={`p-6 rounded-lg font-mono text-sm whitespace-pre-wrap leading-relaxed ${isDarkMode ? 'bg-zinc-900 text-gray-300' : 'bg-gray-50 text-gray-700'
+            }`}>
+            {(() => {
+              // Helper: parse **bold** inline markdown
+              const renderInline = (text: string) => {
+                const parts = text.split(/(\*\*[^*]+\*\*)/g);
+                return parts.map((part, i) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                    return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
+                  }
+                  return <span key={i}>{part}</span>;
+                });
+              };
+
+              // Parse cells from a pipe-delimited row
+              const parseCells = (row: string) =>
+                row.split('|').filter((_, i, arr) => i > 0 && i < arr.length - 1).map(c => c.trim());
+
+              // Pre-process: group lines into blocks (table vs regular)
+              const lines = report.split('\n');
+              const blocks: { type: 'table' | 'line'; lines: string[]; startIdx: number }[] = [];
+              let i = 0;
+              while (i < lines.length) {
+                if (lines[i].startsWith('|')) {
+                  const tableLines: string[] = [];
+                  const startIdx = i;
+                  while (i < lines.length && lines[i].startsWith('|')) {
+                    tableLines.push(lines[i]);
+                    i++;
+                  }
+                  blocks.push({ type: 'table', lines: tableLines, startIdx });
+                } else {
+                  blocks.push({ type: 'line', lines: [lines[i]], startIdx: i });
+                  i++;
+                }
               }
-              if (line.startsWith('## ')) {
-                return <h2 key={index} className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{line.replace('## ', '')}</h2>;
-              }
-              if (line.startsWith('### ')) {
-                return <h3 key={index} className={`text-lg font-semibold mt-4 mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{line.replace('### ', '')}</h3>;
-              }
-              if (line.startsWith('---')) {
-                return <hr key={index} className={`my-4 ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`} />;
-              }
-              if (line.startsWith('|')) {
-                return <div key={index} className="font-mono text-xs">{line}</div>;
-              }
-              if (line.startsWith('*Report') || line.startsWith('*Analysis') || line.startsWith('*Scenario')) {
-                return <p key={index} className="italic text-gray-500 text-xs mt-2">{line.replace(/\*/g, '')}</p>;
-              }
-              if (line.includes('STRONG BUY') || line.includes('BUY')) {
-                return <p key={index} className="text-green-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
-              }
-              if (line.includes('STRONG SELL') || line.includes('SELL')) {
-                return <p key={index} className="text-red-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
-              }
-              if (line.includes('HOLD')) {
-                return <p key={index} className="text-yellow-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
-              }
-              return <p key={index} className="mb-1">{line}</p>;
-            })}
+
+              return blocks.map((block, bIdx) => {
+                if (block.type === 'table') {
+                  // Render as HTML table
+                  const tableRows = block.lines.filter(l => !l.match(/^\|[\s\-:|]+\|$/)); // skip separator
+                  if (tableRows.length === 0) return null;
+                  const headerCells = parseCells(tableRows[0]);
+                  const bodyRows = tableRows.slice(1);
+                  return (
+                    <table key={`t${bIdx}`} className={`w-full my-3 text-xs border-collapse ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`}>
+                      <thead>
+                        <tr className={isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-200 text-gray-900'}>
+                          {headerCells.map((c, ci) => (
+                            <th key={ci} className="px-3 py-2 text-left font-semibold border border-zinc-600">
+                              {renderInline(c)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bodyRows.map((row, ri) => (
+                          <tr key={ri} className={ri % 2 === 0
+                            ? (isDarkMode ? 'bg-zinc-900' : 'bg-white')
+                            : (isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50')}>
+                            {parseCells(row).map((c, ci) => (
+                              <td key={ci} className="px-3 py-1.5 border border-zinc-700">
+                                {renderInline(c)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                }
+
+                // Regular line rendering
+                const line = block.lines[0];
+                const index = block.startIdx;
+                if (line.startsWith('# ')) {
+                  return <h1 key={index} className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>{line.replace('# ', '')}</h1>;
+                }
+                if (line.startsWith('## ')) {
+                  return <h2 key={index} className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{line.replace('## ', '')}</h2>;
+                }
+                if (line.startsWith('### ')) {
+                  return <h3 key={index} className={`text-lg font-semibold mt-4 mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{line.replace('### ', '')}</h3>;
+                }
+                if (line.startsWith('---')) {
+                  return <hr key={index} className={`my-4 ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`} />;
+                }
+                if (line.startsWith('*Report') || line.startsWith('*Analysis') || line.startsWith('*Scenario')) {
+                  return <p key={index} className="italic text-gray-500 text-xs mt-2">{line.replace(/\*/g, '')}</p>;
+                }
+                if (line.includes('STRONG BUY') || line.includes('BUY')) {
+                  return <p key={index} className="text-green-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
+                }
+                if (line.includes('STRONG SELL') || line.includes('SELL')) {
+                  return <p key={index} className="text-red-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
+                }
+                if (line.includes('HOLD')) {
+                  return <p key={index} className="text-yellow-400 font-bold text-lg">{line.replace(/\*\*/g, '')}</p>;
+                }
+                return <p key={index} className="mb-1">{renderInline(line)}</p>;
+              });
+            })()}
           </div>
         </div>
       )}

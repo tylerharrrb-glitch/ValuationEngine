@@ -22,8 +22,8 @@ export function FinancialInputForm({ data, onChange }: Props) {
   };
 
   const getIncomeValue = (key: keyof IncomeStatement) => data.incomeStatement[key];
-  const getBalanceValue = (key: keyof BalanceSheet) => data.balanceSheet[key];
-  const getCashFlowValue = (key: keyof CashFlowStatement) => data.cashFlowStatement[key];
+  const getBalanceValue = (key: keyof BalanceSheet) => data.balanceSheet[key] ?? 0;
+  const getCashFlowValue = (key: keyof CashFlowStatement) => data.cashFlowStatement[key] ?? 0;
 
   const inputClass = "w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm";
   const labelClass = "block text-zinc-500 text-xs font-medium mb-1";
@@ -77,17 +77,16 @@ export function FinancialInputForm({ data, onChange }: Props) {
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <h2 className="text-xl font-bold text-white mb-4">Financial Statements</h2>
-      
+
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-              activeTab === tab.id
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id
                 ? 'bg-red-600 text-white shadow-lg shadow-red-900/30'
                 : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white border border-zinc-700'
-            }`}
+              }`}
           >
             {tab.label}
           </button>

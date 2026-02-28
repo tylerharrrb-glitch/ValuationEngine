@@ -38,7 +38,7 @@ function App() {
   // ── UI State ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>('valuation');
   const [scenario, setScenario] = useState<ScenarioType>('base');
-  const [marketRegion, setMarketRegion] = useState<MarketRegion>('USA');
+  const [marketRegion, setMarketRegion] = useState<MarketRegion>('Egypt');
   const [dcfWeight, setDcfWeight] = useState(60);
   const [valuationStyle, setValuationStyle] = useState<ValuationStyleKey>('moderate');
 
@@ -142,6 +142,7 @@ function App() {
                 valuationStyle={valuationStyle} setValuationStyle={setValuationStyle}
                 marketRegion={marketRegion}
                 historyIndex={historyIndex} historyLength={historyLength} lastSaved={lastSaved}
+                handleLoadValuation={handleLoadValuation}
                 {...themeProps}
               />
             </ErrorBoundary>

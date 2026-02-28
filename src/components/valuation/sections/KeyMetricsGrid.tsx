@@ -12,10 +12,12 @@ interface Props {
   textClass: string;
   textMutedClass: string;
   currency: CurrencyCode;
+  /** B5: Needed to show post-tax dividend yield for Egypt */
+  marketRegion?: string;
 }
 
 export const KeyMetricsGrid: React.FC<Props> = ({
-  financialData, keyMetrics, isDarkMode, cardClass, textClass, textMutedClass, currency,
+  financialData, keyMetrics, isDarkMode, cardClass, textClass, textMutedClass, currency, marketRegion,
 }) => {
   const { incomeStatement: is, balanceSheet: bs, cashFlowStatement: cf } = financialData;
   const totalDebt = bs.shortTermDebt + bs.longTermDebt;
@@ -83,13 +85,21 @@ export const KeyMetricsGrid: React.FC<Props> = ({
           { label: 'Net Debt/EBITDA', value: ebitda > 0 ? `${(netDebt / ebitda).toFixed(1)}x` : 'N/A', tooltip: 'Net Debt / EBITDA. Leverage relative to earnings capacity.' },
           { label: 'FCF Yield', value: formatPercent(keyMetrics.fcfYield), tooltip: 'Free Cash Flow / Market Cap. Yield available to shareholders.' },
           { label: 'Inter. Coverage', value: formatMultiple(keyMetrics.interestCoverage), tooltip: 'EBIT / Interest Expense. Ability to pay interest on debt.' },
-          { label: 'Dividend Yield', value: formatPercent(keyMetrics.dividendYield), tooltip: 'Dividends Per Share / Stock Price.' },
+          { label: 'Dividend Yield', value: formatPercent(keyMetrics.dividendYield), tooltip: 'Dividends Per Share / Stock Price (Pre-Tax).' },
+          // B5: Post-tax dividend yield for Egypt (10% withholding)
+          ...(marketRegion === 'Egypt' && keyMetrics.dividendYield > 0 ? [{
+            label: 'Div Yield (Post-Tax)',
+            value: formatPercent(keyMetrics.dividendYield * 0.90),
+            tooltip: 'Post-tax yield = Pre-tax × (1 − 10% withholding). Egypt applies 10% withholding tax on dividends per Article 46 bis of Egyptian Income Tax Law No. 91/2005.',
+            colorClass: 'text-green-400' as string | undefined,
+          }] : []),
           { label: 'Free Cash Flow', value: formatCurrencyShort(cf.freeCashFlow, currency), tooltip: 'Cash generated after accounting for capital expenditures.' },
           { label: 'Total Debt', value: formatCurrencyShort(totalDebt, currency), tooltip: 'Sum of short-term and long-term debt obligations.' },
           { label: `Altman Z-Score`, value: `${altmanZ.toFixed(2)} (${altmanZone})`, tooltip: 'Bankruptcy risk indicator: >2.99 Safe, 1.81–2.99 Grey Zone, <1.81 Distress.', colorClass: altmanColor },
           { label: 'Cash Conv. Cycle', value: `${ccc.toFixed(0)} days`, tooltip: `Cash Conversion Cycle = DSO (${dso.toFixed(0)}) + DIO (${dio.toFixed(0)}) − DPO (${dpo.toFixed(0)}). Lower is better.`, colorClass: ccc < 30 ? 'text-green-400' : ccc < 90 ? 'text-yellow-400' : 'text-red-400' },
           { label: 'DuPont ROE', value: formatPercent(dupontROE), tooltip: `DuPont: NPM (${(npm * 100).toFixed(1)}%) × Asset Turnover (${assetTurnover.toFixed(2)}x) × Equity Multiplier (${equityMultiplier.toFixed(2)}x) = ROE.` },
-          { label: `Eff. Tax Rate${taxFlag ? ' ⚠️' : ''}`, value: formatPercent(effectiveTax), tooltip: `Effective tax rate. ${taxFlag ? `⚠️ Differs from statutory rate (${statutoryRate}%) by ${taxGap.toFixed(1)}pp — investigate.` : `Close to statutory rate (${statutoryRate}%).`}`, colorClass: taxFlag ? 'text-orange-400' : undefined },
+          { label: `Eff. Tax Rate${taxFlag ? ' ⚠️' : ''}`, value: formatPercent(effectiveTax), tooltip: `Effective tax: Tax Expense / EBT = ${formatCurrencyShort(is.taxExpense)} / ${formatCurrencyShort(is.netIncome + is.taxExpense)}. ${taxFlag ? `⚠️ Differs from statutory (${statutoryRate}%) by ${taxGap.toFixed(1)}pp.` : `Close to statutory (${statutoryRate}%).`}`, colorClass: taxFlag ? 'text-orange-400' : undefined },
+          { label: 'Statutory Tax Rate', value: formatPercent(statutoryRate), tooltip: 'User input — drives WACC tax shield [Kd×(1-t)] and NOPAT in DCF projections [EBIT×(1-t)]. May differ from effective rate due to tax incentives or timing.', colorClass: 'text-blue-400' },
         ].map(({ label, value, tooltip, colorClass }) => (
           <div key={label} className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-gray-50 border-gray-100'} hover:border-gray-300 dark:hover:border-zinc-500 transition-colors`}>
             <div className="flex items-center gap-1.5 mb-1">

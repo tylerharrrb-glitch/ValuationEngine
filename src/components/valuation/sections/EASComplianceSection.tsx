@@ -28,6 +28,13 @@ export const EASComplianceSection: React.FC<Props> = ({
     const totalDebt = bs.shortTermDebt + bs.longTermDebt;
     const ebitda = is.operatingIncome + is.depreciation + is.amortization;
 
+    // Bug #1 fix: EAS 13 — use actual intangibleAssets + goodwill fields
+    const intangibles = bs.intangibleAssets || 0;
+    const goodwill = bs.goodwill || 0;
+    // C4: EAS 26 — Banking sector check
+    const sector = (financialData.sector || '').toLowerCase();
+    const isBanking = sector.includes('financial') || sector.includes('bank');
+
     // EAS 48: Lease adjustment (using a reasonable estimate)
     const leaseInputs: LeaseInputs = {
         totalLeasePaymentsPerYear: ebitda * 0.05, // Approximate 5% of EBITDA as lease
@@ -104,8 +111,68 @@ export const EASComplianceSection: React.FC<Props> = ({
                     </div>
                 </div>
 
-                {/* EAS Standards Summary */}
+                {/* C4: EAS 42 — End-of-Service Provisions */}
                 <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                    <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 42 (IAS 19) — End-of-Service</div>
+                    <table className="w-full text-sm">
+                        <tbody>
+                            <tr className={rowClass}><td className={`py-1.5 px-4 ${textMutedClass}`}>Provision Amount</td><td className={`py-1.5 px-4 text-right font-medium ${textClass}`}>{formatCurrencyShort(bs.endOfServiceProvision ?? 0, currency)}</td></tr>
+                            <tr className={rowClass}><td className={`py-1.5 px-4 ${textMutedClass}`}>Treatment</td><td className={`py-1.5 px-4 text-right font-medium ${textMutedClass}`}>Debt-like obligation → added to EV</td></tr>
+                            <tr className={rowClass}><td className={`py-1.5 px-4 ${textMutedClass}`}>Adjusted EV Impact</td><td className={`py-1.5 px-4 text-right font-bold ${(bs.endOfServiceProvision ?? 0) > 0 ? 'text-red-400' : textClass}`}>{(bs.endOfServiceProvision ?? 0) > 0 ? `+${formatCurrencyShort(bs.endOfServiceProvision ?? 0, currency)}` : 'No provision entered'}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* C4: EAS 13 — Impairment (Bug #1 fix: check intangibles + goodwill) */}
+                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                    <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 13 (IAS 36) — Impairment</div>
+                    <div className="p-4">
+                        {goodwill > 0 && intangibles > 0 ? (
+                            <div className="space-y-2">
+                                <div className={`text-sm ${textMutedClass}`}>Goodwill: {formatCurrencyShort(goodwill, currency)} | Intangible Assets: {formatCurrencyShort(intangibles, currency)}</div>
+                                <div className={`text-xs p-2 rounded ${isDarkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-50 text-red-700'}`}>
+                                    🔴 Goodwill ({formatCurrencyShort(goodwill, currency)}) and Intangible Assets ({formatCurrencyShort(intangibles, currency)}) present. Annual impairment testing required per EAS 13 (IAS 36).
+                                </div>
+                            </div>
+                        ) : goodwill > 0 ? (
+                            <div className="space-y-2">
+                                <div className={`text-sm ${textMutedClass}`}>Goodwill: {formatCurrencyShort(goodwill, currency)}</div>
+                                <div className={`text-xs p-2 rounded ${isDarkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-50 text-red-700'}`}>
+                                    🔴 Goodwill ({formatCurrencyShort(goodwill, currency)}) present. Annual impairment testing required per EAS 13 (IAS 36).
+                                </div>
+                            </div>
+                        ) : intangibles > 0 ? (
+                            <div className="space-y-2">
+                                <div className={`text-sm ${textMutedClass}`}>Intangible Assets: {formatCurrencyShort(intangibles, currency)}</div>
+                                <div className={`text-xs p-2 rounded ${isDarkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
+                                    🟡 Intangible Assets ({formatCurrencyShort(intangibles, currency)}) present. Monitor for impairment indicators per EAS 13 (IAS 36). Annual testing required for indefinite-life intangibles.
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={`text-sm ${textMutedClass}`}>No goodwill or intangible assets — EAS 13 impairment testing not required.</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* C4: EAS 26 — ECL (Banking) */}
+                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                    <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 26 (IFRS 9) — ECL Provisions</div>
+                    <div className="p-4">
+                        {isBanking ? (
+                            <div className="space-y-2">
+                                <div className={`text-xs p-2 rounded ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                                    🏦 Banking sector: Expected Credit Loss provisions should be disclosed. ECL is deducted from operating income for valuation.
+                                </div>
+                                <div className={`text-sm ${textMutedClass}`}>ECL Provision: Enter on Balance Sheet for automatic adjustment.</div>
+                            </div>
+                        ) : (
+                            <div className={`text-sm ${textMutedClass}`}>Non-banking sector — EAS 26 ECL provisions typically not material.</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* EAS Standards Summary */}
+                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden md:col-span-2`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS Compliance Status</div>
                     <div className="p-4 space-y-2">
                         {[
@@ -113,6 +180,9 @@ export const EASComplianceSection: React.FC<Props> = ({
                             { standard: 'EAS 31 (IAS 1)', desc: 'Normalized Earnings', status: '✅ Available' },
                             { standard: 'EAS 12 (IAS 12)', desc: 'Deferred Tax in EV Bridge', status: dtAdj.netDTA !== 0 ? '✅ Active' : '⚠️ No DTA/DTL data' },
                             { standard: 'EAS 23 (IAS 33)', desc: 'Basic & Diluted EPS', status: '✅ Calculated' },
+                            { standard: 'EAS 42 (IAS 19)', desc: 'End-of-Service Provision', status: (bs.endOfServiceProvision ?? 0) > 0 ? '✅ Active' : '⚠️ No provision data' },
+                            { standard: 'EAS 13 (IAS 36)', desc: 'Impairment Testing', status: (goodwill > 0) ? '🔴 Required' : (intangibles > 0) ? '🟡 Monitored' : '✅ Not Required' },
+                            { standard: 'EAS 26 (IFRS 9)', desc: 'Expected Credit Losses', status: isBanking ? '⚠️ Disclosure Required' : '✅ N/A (Non-Banking)' },
                         ].map((item) => (
                             <div key={item.standard} className="flex items-center justify-between">
                                 <div>

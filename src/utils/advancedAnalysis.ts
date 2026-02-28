@@ -317,7 +317,7 @@ export interface SectorBenchmarkResult {
 }
 
 // Sector average data for US tech companies
-const SECTOR_AVERAGES: Record<string, Record<string, { median: number; p25: number; p75: number }>> = {
+export const SECTOR_AVERAGES: Record<string, Record<string, { median: number; p25: number; p75: number }>> = {
   TECH: {
     grossMargin: { median: 60, p25: 50, p75: 70 },
     operatingMargin: { median: 22, p25: 12, p75: 35 },
@@ -359,7 +359,7 @@ const SECTOR_AVERAGES: Record<string, Record<string, { median: number; p25: numb
   },
 };
 
-function getPercentile(value: number, p25: number, median: number, p75: number, lowerIsBetter: boolean = false): number {
+export function getPercentile(value: number, p25: number, median: number, p75: number, lowerIsBetter: boolean = false): number {
   if (lowerIsBetter) {
     if (value <= p25) return 85;
     if (value <= median) return 65;
@@ -372,7 +372,7 @@ function getPercentile(value: number, p25: number, median: number, p75: number, 
   return 15;
 }
 
-function getRating(percentile: number): 'top' | 'above' | 'average' | 'below' | 'bottom' {
+export function getRating(percentile: number): 'top' | 'above' | 'average' | 'below' | 'bottom' {
   if (percentile >= 80) return 'top';
   if (percentile >= 60) return 'above';
   if (percentile >= 40) return 'average';
