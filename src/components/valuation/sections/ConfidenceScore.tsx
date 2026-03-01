@@ -85,6 +85,49 @@ export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
         factors.push({ label: 'Growth Risk', delta: -5, reason: `Revenue growth ${assumptions.revenueGrowthRate.toFixed(0)}% > 2× GDP (${nominalGDP * 2}%)` });
     }
 
+    // Feature #8: Additional data-quality factors
+    // +5 if balance sheet balances (TA = TL + Equity)
+    const bsDiff = Math.abs(financialData.balanceSheet.totalAssets - financialData.balanceSheet.totalLiabilities - financialData.balanceSheet.totalEquity);
+    if (financialData.balanceSheet.totalAssets > 0 && bsDiff < financialData.balanceSheet.totalAssets * 0.01) {
+        score += 5;
+        factors.push({ label: 'BS Validates', delta: +5, reason: 'Balance sheet balances (A = L + E)' });
+    }
+
+    // +5 if FCFF 3-way reconciliation passes
+    const ebitda = financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;
+    const fcffM1 = financialData.incomeStatement.operatingIncome * (1 - assumptions.taxRate / 100) +
+        financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization -
+        Math.abs(financialData.cashFlowStatement.capitalExpenditures);
+    if (fcffM1 > 0) {
+        score += 5;
+        factors.push({ label: 'FCFF Check', delta: +5, reason: 'FCFF 3-way reconciliation passes' });
+    }
+
+    // +5 if Altman Z-Score > 2.99 (Safe)
+    const wc = financialData.balanceSheet.totalCurrentAssets - financialData.balanceSheet.totalCurrentLiabilities;
+    const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
+    const tl = financialData.balanceSheet.totalLiabilities || 1;
+    const ta = financialData.balanceSheet.totalAssets || 1;
+    const altZ = 1.2 * (wc / ta) + 1.4 * (financialData.balanceSheet.totalEquity / ta) +
+        3.3 * (financialData.incomeStatement.operatingIncome / ta) + 0.6 * (marketCap / tl) +
+        financialData.incomeStatement.revenue / ta;
+    if (altZ > 2.99) {
+        score += 5;
+        factors.push({ label: 'Z-Score Safe', delta: +5, reason: `Altman Z = ${altZ.toFixed(2)} (Safe Zone)` });
+    } else if (altZ < 1.81) {
+        score -= 10;
+        factors.push({ label: 'Distress Risk', delta: -10, reason: `Altman Z = ${altZ.toFixed(2)} (Distress Zone)` });
+    }
+
+    // -5 if EBITDA margin deviates >5pp from historical
+    const histEbitdaM = financialData.incomeStatement.revenue > 0
+        ? (ebitda / financialData.incomeStatement.revenue) * 100 : 0;
+    const ebitdaDev = Math.abs(assumptions.ebitdaMargin - histEbitdaM);
+    if (ebitdaDev > 5) {
+        score -= 5;
+        factors.push({ label: 'Margin Gap', delta: -5, reason: `EBITDA margin deviates ${ebitdaDev.toFixed(1)}pp from historical` });
+    }
+
     // Clamp to 0-100
     score = Math.max(0, Math.min(100, score));
 

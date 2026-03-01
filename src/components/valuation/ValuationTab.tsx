@@ -1,7 +1,7 @@
 /**
  * Valuation Tab – All valuation analysis sections.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Info } from 'lucide-react';
 import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../../types/financial';
 import { ScenarioType } from '../ScenarioToggle';
@@ -83,6 +83,9 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
   const reverseDCF = calculateReverseDCF(financialData, adjustedAssumptions);
   const scorecard = calculateQualityScorecard(financialData);
 
+  // Feature #3: Real Return Calculator state
+  const [inflationRate, setInflationRate] = useState(25.0);
+
   // D1: Confidence Score — compute TV% for scoring
   const waccDec = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) * (financialData.currentStockPrice * financialData.sharesOutstanding) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) + (assumptions.costOfDebt * (1 - assumptions.taxRate / 100)) * ((financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt));
   const waccDecFraction = waccDec / 100;
@@ -159,6 +162,109 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         blendedUpside={financialData.currentStockPrice > 0 ? (blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice * 100 : 0}
         {...themeProps}
       />
+      {/* Feature #3: Real Return Calculator (Egypt) */}
+      {marketRegion === 'Egypt' && (() => {
+        const nominalUpside = financialData.currentStockPrice > 0
+          ? (blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice
+          : 0;
+        const realReturn = (1 + nominalUpside) / (1 + inflationRate / 100) - 1;
+        const realPct = realReturn * 100;
+        return (
+          <div className={`p-5 rounded-xl border ${cardClass}`}>
+            <h3 className={`text-lg font-semibold mb-3 ${textClass}`}>Inflation-Adjusted Return (Egypt)</h3>
+            <div className="flex items-center gap-3 mb-3">
+              <label className={`text-sm ${textMutedClass}`}>Expected Inflation:</label>
+              <input
+                type="number" value={inflationRate} step={0.5} min={0} max={100}
+                onChange={(e) => setInflationRate(parseFloat(e.target.value) || 0)}
+                className={`w-24 px-2 py-1 rounded border text-sm ${isDarkMode ? 'bg-zinc-800 border-zinc-600 text-white' : 'bg-white border-gray-300'}`}
+              />
+              <span className={`text-sm ${textMutedClass}`}>%</span>
+              <span className={`text-xs ${textMutedClass}`}>(CBE target: 7±2% | Recent actual: 25-35%)</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+                <p className={`text-xs ${textMutedClass}`}>Nominal Upside</p>
+                <p className={`text-lg font-bold ${nominalUpside >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {nominalUpside >= 0 ? '+' : ''}{(nominalUpside * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+                <p className={`text-xs ${textMutedClass}`}>Inflation Drag</p>
+                <p className="text-lg font-bold text-orange-400">−{inflationRate.toFixed(1)}%</p>
+              </div>
+              <div className={`p-3 rounded-lg border-2 ${realPct >= 0 ? 'border-green-600/40 bg-green-950/20' : 'border-red-600/40 bg-red-950/20'}`}>
+                <p className={`text-xs ${textMutedClass}`}>Real Return</p>
+                <p className={`text-lg font-bold ${realPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {realPct >= 0 ? '+' : ''}{realPct.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+            {nominalUpside > 0 && realPct < 0 && (
+              <p className={`mt-3 text-xs px-3 py-2 rounded-lg bg-yellow-900/30 border border-yellow-700/50 text-yellow-400/90`}>
+                ⚠ At {inflationRate}% inflation, this investment delivers a negative real return despite positive nominal upside.
+                Compare against EGP deposit rates (~20-25%) as your opportunity cost.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+      {/* Feature #4: Dividend Sustainability */}
+      {(() => {
+        const dps = financialData.dividendsPerShare || 0;
+        const eps = financialData.sharesOutstanding > 0 ? financialData.incomeStatement.netIncome / financialData.sharesOutstanding : 0;
+        const fcf = financialData.cashFlowStatement.freeCashFlow;
+        const divsPaid = financialData.cashFlowStatement.dividendsPaid;
+        if (dps <= 0 || eps <= 0) return null;
+        const payoutRatio = (dps / eps) * 100;
+        const fcfPayout = fcf > 0 ? (divsPaid / fcf) * 100 : 0;
+        const fcfCoverage = divsPaid > 0 ? fcf / divsPaid : 0;
+        const roe = financialData.balanceSheet.totalEquity > 0
+          ? (financialData.incomeStatement.netIncome / financialData.balanceSheet.totalEquity) * 100 : 0;
+        const sustainableGrowth = roe * (1 - payoutRatio / 100);
+        const assessment = payoutRatio < 40 && fcfCoverage > 2
+          ? { label: 'CONSERVATIVE — Highly Sustainable', color: 'text-green-400', bg: 'bg-green-950/20 border-green-600/40' }
+          : payoutRatio <= 75 && fcfCoverage > 1
+            ? { label: 'MODERATE — Sustainable', color: 'text-yellow-400', bg: 'bg-yellow-950/20 border-yellow-600/40' }
+            : { label: 'AGGRESSIVE — At Risk', color: 'text-red-400', bg: 'bg-red-950/20 border-red-600/40' };
+
+        return (
+          <div className={`p-5 rounded-xl border ${cardClass}`}>
+            <h3 className={`text-lg font-semibold mb-3 ${textClass}`}>Dividend Sustainability</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+              {[
+                { label: 'Payout Ratio', value: `${payoutRatio.toFixed(1)}%` },
+                { label: 'FCF Coverage', value: `${fcfCoverage.toFixed(1)}x` },
+                { label: 'Sustainable Growth', value: `${sustainableGrowth.toFixed(1)}%` },
+                { label: 'DPS', value: `${currency} ${dps.toFixed(2)}` },
+              ].map(m => (
+                <div key={m.label} className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <p className={`text-xs ${textMutedClass}`}>{m.label}</p>
+                  <p className={`text-lg font-bold ${textClass}`}>{m.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className={`px-3 py-2 rounded-lg border-2 ${assessment.bg}`}>
+              <span className={`text-sm font-semibold ${assessment.color}`}>{assessment.label}</span>
+            </div>
+            {dcfValue > 0 && dps > 0 && (() => {
+              const gordonKe = (adjustedAssumptions.riskFreeRate + adjustedAssumptions.beta * adjustedAssumptions.marketRiskPremium) / 100;
+              const gordonG = adjustedAssumptions.terminalGrowthRate / 100;
+              const gordonDDM = gordonKe > gordonG ? (dps * (1 + gordonG)) / (gordonKe - gordonG) : 0;
+              const ddmGap = Math.abs(gordonDDM - dcfValue);
+              if (gordonDDM > 0 && ddmGap / dcfValue > 0.50) {
+                return (
+                  <p className={`mt-3 text-xs px-3 py-2 rounded-lg ${isDarkMode ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-gray-50 border border-gray-200'} ${textMutedClass}`}>
+                    ℹ DDM values ({currency} {gordonDDM.toFixed(2)}) are below DCF ({currency} {dcfValue.toFixed(2)}) because only {payoutRatio.toFixed(1)}% of earnings are distributed.
+                    The remaining {(100 - payoutRatio).toFixed(1)}% is reinvested. DDM captures distributed value; DCF captures total firm value.
+                  </p>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        );
+      })()}
       {/* C9: FX Sensitivity (Egypt only) */}
       {marketRegion === 'Egypt' && (
         <FXSensitivity dcfPrice={dcfValue} {...themeProps} />
@@ -200,7 +306,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
           />
         );
       })()}
-      <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} marketRegion={marketRegion} {...themeProps} />
+      <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} assumptions={adjustedAssumptions} marketRegion={marketRegion} {...themeProps} />
       <WorkingCapitalDetail financialData={financialData} {...themeProps} />
       <DDMValuation financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <ReverseDCFSection reverseDCF={reverseDCF} {...themeProps} />

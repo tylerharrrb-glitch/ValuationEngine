@@ -175,6 +175,52 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {/* IMP4: Full Piotroski F-Score */}
+                    {activeYears.length >= 2 && activeYears[0].revenue > 0 && activeYears[1].revenue > 0 && (() => {
+                        const curr = activeYears[0]; // most recent
+                        const prev = activeYears[1]; // prior year
+                        const currROA = curr.totalAssets > 0 ? curr.netIncome / curr.totalAssets : 0;
+                        const prevROA = prev.totalAssets > 0 ? prev.netIncome / prev.totalAssets : 0;
+                        const currLeverage = curr.totalAssets > 0 ? curr.longTermDebt / curr.totalAssets : 0;
+                        const prevLeverage = prev.totalAssets > 0 ? prev.longTermDebt / prev.totalAssets : 0;
+                        const currAT = curr.totalAssets > 0 ? curr.revenue / curr.totalAssets : 0;
+                        const prevAT = prev.totalAssets > 0 ? prev.revenue / prev.totalAssets : 0;
+
+                        const criteria = [
+                            { label: 'P1: Net Income > 0', pass: curr.netIncome > 0 },
+                            { label: 'P2: OCF > 0', pass: curr.operatingCashFlow > 0 },
+                            { label: 'P3: ROA Improving', pass: currROA > prevROA },
+                            { label: 'P4: OCF > NI', pass: curr.operatingCashFlow > curr.netIncome },
+                            { label: 'L5: Leverage ↓', pass: currLeverage < prevLeverage || (currLeverage === 0 && prevLeverage === 0) },
+                            { label: 'L6: Liquidity ↑', pass: curr.currentRatio > prev.currentRatio || (curr.currentRatio === 0 && prev.currentRatio === 0) },
+                            { label: 'L7: No Dilution', pass: curr.sharesOutstanding <= prev.sharesOutstanding || prev.sharesOutstanding === 0 },
+                            { label: 'E8: Gross Margin ↑', pass: curr.grossMargin > prev.grossMargin },
+                            { label: 'E9: Asset Turnover ↑', pass: currAT > prevAT },
+                        ];
+                        const score = criteria.filter(c => c.pass).length;
+                        const color = score >= 7 ? 'text-green-400' : score >= 4 ? 'text-yellow-400' : 'text-red-400';
+                        const grade = score >= 7 ? 'STRONG' : score >= 4 ? 'MODERATE' : 'WEAK';
+
+                        return (
+                            <div className="mt-3">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Piotroski F-Score (Full 9/9)
+                                    </span>
+                                    <span className={`text-sm font-bold ${color}`}>{score}/9 — {grade}</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1 text-xs">
+                                    {criteria.map(c => (
+                                        <div key={c.label} className={`flex items-center gap-1 ${c.pass ? 'text-green-400' : 'text-red-400'}`}>
+                                            <span>{c.pass ? '✓' : '✗'}</span>
+                                            <span className="truncate">{c.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
         </div>

@@ -344,6 +344,7 @@ export const SECTOR_AVERAGES: Record<string, Record<string, { median: number; p2
     peRatio: { median: 12, p25: 8, p75: 18 },
     evEbitda: { median: 8, p25: 5, p75: 12 },
   },
+  // Feature #7: EGX-calibrated defaults (P/E ~7-12x trailing on EGX30)
   DEFAULT: {
     grossMargin: { median: 45, p25: 30, p75: 60 },
     operatingMargin: { median: 15, p25: 8, p75: 25 },
@@ -354,8 +355,8 @@ export const SECTOR_AVERAGES: Record<string, Record<string, { median: number; p2
     fcfMargin: { median: 12, p25: 5, p75: 22 },
     debtToEquity: { median: 0.8, p25: 0.3, p75: 1.5 },
     currentRatio: { median: 1.5, p25: 1.0, p75: 2.5 },
-    peRatio: { median: 20, p25: 12, p75: 30 },
-    evEbitda: { median: 12, p25: 8, p75: 18 },
+    peRatio: { median: 9, p25: 5, p75: 15 },
+    evEbitda: { median: 7, p25: 4, p75: 12 },
   },
 };
 

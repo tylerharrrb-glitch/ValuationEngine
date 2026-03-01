@@ -11,6 +11,11 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 import os
 
 from doc_sections import build_title_page, build_toc, build_executive_summary, build_tech_stack
+from doc_sections_p2 import (build_excel_workbook_spec, build_json_schema_spec,
+    build_ev_bridge_spec, build_sector_modes, build_verification_test, build_deployment_checklist)
+from doc_sections_audit import (build_audit_header, build_audit_test_inputs, build_audit_wacc,
+    build_audit_dcf, build_audit_fcff_reconciliation, build_audit_ddm_comps, build_audit_ratios,
+    build_audit_bugs, build_improvements, build_egypt_compliance, build_agent_prompt_reference)
 
 doc = Document()
 
@@ -686,6 +691,75 @@ bullets([
     'Mobile-responsive layout optimizations',
     'Automated PDF/Excel scheduling and email delivery',
 ])
+
+# ═══════════════════════════════
+# SPEC-DRIVEN SECTIONS (from wolf_prompt_v3)
+# ═══════════════════════════════
+
+# Excel workbook spec (11 tabs + WACC build-up)
+build_excel_workbook_spec(doc, add_table, bullets)
+doc.add_page_break()
+
+# JSON schema (complete calculations block)
+build_json_schema_spec(doc, add_table, bullets)
+
+# EV-to-Equity Bridge (full per spec 6.3)
+build_ev_bridge_spec(doc, add_table, bullets)
+doc.add_page_break()
+
+# Sector modes (Banking, Real Estate, Telecom)
+doc.add_heading('20. Sector-Specific Valuation Modes (Planned)', level=1)
+build_sector_modes(doc, add_table, bullets)
+doc.add_page_break()
+
+# Edge cases (from spec section 8.2)
+doc.add_heading('21. Edge Case Handling (per WOLF Spec Section 8.2)', level=1)
+add_table(['Scenario', 'Expected Engine Behavior'], [
+    ['Debt = 0 (all-equity)', 'WACC = Ke. Debt section hidden. No Kd required.'],
+    ['Cash > Debt (net cash)', 'Net Debt negative. Equity > EV. Note: "Company has net cash position."'],
+    ['Negative EBITDA', 'Allow. FCFF may be negative. Yellow warning banner throughout.'],
+    ['Zero DPS', 'DDM section: "N/A - Company pays no dividends."'],
+    ['Beta = 0', 'Ke = Rf only. Note: "Zero systematic risk assumed (market-neutral)."'],
+    ['Negative Beta', 'Allow with warning. "Inverse correlation to EGX 30."'],
+    ['Share Price = 0', 'Allow. All price-based multiples show "N/A".'],
+    ['Revenue = 0', 'Block with error. Cannot project growth from zero base.'],
+    ['Equity Value < 0', 'Allow. Red warning: "Negative equity - distress risk."'],
+    ['EV < 0', 'Allow with extreme warning. Liability value > asset value.'],
+    ['CapEx < D&A', 'Soft warning: "Potential underinvestment."'],
+    ['Payout Ratio > 100%', 'Red alert: "Dividends exceed earnings - unsustainable."'],
+    ['Interest Coverage < 1.0x', 'Red alert: "Cannot cover interest from operations."'],
+    ['Bull case g >= WACC', 'Hard block + clamp: g auto-clamped to WACC - 1%.'],
+])
+doc.add_page_break()
+
+# 80-point verification test
+doc.add_heading('22. Verification Test (80-Point)', level=1)
+build_verification_test(doc, add_table, bullets)
+doc.add_page_break()
+
+# Deployment checklist
+doc.add_heading('23. Production Deployment Checklist', level=1)
+build_deployment_checklist(doc, add_table, bullets)
+
+# ═══════════════════════════════
+# PART II: FORENSIC AUDIT RESULTS
+# ═══════════════════════════════
+build_audit_header(doc, add_table, bullets)
+
+build_audit_test_inputs(doc, add_table, bullets)
+build_audit_wacc(doc, add_table, bullets)
+build_audit_dcf(doc, add_table, bullets)
+build_audit_fcff_reconciliation(doc, add_table, bullets)
+build_audit_ddm_comps(doc, add_table, bullets)
+build_audit_ratios(doc, add_table, bullets)
+doc.add_page_break()
+
+build_audit_bugs(doc, add_table, bullets)
+build_improvements(doc, add_table, bullets)
+build_egypt_compliance(doc, add_table, bullets)
+doc.add_page_break()
+
+build_agent_prompt_reference(doc, add_table, bullets)
 
 # ── Save ──
 output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'WOLF_Engine_Complete_Overview.docx')

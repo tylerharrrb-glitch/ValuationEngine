@@ -362,6 +362,10 @@ export const InputTab: React.FC<InputTabProps> = ({
               }))}
               tooltip="Optional — for more accurate Altman Z-Score X2. If blank, Total Equity is used as proxy."
               {...fieldProps} />
+            {/* IMP3: RE info note */}
+            {!(financialData.balanceSheet.retainedEarnings) && (
+              <div className="text-xs text-blue-400 -mt-2 mb-2">ℹ️ RE defaults to Total Equity ({formatNumber(financialData.balanceSheet.totalEquity)}) for Z-Score when not entered.</div>
+            )}
             {/* D2: Minority Interest & Preferred Equity */}
             <InputField label="Minority Interest" value={financialData.balanceSheet.minorityInterest ?? 0}
               onChange={(val) => updateFinancialData(prev => ({
@@ -611,6 +615,26 @@ export const InputTab: React.FC<InputTabProps> = ({
               <InputField label="Cost of Debt (Pre-Tax)" value={assumptions.costOfDebt}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, costOfDebt: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />
+              {/* Feature #2: Implied Kd Warning */}
+              {(() => {
+                const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+                const interestExp = financialData.incomeStatement.interestExpense;
+                if (totalDebt <= 0 || interestExp <= 0) return null;
+                const impliedKd = (interestExp / totalDebt) * 100;
+                const gap = Math.abs((assumptions.costOfDebt || 0) - impliedKd);
+                return (
+                  <div className={`text-xs rounded-lg px-3 py-2 ${gap > 5 ? 'bg-yellow-900/30 border border-yellow-700/50' : 'bg-zinc-800/50 border border-zinc-700/30'}`}>
+                    <span className={textMutedClass}>Implied from P&L: </span>
+                    <span className={`font-semibold ${gap > 5 ? 'text-yellow-400' : textClass}`}>{impliedKd.toFixed(2)}%</span>
+                    {gap > 5 && (
+                      <p className="text-yellow-400/80 mt-1">
+                        ⚠ Entered Kd differs by {gap.toFixed(1)}pp from implied rate.
+                        Possible: historical bonds at different rates, or rate needs verification.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Egyptian Tax Category */}
               {marketRegion === 'Egypt' ? (
                 <div>
@@ -695,8 +719,22 @@ export const InputTab: React.FC<InputTabProps> = ({
                   const hist = (ebitda / rev) * 100;
                   const delta = assumptions.ebitdaMargin - hist;
                   const absDelta = Math.abs(delta);
-                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
-                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 3 ? 'text-yellow-400' : 'text-green-400';
+                  return (<>
+                    <div className={`text-xs mt-1 flex items-center gap-2 ${color}`}>
+                      <span>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</span>
+                      {absDelta > 1 && (
+                        <button
+                          onClick={() => updateAssumptions(prev => ({ ...prev, ebitdaMargin: Math.round(hist * 10) / 10 }))}
+                          className="px-1.5 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[10px] transition-colors"
+                          title={`Set projected EBITDA margin to historical ${hist.toFixed(1)}%`}
+                        >📋 Use {hist.toFixed(1)}%</button>
+                      )}
+                    </div>
+                    {delta < 0 && assumptions.revenueGrowthRate > 0 && (assumptions.ebitdaMargin * (1 + assumptions.revenueGrowthRate / 100) < hist) && (
+                      <div className="text-xs text-amber-400 mt-0.5">⚠️ Year 1 EBITDA ({(financialData.incomeStatement.revenue * (1 + assumptions.revenueGrowthRate / 100) * assumptions.ebitdaMargin / 100 / 1e9).toFixed(2)}B) may decline vs base ({(ebitda / 1e9).toFixed(2)}B) despite {assumptions.revenueGrowthRate}% revenue growth</div>
+                    )}
+                  </>);
                 })()}
               </div>
               {/* A2: D&A% with historical badge */}
@@ -711,8 +749,19 @@ export const InputTab: React.FC<InputTabProps> = ({
                   const hist = (da / rev) * 100;
                   const delta = assumptions.daPercent - hist;
                   const absDelta = Math.abs(delta);
-                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
-                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 3 ? 'text-yellow-400' : 'text-green-400';
+                  return (
+                    <div className={`text-xs mt-1 flex items-center gap-2 ${color}`}>
+                      <span>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</span>
+                      {absDelta > 1 && (
+                        <button
+                          onClick={() => updateAssumptions(prev => ({ ...prev, daPercent: Math.round(hist * 10) / 10 }))}
+                          className="px-1.5 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[10px] transition-colors"
+                          title={`Set projected D&A% to historical ${hist.toFixed(1)}%`}
+                        >📋 Use {hist.toFixed(1)}%</button>
+                      )}
+                    </div>
+                  );
                 })()}
               </div>
               {/* A2: CapEx% with historical badge */}
@@ -727,8 +776,19 @@ export const InputTab: React.FC<InputTabProps> = ({
                   const hist = (capex / rev) * 100;
                   const delta = assumptions.capexPercent - hist;
                   const absDelta = Math.abs(delta);
-                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 2 ? 'text-yellow-400' : 'text-green-400';
-                  return <div className={`text-xs mt-1 ${color}`}>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</div>;
+                  const color = absDelta > 5 ? 'text-red-400' : absDelta > 3 ? 'text-yellow-400' : 'text-green-400';
+                  return (
+                    <div className={`text-xs mt-1 flex items-center gap-2 ${color}`}>
+                      <span>Historical: {hist.toFixed(1)}% {delta > 0 ? '▲' : '▼'} {absDelta.toFixed(1)}pp</span>
+                      {absDelta > 1 && (
+                        <button
+                          onClick={() => updateAssumptions(prev => ({ ...prev, capexPercent: Math.round(hist * 10) / 10 }))}
+                          className="px-1.5 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[10px] transition-colors"
+                          title={`Set projected CapEx% to historical ${hist.toFixed(1)}%`}
+                        >📋 Use {hist.toFixed(1)}%</button>
+                      )}
+                    </div>
+                  );
                 })()}
               </div>
               <InputField label="ΔWC (% of ΔRevenue)" value={assumptions.deltaWCPercent}

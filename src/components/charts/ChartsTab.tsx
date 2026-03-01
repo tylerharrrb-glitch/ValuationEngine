@@ -284,7 +284,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
 
         {!isMCLoading && mcResult && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
               <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
                 <div className={`text-sm ${textMutedClass}`}>Mean Price</div>
                 <div className={`text-xl font-bold ${textClass}`}>{formatPrice(mcResult.meanPrice, currency)}</div>
@@ -299,6 +299,49 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                   {mcResult.probabilityAboveCurrentPrice}%
                 </div>
               </div>
+              {/* IMP4: P(Below Bear Case) — uses normal CDF approximation */}
+              {(() => {
+                // Compute Bear price from scenario params
+                const bearGrowth = adjustedAssumptions.revenueGrowthRate * 0.40;
+                const bearWACC = adjustedAssumptions.discountRate + 2.5;
+                const bearTG = adjustedAssumptions.terminalGrowthRate * 0.75;
+                const taxR = adjustedAssumptions.taxRate / 100;
+                let rev = financialData.incomeStatement.revenue;
+                let sumPV = 0; let lastFCF = 0;
+                for (let yr = 1; yr <= adjustedAssumptions.projectionYears; yr++) {
+                  const prevRev = rev;
+                  rev *= (1 + bearGrowth / 100);
+                  const adjMargin = adjustedAssumptions.ebitdaMargin + (-1.5 * yr);
+                  const ebitda = rev * (adjMargin / 100);
+                  const da = rev * (adjustedAssumptions.daPercent / 100);
+                  const nopat = (ebitda - da) * (1 - taxR);
+                  const capex = rev * (adjustedAssumptions.capexPercent / 100);
+                  const dwc = (rev - prevRev) * (adjustedAssumptions.deltaWCPercent / 100);
+                  const fcf = nopat + da - capex - dwc;
+                  sumPV += fcf / Math.pow(1 + bearWACC / 100, yr);
+                  lastFCF = fcf;
+                }
+                const tgDec = bearTG / 100; const wDec = bearWACC / 100;
+                const tv = wDec > tgDec ? (lastFCF * (1 + tgDec)) / (wDec - tgDec) : lastFCF * 12;
+                const ev = sumPV + tv / Math.pow(1 + wDec, adjustedAssumptions.projectionYears);
+                const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+                const bearPrice = Math.max((ev - totalDebt + financialData.balanceSheet.cash) / financialData.sharesOutstanding, 0);
+                // Normal CDF via Abramowitz & Stegun
+                const z = mcResult.stdDev > 0 ? (bearPrice - mcResult.meanPrice) / mcResult.stdDev : 0;
+                const t = 1 / (1 + 0.2316419 * Math.abs(z));
+                const d = 0.3989422802 * Math.exp(-z * z / 2);
+                const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+                const pBelowBear = z > 0 ? 1 - p : p;
+                const pPct = pBelowBear * 100;
+                const color = pPct > 5 ? 'text-red-400' : pPct > 1 ? 'text-yellow-400' : 'text-green-400';
+                const bgColor = pPct > 5 ? 'bg-red-500/10 border border-red-500/30' : pPct > 1 ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30';
+                return (
+                  <div className={`p-4 rounded-lg ${bgColor}`}>
+                    <div className={`text-sm ${textMutedClass}`}>P(Below Bear Case)</div>
+                    <div className={`text-xl font-bold ${color}`}>{pPct.toFixed(1)}%</div>
+                  </div>
+                );
+              })()}
               <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
                 <div className={`text-sm ${textMutedClass}`}>Std Deviation</div>
                 <div className={`text-xl font-bold ${textClass}`}>{formatPrice(mcResult.stdDev, currency)}</div>

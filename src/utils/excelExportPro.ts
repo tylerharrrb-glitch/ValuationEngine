@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../types/financial';
-import { calculateEBITDA } from './valuation';
+import { calculateEBITDA, calculateWACC } from './valuation';
 import { SCENARIO_PARAMS } from './constants/scenarioParams';
 
 // Excel number formats — dynamic based on market region
@@ -57,9 +57,14 @@ const applyBoldRows = (ws: XLSX.WorkSheet, rows: number[]): void => {
 
 export const exportToExcelWithFormulas = (
   financialData: FinancialData,
-  assumptions: ValuationAssumptions,
+  assumptionsRaw: ValuationAssumptions,
   comparables: ComparableCompany[]
 ): void => {
+  // ── WACC SYNC FIX ─────────────────────────────────────────────────────
+  // Recalculate WACC from CAPM inputs and patch assumptions.discountRate
+  // so ALL downstream code uses the same single source of truth.
+  const syncedWACC = calculateWACC(financialData, assumptionsRaw);
+  const assumptions = { ...assumptionsRaw, discountRate: syncedWACC };
   const wb = XLSX.utils.book_new();
 
   // Market region detection
@@ -534,9 +539,12 @@ export const exportToExcelWithFormulas = (
   ratiosWs['B36'] = formula('IFERROR(Inputs!B56/MAX(B5,1),0)', FMT.percent);
   ratiosWs['A37'] = cell('Dividend Yield');
   ratiosWs['B37'] = formula('IFERROR(Inputs!B57/MAX(B5,1),0)', FMT.percent);
+  // IMP8: Net Debt/EBITDA
+  ratiosWs['A38'] = cell('Net Debt/EBITDA');
+  ratiosWs['B38'] = formula('IFERROR(B7/MAX(Inputs!B69,1),0)', FMT.decimal);
 
   ratiosWs['!cols'] = [{ wch: 28 }, { wch: 18 }];
-  ratiosWs['!ref'] = 'A1:B37';
+  ratiosWs['!ref'] = 'A1:B38';
   applyBoldRows(ratiosWs, [1, 3, 4, 9, 10, 18, 19, 29, 30]);
   XLSX.utils.book_append_sheet(wb, ratiosWs, 'Ratios');
 
@@ -637,7 +645,46 @@ export const exportToExcelWithFormulas = (
     const pvTV = tv / Math.pow(1 + w, assumptions.projectionYears);
     const ev_ = pvSum + pvTV;
     const equity_ = ev_ - totalDebt + financialData.balanceSheet.cash;
-    return Math.max(equity_ / financialData.sharesOutstanding, 0);
+    return Math.round(Math.max(equity_ / financialData.sharesOutstanding, 0) * 100) / 100;
+  };
+
+  // Pre-compute base-case FCFFs once (matching PDF approach — only vary WACC and TG, not FCFFs)
+  const baseFCFFs: number[] = [];
+  {
+    const eMarg = assumptions.ebitdaMargin / 100;
+    const daPct = assumptions.daPercent / 100;
+    const capPct = assumptions.capexPercent / 100;
+    const dwcPct = assumptions.deltaWCPercent / 100;
+    const tR = assumptions.taxRate / 100;
+    let rev = financialData.incomeStatement.revenue;
+    for (let yr = 1; yr <= assumptions.projectionYears; yr++) {
+      const prevRev = rev;
+      rev *= (1 + assumptions.revenueGrowthRate / 100);
+      const ebitda_ = rev * eMarg;
+      const da = rev * daPct;
+      const ebit = ebitda_ - da;
+      const nopat = ebit * (1 - tR);
+      const capex = rev * capPct;
+      const dwc = (rev - prevRev) * dwcPct;
+      baseFCFFs.push(nopat + da - capex - dwc);
+    }
+  }
+
+  // Sensitivity grid: only vary WACC and terminal growth (FCFFs stay constant)
+  const calcSensPrice = (waccPct: number, gPct: number) => {
+    const w = waccPct / 100;
+    const g = gPct / 100;
+    if (w <= g) return 0;
+    let pvSum = 0;
+    for (let yr = 0; yr < baseFCFFs.length; yr++) {
+      pvSum += baseFCFFs[yr] / Math.pow(1 + w, yr + 1);
+    }
+    const lastFCFF = baseFCFFs[baseFCFFs.length - 1];
+    const tv = (lastFCFF * (1 + g)) / (w - g);
+    const pvTV = tv / Math.pow(1 + w, baseFCFFs.length);
+    const ev = pvSum + pvTV;
+    const equity = ev - totalDebt + financialData.balanceSheet.cash;
+    return Math.round(Math.max(equity / financialData.sharesOutstanding, 0) * 100) / 100;
   };
 
   sensWs['A1'] = header('SENSITIVITY ANALYSIS');
@@ -662,7 +709,7 @@ export const exportToExcelWithFormulas = (
     sensWs[`A${row}`] = cell(`${wacc.toFixed(1)}%`, undefined, wi === 2);
     growthAxis.forEach((g, gi) => {
       const col = String.fromCharCode(66 + gi);
-      const price = calcFCFFPrice(wacc, g, assumptions.revenueGrowthRate, assumptions.ebitdaMargin);
+      const price = calcSensPrice(wacc, g);
       sensWs[`${col}${row}`] = cell(price, FMT.currencyDec, wi === 2 && gi === 2);
     });
   });
@@ -803,12 +850,15 @@ export const exportToExcelWithFormulas = (
 
   // ── Altman Z-Score Sheet ──
   const workingCapital = BS.totalCurrentAssets - BS.totalCurrentLiabilities;
-  const retainedEarnings = BS.totalEquity - (BS.totalEquity * 0.3); // approx
+  // BUG2 fix: Use actual retainedEarnings when available, otherwise totalEquity as proxy (matches PDF)
+  const retainedEarnings = BS.retainedEarnings || BS.totalEquity;
   const marketEquity = financialData.currentStockPrice * financialData.sharesOutstanding;
+  // BUG1 fix: X4 uses Total Liabilities per Altman's original formula (not just Total Debt)
+  const totalLiab = BS.totalLiabilities || (BS.shortTermDebt + BS.longTermDebt);
   const zA = 1.2 * (workingCapital / BS.totalAssets);
   const zB = 1.4 * (retainedEarnings / BS.totalAssets);
   const zC = 3.3 * (IS.operatingIncome / BS.totalAssets);
-  const zD = 0.6 * (marketEquity / (BS.shortTermDebt + BS.longTermDebt));
+  const zD = 0.6 * (marketEquity / totalLiab);
   const zE = 1.0 * (IS.revenue / BS.totalAssets);
   const zScore = zA + zB + zC + zD + zE;
   const zZone = zScore > 2.99 ? 'Safe Zone' : zScore > 1.81 ? 'Grey Zone' : 'Distress Zone';
@@ -820,7 +870,7 @@ export const exportToExcelWithFormulas = (
     ['X1: Working Capital / Total Assets', `${fn(workingCapital)} / ${fn(BS.totalAssets)}`, (workingCapital / BS.totalAssets).toFixed(4), zA.toFixed(4)],
     ['X2: Retained Earnings / Total Assets', `${fn(retainedEarnings)} / ${fn(BS.totalAssets)}`, (retainedEarnings / BS.totalAssets).toFixed(4), zB.toFixed(4)],
     ['X3: EBIT / Total Assets', `${fn(IS.operatingIncome)} / ${fn(BS.totalAssets)}`, (IS.operatingIncome / BS.totalAssets).toFixed(4), zC.toFixed(4)],
-    ['X4: Market Equity / Total Liabilities', `${fn(marketEquity)} / ${fn(BS.shortTermDebt + BS.longTermDebt)}`, (marketEquity / (BS.shortTermDebt + BS.longTermDebt)).toFixed(4), zD.toFixed(4)],
+    ['X4: Market Equity / Total Liabilities', `${fn(marketEquity)} / ${fn(totalLiab)}`, (marketEquity / totalLiab).toFixed(4), zD.toFixed(4)],
     ['X5: Revenue / Total Assets', `${fn(IS.revenue)} / ${fn(BS.totalAssets)}`, (IS.revenue / BS.totalAssets).toFixed(4), zE.toFixed(4)],
     [''],
     ['Z-SCORE', '', '', zScore.toFixed(2)],
@@ -871,7 +921,11 @@ export const exportToExcelWithFormulas = (
   XLSX.utils.book_append_sheet(wb, dupontWs, 'DuPont');
 
   // ── DDM Sheet ──
-  const dps = financialData.dividendsPerShare;
+  // BUG3 fix: Calculate DPS from dividendsPaid/shares (matching PDF and engine logic)
+  const dividendsPaidAbs = Math.abs(financialData.cashFlowStatement.dividendsPaid || 0);
+  const dps = dividendsPaidAbs > 0
+    ? dividendsPaidAbs / financialData.sharesOutstanding
+    : (financialData.dividendsPerShare || 0);
   const ke = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) / 100;
   const gTerminal = assumptions.terminalGrowthRate / 100;
   const gHigh = assumptions.revenueGrowthRate / 100;
@@ -896,6 +950,7 @@ export const exportToExcelWithFormulas = (
     [''],
     ['Inputs'],
     ['Dividends Per Share (DPS)', `${currencyLabel} ${dps.toFixed(2)}`],
+    ['  Source', dividendsPaidAbs > 0 ? `Dividends Paid (${fn(dividendsPaidAbs)}) ÷ Shares (${fn(financialData.sharesOutstanding)})` : 'Direct input'],
     ['Cost of Equity (Ke)', (ke * 100).toFixed(2) + '%'],
     ['Terminal Growth (g)', (gTerminal * 100).toFixed(2) + '%'],
     ['High Growth Rate', (gHigh * 100).toFixed(2) + '%'],

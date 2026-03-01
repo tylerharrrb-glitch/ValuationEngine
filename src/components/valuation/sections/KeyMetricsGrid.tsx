@@ -1,12 +1,14 @@
 import React from 'react';
 import { Tooltip } from '../../Tooltip';
-import { FinancialData } from '../../../types/financial';
+import { FinancialData, ValuationAssumptions } from '../../../types/financial';
 import { KeyMetrics } from '../../../utils/calculations/metrics';
+import { calculateWACC } from '../../../utils/valuation';
 import { formatPercent, formatCurrencyShort, formatMultiple, CurrencyCode } from '../../../utils/formatters';
 
 interface Props {
   financialData: FinancialData;
   keyMetrics: KeyMetrics;
+  assumptions: ValuationAssumptions;
   isDarkMode: boolean;
   cardClass: string;
   textClass: string;
@@ -17,7 +19,7 @@ interface Props {
 }
 
 export const KeyMetricsGrid: React.FC<Props> = ({
-  financialData, keyMetrics, isDarkMode, cardClass, textClass, textMutedClass, currency, marketRegion,
+  financialData, keyMetrics, assumptions, isDarkMode, cardClass, textClass, textMutedClass, currency, marketRegion,
 }) => {
   const { incomeStatement: is, balanceSheet: bs, cashFlowStatement: cf } = financialData;
   const totalDebt = bs.shortTermDebt + bs.longTermDebt;
@@ -64,6 +66,13 @@ export const KeyMetricsGrid: React.FC<Props> = ({
   // ROIC — uses statutory tax NOPAT
   const roic = investedCapital > 0 ? (nopatForROIC / investedCapital) * 100 : 0;
 
+  // EVA (Economic Value Added)
+  const waccPct = calculateWACC(financialData, assumptions);
+  const roicWaccSpread = roic - waccPct;
+  const eva = (roicWaccSpread / 100) * investedCapital;
+  const spreadColor = roicWaccSpread > 2 ? 'text-green-400' : roicWaccSpread > 0 ? 'text-yellow-400' : 'text-red-400';
+  const spreadLabel = roicWaccSpread > 2 ? '▲ Value Creating' : roicWaccSpread > 0 ? '≈ Neutral' : '▼ Value Destroying';
+
   return (
     <div className={`p-6 rounded-xl border ${cardClass}`}>
       <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>Key Financial Metrics</h3>
@@ -78,6 +87,8 @@ export const KeyMetricsGrid: React.FC<Props> = ({
           { label: 'ROE', value: formatPercent(keyMetrics.roe), tooltip: 'Return on Equity: Net Income / Shareholders Equity.' },
           { label: 'ROA', value: formatPercent(keyMetrics.roa), tooltip: 'Return on Assets: Net Income / Total Assets.' },
           { label: 'ROIC', value: formatPercent(roic), tooltip: 'Return on Invested Capital: NOPAT / (Equity + Debt − Cash). Measures value creation.', colorClass: roic > 15 ? 'text-green-400' : roic > 8 ? 'text-yellow-400' : 'text-red-400' },
+          { label: 'ROIC−WACC Spread', value: `${roicWaccSpread > 0 ? '+' : ''}${roicWaccSpread.toFixed(2)}%`, tooltip: `ROIC (${roic.toFixed(2)}%) minus WACC (${waccPct.toFixed(2)}%). Positive = company creates value above its cost of capital. ${spreadLabel}.`, colorClass: spreadColor },
+          { label: 'EVA', value: formatCurrencyShort(eva, currency), tooltip: `Economic Value Added = (ROIC−WACC) × Invested Capital = ${roicWaccSpread.toFixed(2)}% × ${formatCurrencyShort(investedCapital, currency)}. ${eva > 0 ? 'Company creates' : 'Company destroys'} shareholder value.`, colorClass: eva > 0 ? 'text-green-400' : 'text-red-400' },
           { label: 'P/E Ratio', value: formatMultiple(keyMetrics.peRatio), tooltip: 'Price-to-Earnings Ratio: Current Stock Price / Earnings Per Share.' },
           { label: 'EV/EBITDA', value: formatMultiple(keyMetrics.evEbitda), tooltip: 'Enterprise Value / EBITDA. A valuation multiple independent of capital structure.' },
           { label: 'Current Ratio', value: formatMultiple(keyMetrics.currentRatio), tooltip: 'Current Assets / Current Liabilities. Measures short-term liquidity.' },

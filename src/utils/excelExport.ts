@@ -85,7 +85,12 @@ const FMT_DEC4 = '0.0000';
 // ─── Main Export Function ──────────────────────────────────────────
 
 export function exportToExcel(data: ExportData): void {
-  const { financialData, assumptions, comparables, marketRegion = 'Egypt' } = data;
+  const { financialData, comparables, marketRegion = 'Egypt' } = data;
+  // ── WACC SYNC FIX ─────────────────────────────────────────────────────
+  // Recalculate WACC from CAPM inputs and patch assumptions.discountRate
+  // so ALL downstream code uses the same single source of truth.
+  const syncedWACC = calculateWACC(financialData, data.assumptions);
+  const assumptions = { ...data.assumptions, discountRate: syncedWACC };
   const ccy = marketRegion === 'Egypt' ? 'EGP' : 'USD';
   const FMT_CURRENCY = marketRegion === 'Egypt' ? FMT_CURRENCY_EGP : FMT_CURRENCY_USD;
   const wb = XLSX.utils.book_new();
@@ -927,7 +932,145 @@ export function exportToExcel(data: ExportData): void {
   XLSX.utils.book_append_sheet(wb, ws12, 'Scenarios');
 
   // ============================================
-  // SHEET 8: HOW TO BUILD THIS APP
+  // SHEET 9: WACC BUILD-UP
+  // ============================================
+  const wsWACC = newSheet();
+  const keVal = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+  const kdAT = assumptions.costOfDebt * (1 - assumptions.taxRate / 100);
+  const totalDebtWACC = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
+  const mkCapWACC = financialData.currentStockPrice * financialData.sharesOutstanding;
+  const totalCapWACC = mkCapWACC + totalDebtWACC;
+  const weWACC = totalCapWACC > 0 ? mkCapWACC / totalCapWACC : 1;
+  const wdWACC = totalCapWACC > 0 ? totalDebtWACC / totalCapWACC : 0;
+  const waccFinal = weWACC * keVal + wdWACC * kdAT;
+
+  let rW = writeRows(wsWACC, [
+    ['WACC BUILD-UP'],
+    [''],
+    ['Cost of Equity (Ke)', null],
+    ['Risk-Free Rate', assumptions.riskFreeRate],
+    ['Beta', assumptions.beta],
+    ['Equity Risk Premium', assumptions.marketRiskPremium],
+    ['Ke = Rf + β × ERP', keVal],
+    [''],
+    ['Cost of Debt'],
+    ['Pre-Tax Kd', assumptions.costOfDebt],
+    ['Tax Rate', assumptions.taxRate],
+    ['After-Tax Kd', kdAT],
+    [''],
+    ['Capital Structure'],
+    ['Market Cap', mkCapWACC],
+    ['Total Debt', totalDebtWACC],
+    ['Equity Weight (We)', weWACC],
+    ['Debt Weight (Wd)', wdWACC],
+    [''],
+    ['WACC = We×Ke + Wd×Kd(AT)', waccFinal],
+  ], 0, [undefined, '0.00%']);
+
+  wsWACC['!cols'] = [{ wch: 30 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsWACC, 'WACC Build-Up');
+
+  // ============================================
+  // SHEET 10: FCFF RECONCILIATION
+  // ============================================
+  const wsFCFF = newSheet();
+  const isXL = financialData.incomeStatement;
+  const cfXL = financialData.cashFlowStatement;
+  const nopatXL = isXL.operatingIncome * (1 - assumptions.taxRate / 100);
+  const daXL = isXL.depreciation + isXL.amortization;
+  const capexXL = Math.abs(cfXL.capitalExpenditures);
+  const fcff1 = nopatXL + daXL - capexXL;
+  const fcff2 = cfXL.operatingCashFlow + isXL.interestExpense * (1 - assumptions.taxRate / 100) - capexXL;
+
+  writeRows(wsFCFF, [
+    ['FCFF RECONCILIATION'],
+    [''],
+    ['Method 1: From NOPAT'],
+    ['EBIT', isXL.operatingIncome],
+    ['× (1 − Tax Rate)', 1 - assumptions.taxRate / 100],
+    ['= NOPAT', nopatXL],
+    ['+ D&A', daXL],
+    ['− CapEx', -capexXL],
+    ['= FCFF (Method 1)', fcff1],
+    [''],
+    ['Method 2: From Operating CF'],
+    ['Operating Cash Flow', cfXL.operatingCashFlow],
+    ['+ Interest × (1-t)', isXL.interestExpense * (1 - assumptions.taxRate / 100)],
+    ['− CapEx', -capexXL],
+    ['= FCFF (Method 2)', fcff2],
+    [''],
+    ['Reconciliation Difference', fcff1 - fcff2],
+  ], 0, [undefined, FMT_INT]);
+
+  wsFCFF['!cols'] = [{ wch: 28 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, wsFCFF, 'FCFF Reconciliation');
+
+  // ============================================
+  // SHEET 11: WORKING CAPITAL
+  // ============================================
+  const wsWC = newSheet();
+  const bsXL = financialData.balanceSheet;
+  const revXL = isXL.revenue || 1;
+  const cogsXL = isXL.costOfGoodsSold || 1;
+  const dso = bsXL.accountsReceivable > 0 ? 365 / (revXL / bsXL.accountsReceivable) : 0;
+  const dio = bsXL.inventory > 0 ? 365 / (cogsXL / bsXL.inventory) : 0;
+  const dpo = bsXL.accountsPayable > 0 ? 365 / (cogsXL / bsXL.accountsPayable) : 0;
+  const ccc = dso + dio - dpo;
+
+  writeRows(wsWC, [
+    ['WORKING CAPITAL ANALYSIS'],
+    [''],
+    ['Current Assets', bsXL.totalCurrentAssets],
+    ['Cash', bsXL.cash],
+    ['Accounts Receivable', bsXL.accountsReceivable],
+    ['Inventory', bsXL.inventory],
+    [''],
+    ['Current Liabilities', bsXL.totalCurrentLiabilities],
+    ['Accounts Payable', bsXL.accountsPayable],
+    ['Short-term Debt', bsXL.shortTermDebt],
+    [''],
+    ['Working Capital', bsXL.totalCurrentAssets - bsXL.totalCurrentLiabilities],
+    ['Net Working Capital (ex-cash)', bsXL.totalCurrentAssets - bsXL.cash - bsXL.totalCurrentLiabilities + bsXL.shortTermDebt],
+    [''],
+    ['Cash Conversion Cycle'],
+    ['DSO (Days Sales Outstanding)', dso],
+    ['DIO (Days Inventory Outstanding)', dio],
+    ['DPO (Days Payable Outstanding)', dpo],
+    ['CCC = DSO + DIO − DPO', ccc],
+  ], 0, [undefined, FMT_INT]);
+
+  wsWC['!cols'] = [{ wch: 35 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsWC, 'Working Capital');
+
+  // ============================================
+  // SHEET 12: EVA ANALYSIS
+  // ============================================
+  const wsEVA = newSheet();
+  const icXL = bsXL.totalEquity + totalDebtWACC - bsXL.cash;
+  const roicXL = icXL > 0 ? (nopatXL / icXL) * 100 : 0;
+  const spreadXL = roicXL - waccFinal;
+  const evaXL = (spreadXL / 100) * icXL;
+  const spreadVerdict = spreadXL > 2 ? 'VALUE CREATING' : spreadXL > 0 ? 'NEUTRAL' : 'VALUE DESTROYING';
+
+  writeRows(wsEVA, [
+    ['ECONOMIC VALUE ADDED (EVA)'],
+    [''],
+    ['Invested Capital = Equity + Debt − Cash', icXL],
+    ['NOPAT = EBIT × (1 − Tax)', nopatXL],
+    ['ROIC = NOPAT / IC', roicXL],
+    ['WACC', waccFinal],
+    [''],
+    ['ROIC − WACC Spread', spreadXL],
+    ['EVA = Spread × IC', evaXL],
+    [''],
+    ['Assessment', spreadVerdict],
+  ], 0, [undefined, FMT_INT]);
+
+  wsEVA['!cols'] = [{ wch: 38 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, wsEVA, 'EVA Analysis');
+
+  // ============================================
+  // SHEET 13: HOW TO BUILD THIS APP
   // ============================================
   const guideRows: string[][] = [
     ['HOW TO BUILD WOLF VALUATION ENGINE'],
