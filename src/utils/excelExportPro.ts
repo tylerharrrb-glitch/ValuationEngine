@@ -743,7 +743,9 @@ export const exportToExcelWithFormulas = (
       const capex = rev * (assumptions.capexPercent / 100);
       const dwc = (rev - prevRev) * (assumptions.deltaWCPercent / 100);
       const fcf = nopat + da - capex - dwc;
-      sumPV += fcf / Math.pow(1 + wDec, yr);
+      // Bug #5: Respect mid-year discounting convention (match engine scenarios.ts)
+      const period = assumptions.discountingConvention === 'mid_year' ? yr - 0.5 : yr;
+      sumPV += fcf / Math.pow(1 + wDec, period);
       lastFCF = fcf;
     }
     const tgDec = tg / 100;

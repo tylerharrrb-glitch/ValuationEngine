@@ -143,21 +143,18 @@ export function exportToExcel(data: ExportData): void {
   ], r, [undefined, FMT_CURRENCY, FMT_CURRENCY, FMT_DEC2]);
 
   // FIX C3/C4: Calculate comparable value with EGX defaults fallback
+  // Bug #4 fix: Use weighted (40/35/15/10) comps — matches engine logic
   const effectiveComps = comparables.length > 0 ? comparables : [];
-  let compsPerShare = 0;
-  if (effectiveComps.length > 0) {
-    compsPerShare = compResults.reduce((s, cr) => s + cr.perShare, 0) / compResults.length;
-  } else if (marketRegion === 'Egypt') {
-    // Fallback to EGX Market Average defaults (Fix C3)
-    const defaults = EGYPTIAN_INDUSTRY_MULTIPLES['Default'];
-    const eps = incomeStatement.netIncome / financialData.sharesOutstanding;
-    const ebitdaVal = calculateEBITDA(financialData);
-    const peImpl = eps > 0 ? eps * defaults.peRatio : 0;
-    const evImpl = ebitdaVal > 0 ? ((ebitdaVal * defaults.evEbitda) - totalDebt + balanceSheet.cash) / financialData.sharesOutstanding : 0;
-    const psImpl = incomeStatement.revenue > 0 ? (incomeStatement.revenue / financialData.sharesOutstanding) * defaults.psRatio : 0;
-    const pbImpl = balanceSheet.totalEquity > 0 ? (balanceSheet.totalEquity / financialData.sharesOutstanding) * defaults.pbRatio : 0;
-    compsPerShare = peImpl * 0.40 + evImpl * 0.35 + psImpl * 0.15 + pbImpl * 0.10;
-  }
+  const avgPE_blend = effectiveComps.length > 0 ? effectiveComps.reduce((s, c) => s + c.peRatio, 0) / effectiveComps.length : (marketRegion === 'Egypt' ? EGYPTIAN_INDUSTRY_MULTIPLES['Default'].peRatio : 15.0);
+  const avgEV_blend = effectiveComps.length > 0 ? effectiveComps.reduce((s, c) => s + c.evEbitda, 0) / effectiveComps.length : (marketRegion === 'Egypt' ? EGYPTIAN_INDUSTRY_MULTIPLES['Default'].evEbitda : 10.0);
+  const avgPS_blend = effectiveComps.length > 0 ? effectiveComps.reduce((s, c) => s + c.psRatio, 0) / effectiveComps.length : (marketRegion === 'Egypt' ? EGYPTIAN_INDUSTRY_MULTIPLES['Default'].psRatio : 2.0);
+  const avgPB_blend = effectiveComps.length > 0 ? effectiveComps.reduce((s, c) => s + c.pbRatio, 0) / effectiveComps.length : (marketRegion === 'Egypt' ? EGYPTIAN_INDUSTRY_MULTIPLES['Default'].pbRatio : 2.5);
+  const eps_blend = incomeStatement.netIncome / financialData.sharesOutstanding;
+  const peImpl_blend = eps_blend > 0 ? eps_blend * avgPE_blend : 0;
+  const evImpl_blend = ebitda > 0 ? ((ebitda * avgEV_blend) - totalDebt + balanceSheet.cash) / financialData.sharesOutstanding : 0;
+  const psImpl_blend = incomeStatement.revenue > 0 ? (incomeStatement.revenue / financialData.sharesOutstanding) * avgPS_blend : 0;
+  const pbImpl_blend = balanceSheet.totalEquity > 0 ? (balanceSheet.totalEquity / financialData.sharesOutstanding) * avgPB_blend : 0;
+  const compsPerShare = peImpl_blend * 0.40 + evImpl_blend * 0.35 + psImpl_blend * 0.15 + pbImpl_blend * 0.10;
 
   // FIX C4: Blended value = 60% DCF + 40% Comps (matching engine logic)
   const blendedValue = compsPerShare > 0 ? dcfPerShare * 0.6 + compsPerShare * 0.4 : dcfPerShare;
@@ -859,7 +856,9 @@ export function exportToExcel(data: ExportData): void {
         const capex = rev * (sa.capexPercent / 100);
         const dwc = (rev - prevRev) * (sa.deltaWCPercent / 100);
         const fcf = nopat + da - capex - dwc;
-        sumPV += fcf / Math.pow(1 + w, yr);
+        // Bug #5: Respect mid-year discounting convention (match engine scenarios.ts)
+        const period = sa.discountingConvention === 'mid_year' ? yr - 0.5 : yr;
+        sumPV += fcf / Math.pow(1 + w, period);
         lastFCF = fcf;
       }
       const tg = sa.terminalGrowthRate / 100;

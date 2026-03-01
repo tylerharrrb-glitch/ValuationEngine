@@ -210,10 +210,12 @@ export const InputTab: React.FC<InputTabProps> = ({
               <h4 className={`text-sm font-semibold mb-2 text-red-400 uppercase tracking-wide`}>EGX Quick Access</h4>
               <div className="space-y-2">
                 {[
-                  { sector: 'Banking', tickers: ['COMI.CA', 'QNBA.CA', 'AIBC.CA'] },
+                  { sector: 'Banking', tickers: ['COMI.CA', 'QNBA.CA', 'AIBC.CA', 'FAISAL.CA', 'SAIB.CA'] },
                   { sector: 'Real Estate', tickers: ['TMGH.CA', 'PHDC.CA', 'MDEV.CA', 'HELI.CA'] },
                   { sector: 'Telecom & Industrial', tickers: ['ETEL.CA', 'SWDY.CA', 'ESRS.CA', 'AMOC.CA', 'ORWE.CA'] },
-                  { sector: 'Consumer & Healthcare', tickers: ['JUFO.CA', 'EAST.CA', 'EFID.CA', 'CCAP.CA'] },
+                  { sector: 'Consumer & Healthcare', tickers: ['JUFO.CA', 'EAST.CA', 'EFID.CA', 'CCAP.CA', 'DOMTY.CA'] },
+                  { sector: 'Financial Services', tickers: ['HRHO.CA'] },
+                  { sector: 'Building Materials', tickers: ['SVCE.CA'] },
                 ].map(({ sector, tickers }) => (
                   <div key={sector}>
                     <span className={`text-xs font-medium uppercase tracking-wide ${textMutedClass}`}>{sector}</span>

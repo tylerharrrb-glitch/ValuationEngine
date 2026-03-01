@@ -143,21 +143,34 @@ export const exportToPDF = ({
         if (w2 > 30) cs -= 5;
         // -5 growth risk (> 2× nominal GDP = 32%)
         if (assumptions.revenueGrowthRate > 32) cs -= 5;
+        // V12 Bug #1: Add 3 missing factors to match ConfidenceScore.tsx
+        // +5 Balance sheet balances (A = L + E)
+        const csBsDiff = Math.abs(financialData.balanceSheet.totalAssets - financialData.balanceSheet.totalLiabilities - financialData.balanceSheet.totalEquity);
+        const csBsBalances = financialData.balanceSheet.totalAssets > 0 && csBsDiff < financialData.balanceSheet.totalAssets * 0.01;
+        if (csBsBalances) cs += 5;
+        // +5 FCFF 3-way reconciliation passes
+        const csEbitda = financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;
+        const csFcffM1 = financialData.incomeStatement.operatingIncome * (1 - assumptions.taxRate / 100) +
+          financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization -
+          Math.abs(financialData.cashFlowStatement.capitalExpenditures);
+        const csFcffOk = csFcffM1 > 0;
+        if (csFcffOk) cs += 5;
+        // +5/-10 Altman Z-Score
+        const csWC = financialData.balanceSheet.totalCurrentAssets - financialData.balanceSheet.totalCurrentLiabilities;
+        const csMCap = financialData.currentStockPrice * financialData.sharesOutstanding;
+        const csTL = financialData.balanceSheet.totalLiabilities || 1;
+        const csTA = financialData.balanceSheet.totalAssets || 1;
+        const csAltZ = 1.2 * (csWC / csTA) + 1.4 * (financialData.balanceSheet.totalEquity / csTA) +
+          3.3 * (financialData.incomeStatement.operatingIncome / csTA) + 0.6 * (csMCap / csTL) +
+          financialData.incomeStatement.revenue / csTA;
+        if (csAltZ > 2.99) cs += 5;
+        else if (csAltZ < 1.81) cs -= 10;
+        // -5 EBITDA margin deviates >5pp from historical
+        const csHistEbitdaM = financialData.incomeStatement.revenue > 0
+          ? (csEbitda / financialData.incomeStatement.revenue) * 100 : 0;
+        const csEbitdaDev = Math.abs(assumptions.ebitdaMargin - csHistEbitdaM);
+        if (csEbitdaDev > 5) cs -= 5;
         cs = Math.max(0, Math.min(100, cs));
-        // Build active factors list for table
-        const allFactors: { label: string; delta: number; active: boolean }[] = [
-          { label: 'Base score', delta: 70, active: true },
-          { label: 'Terminal Value < 60% of EV', delta: 5, active: tvPct < 60 },
-          { label: 'Custom comparable peers entered', delta: 5, active: hasCustomPeers },
-          { label: 'EGX sector multiples available', delta: 5, active: comparables.some((c: any) => c.ticker?.startsWith('EGX_') && !c.ticker?.includes('DEFAULT')) },
-          { label: 'Historical comparison data', delta: 5, active: (financialData as any).historicalData?.length >= 2 },
-          { label: 'TV/EV in balanced range (40-60%)', delta: 5, active: tvPct >= 40 && tvPct <= 60 },
-          { label: 'Terminal Value > 80% of EV', delta: -10, active: tvPct > 80 },
-          { label: 'Using EGX default multiples', delta: -5, active: !hasCustomPeers },
-          { label: 'WACC > 30% (high uncertainty)', delta: -5, active: w2 > 30 },
-          { label: 'Revenue growth > 2x GDP', delta: -5, active: assumptions.revenueGrowthRate > 32 },
-        ];
-        const activeFactors = allFactors.filter(f => f.active);
         const level = cs >= 85 ? 'HIGH' : cs >= 65 ? 'MODERATE' : 'LOW';
         return `${cs}/100 (${level})`;
       })()],
@@ -171,7 +184,7 @@ export const exportToPDF = ({
 
   yPos = (doc as any).lastAutoTable.finalY + 5;
 
-  // IMP5: Confidence Score Breakdown Table
+  // IMP5: Confidence Score Breakdown Table (V12: synced with ConfidenceScore.tsx)
   {
     const tvPct = (() => {
       const w = calculateWACC(financialData, assumptions) / 100;
@@ -184,6 +197,23 @@ export const exportToPDF = ({
     })();
     const hasCustomPeers = comparables.length > 0;
     const w2 = calculateWACC(financialData, assumptions);
+    // V12: Compute BS balance, FCFF, Z-Score factors (same as inline score above)
+    const tblBsDiff = Math.abs(financialData.balanceSheet.totalAssets - financialData.balanceSheet.totalLiabilities - financialData.balanceSheet.totalEquity);
+    const tblBsOk = financialData.balanceSheet.totalAssets > 0 && tblBsDiff < financialData.balanceSheet.totalAssets * 0.01;
+    const tblFcffM1 = financialData.incomeStatement.operatingIncome * (1 - assumptions.taxRate / 100) +
+      financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization -
+      Math.abs(financialData.cashFlowStatement.capitalExpenditures);
+    const tblFcffOk = tblFcffM1 > 0;
+    const tblWC = financialData.balanceSheet.totalCurrentAssets - financialData.balanceSheet.totalCurrentLiabilities;
+    const tblMCap = financialData.currentStockPrice * financialData.sharesOutstanding;
+    const tblTL = financialData.balanceSheet.totalLiabilities || 1;
+    const tblTA = financialData.balanceSheet.totalAssets || 1;
+    const tblAltZ = 1.2 * (tblWC / tblTA) + 1.4 * (financialData.balanceSheet.totalEquity / tblTA) +
+      3.3 * (financialData.incomeStatement.operatingIncome / tblTA) + 0.6 * (tblMCap / tblTL) +
+      financialData.incomeStatement.revenue / tblTA;
+    const tblEbitda = financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;
+    const tblHistM = financialData.incomeStatement.revenue > 0 ? (tblEbitda / financialData.incomeStatement.revenue) * 100 : 0;
+    const tblMargDev = Math.abs(assumptions.ebitdaMargin - tblHistM);
     const allFactors: { label: string; delta: number; active: boolean }[] = [
       { label: 'Base score', delta: 70, active: true },
       { label: 'Terminal Value < 60% of EV', delta: 5, active: tvPct < 60 },
@@ -195,9 +225,15 @@ export const exportToPDF = ({
       { label: 'Using EGX default multiples', delta: -5, active: !hasCustomPeers },
       { label: 'WACC > 30% (high uncertainty)', delta: -5, active: w2 > 30 },
       { label: 'Revenue growth > 2x GDP', delta: -5, active: assumptions.revenueGrowthRate > 32 },
+      // V12: 3 new factors matching ConfidenceScore.tsx
+      { label: 'Balance sheet balances (A = L + E)', delta: 5, active: tblBsOk },
+      { label: 'FCFF 3-way reconciliation passes', delta: 5, active: tblFcffOk },
+      { label: `Altman Z-Score Safe (${tblAltZ.toFixed(2)})`, delta: 5, active: tblAltZ > 2.99 },
+      { label: `Altman Z-Score Distress (${tblAltZ.toFixed(2)})`, delta: -10, active: tblAltZ < 1.81 },
+      { label: 'EBITDA margin deviates >5pp from historical', delta: -5, active: tblMargDev > 5 },
     ];
     const activeFactors = allFactors.filter(f => f.active);
-    const total = activeFactors.reduce((sum, f) => sum + f.delta, 0);
+    const total = Math.max(0, Math.min(100, activeFactors.reduce((sum, f) => sum + f.delta, 0)));
 
     autoTable(doc, {
       startY: yPos,
@@ -949,6 +985,63 @@ export const exportToPDF = ({
     yPos = (doc as any).lastAutoTable.finalY + 15;
   }
 
+  // V12 Feature #1: DIVIDEND SUSTAINABILITY METRICS
+  if (dpsVal > 0) {
+    checkNewPage(60);
+    const dsEps = financialData.sharesOutstanding > 0 ? financialData.incomeStatement.netIncome / financialData.sharesOutstanding : 0;
+    const dsFcf = financialData.cashFlowStatement.freeCashFlow;
+    const dsDivsPaid = dividendsPaidAbs;
+    const dsPayoutRatio = dsEps > 0 ? (dpsVal / dsEps) * 100 : 0;
+    const dsFcfPayout = dsFcf > 0 ? (dsDivsPaid / dsFcf) * 100 : 0;
+    const dsFcfCoverage = dsDivsPaid > 0 ? dsFcf / dsDivsPaid : 0;
+    const dsRoe = financialData.balanceSheet.totalEquity > 0
+      ? (financialData.incomeStatement.netIncome / financialData.balanceSheet.totalEquity) * 100 : 0;
+    const dsSustainableGrowth = dsRoe * (1 - dsPayoutRatio / 100);
+    const dsAssessment = dsPayoutRatio < 40 && dsFcfCoverage > 2
+      ? 'CONSERVATIVE - Highly Sustainable'
+      : dsPayoutRatio <= 75 && dsFcfCoverage > 1
+        ? 'MODERATE - Sustainable'
+        : 'AGGRESSIVE - At Risk';
+
+    doc.setTextColor(...redColor);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DIVIDEND SUSTAINABILITY', 15, yPos);
+    yPos += 10;
+
+    const dsSustBody: any[][] = [
+      ['Payout Ratio (DPS/EPS)', `${dsPayoutRatio.toFixed(1)}%`],
+      ['FCF Payout (Dividends/FCF)', `${dsFcfPayout.toFixed(1)}%`],
+      ['FCF Coverage (FCF/Dividends)', `${dsFcfCoverage.toFixed(1)}x`],
+      ['ROE', formatPercent(dsRoe)],
+      ['Sustainable Growth (ROE x (1-Payout))', `${dsSustainableGrowth.toFixed(1)}%`],
+      [{ content: `Assessment: ${dsAssessment}`, styles: { fontStyle: 'bold' } }, ''],
+    ];
+
+    // DDM context note when DDM << DCF
+    const dsGordon = keDec > gStableDDM ? (dpsVal * (1 + gStableDDM)) / (keDec - gStableDDM) : 0;
+    if (dsGordon > 0 && dcfValue > 0 && Math.abs(dsGordon - dcfValue) / dcfValue > 0.50) {
+      dsSustBody.push([{
+        content: `Note: DDM (${fmtCcy(dsGordon, 2)}) << DCF (${fmtCcy(dcfValue, 2)}) because only ${dsPayoutRatio.toFixed(1)}% of earnings are distributed. DDM captures distributed value; DCF captures total firm value.`,
+        colSpan: 2,
+        styles: { fontSize: 7, fontStyle: 'italic' },
+      }, '']);
+    }
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Metric', 'Value']],
+      body: dsSustBody,
+      theme: 'striped',
+      headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
+      margin: { left: 15, right: 100 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
   // S4: Quality Scorecard
   checkNewPage(60);
   doc.setTextColor(...redColor);
@@ -1064,17 +1157,17 @@ export const exportToPDF = ({
   const pdfWACCpct = assumptions.discountRate;
   const pdfSpread = pdfROIC - pdfWACCpct;
   const pdfEVA = (pdfSpread / 100) * pdfIC;
-  const spreadStatus = pdfSpread > 2 ? '▲ Value Creating' : pdfSpread > 0 ? '≈ Neutral' : '▼ Value Destroying';
+  const spreadStatus = pdfSpread > 2 ? '(+) Value Creating' : pdfSpread > 0 ? '~ Neutral' : '(-) Value Destroying';
 
   autoTable(doc, {
     startY: yPos,
     head: [['Metric', 'Value']],
     body: [
-      ['Invested Capital (Equity + Debt − Cash)', formatNumber(pdfIC)],
-      ['NOPAT (EBIT × (1 − Statutory Tax))', formatNumber(pdfNOPAT)],
+      ['Invested Capital (Equity + Debt - Cash)', formatNumber(pdfIC)],
+      ['NOPAT (EBIT x (1 - Statutory Tax))', formatNumber(pdfNOPAT)],
       ['ROIC (NOPAT / IC)', formatPercent(pdfROIC)],
       ['WACC', formatPercent(pdfWACCpct)],
-      [{ content: `ROIC−WACC Spread (${spreadStatus})`, styles: { fontStyle: 'bold' } }, { content: `${pdfSpread > 0 ? '+' : ''}${pdfSpread.toFixed(2)}%`, styles: { fontStyle: 'bold' } }],
+      [{ content: `ROIC-WACC Spread (${spreadStatus})`, styles: { fontStyle: 'bold' } }, { content: `${pdfSpread > 0 ? '+' : ''}${pdfSpread.toFixed(2)}%`, styles: { fontStyle: 'bold' } }],
       [{ content: 'EVA (Spread × IC)', styles: { fontStyle: 'bold' } }, { content: fmtCcy(pdfEVA), styles: { fontStyle: 'bold' } }],
     ],
     theme: 'striped',
@@ -1562,10 +1655,10 @@ export const exportToPDF = ({
     startY: yPos,
     head: [['Check', 'Result']],
     body: [
-      [`Balance Sheet: TA (${formatNumber(balanceSheet.totalAssets)}) = TL + Equity`, bsCheck ? '✓ Pass' : '✗ Fail'],
-      [`Income: EBIT − Interest − Tax ≈ NI`, isCheck ? '✓ Pass' : '✗ Fail'],
-      [`WACC (${formatPercent(waccCalc)}) ∈ [Kd(AT) (${formatPercent(kdATCalc)}), Ke (${formatPercent(keCalc)})]`, waccValid ? '✓ Pass' : '✗ Fail'],
-      [`Terminal Growth (${formatPercent(assumptions.terminalGrowthRate)}) < WACC (${formatPercent(assumptions.discountRate)})`, tgValid ? '✓ Pass' : '✗ Fail'],
+      [`Balance Sheet: TA (${formatNumber(balanceSheet.totalAssets)}) = TL + Equity`, bsCheck ? 'Pass' : 'Fail'],
+      [`Income: EBIT - Interest - Tax ~ NI`, isCheck ? 'Pass' : 'Fail'],
+      [`WACC (${formatPercent(waccCalc)}) in [Kd(AT) (${formatPercent(kdATCalc)}), Ke (${formatPercent(keCalc)})]`, waccValid ? 'Pass' : 'Fail'],
+      [`Terminal Growth (${formatPercent(assumptions.terminalGrowthRate)}) < WACC (${formatPercent(assumptions.discountRate)})`, tgValid ? 'Pass' : 'Fail'],
     ],
     theme: 'striped',
     headStyles: { fillColor: darkColor, textColor: [255, 255, 255] },

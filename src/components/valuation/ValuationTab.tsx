@@ -211,7 +211,9 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       })()}
       {/* Feature #4: Dividend Sustainability */}
       {(() => {
-        const dps = financialData.dividendsPerShare || 0;
+        // V12: Derive DPS from dividendsPaid when dividendsPerShare is not set (matches DDM section)
+        const dividendsPaidAbs = Math.abs(financialData.cashFlowStatement.dividendsPaid || 0);
+        const dps = financialData.dividendsPerShare || (dividendsPaidAbs > 0 ? dividendsPaidAbs / financialData.sharesOutstanding : 0);
         const eps = financialData.sharesOutstanding > 0 ? financialData.incomeStatement.netIncome / financialData.sharesOutstanding : 0;
         const fcf = financialData.cashFlowStatement.freeCashFlow;
         const divsPaid = financialData.cashFlowStatement.dividendsPaid;
