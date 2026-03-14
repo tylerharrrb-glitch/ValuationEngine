@@ -33,6 +33,7 @@ const ChartsTab = lazy<React.FC<ChartsTabProps>>(() => import('./components/char
 
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { LoadingFallback } from './components/shared/LoadingFallback';
+import { WolfAnalystPanel } from './components/WolfAnalystPanel';
 
 function App() {
   // ── UI State ──────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ function App() {
   const [marketRegion, setMarketRegion] = useState<MarketRegion>('Egypt');
   const [dcfWeight, setDcfWeight] = useState(60);
   const [valuationStyle, setValuationStyle] = useState<ValuationStyleKey>('moderate');
+  const [showWolfAnalyst, setShowWolfAnalyst] = useState(false);
 
   // ── Theme ─────────────────────────────────────────────────────────────
   const { isDarkMode, toggleDarkMode, bgClass, cardClass, textClass, textMutedClass, inputClass } = useTheme();
@@ -101,6 +103,7 @@ function App() {
           dcfProjections={calc.dcfProjections} dcfValue={calc.dcfValue}
           comparableValue={calc.comparableValue} upside={calc.upside}
           recommendation={calc.recommendation} scenario={scenario}
+          onOpenWolfAnalyst={() => setShowWolfAnalyst(true)}
           {...themeProps}
         />
 
@@ -169,6 +172,33 @@ function App() {
 
       {/* Footer */}
       <Footer isDarkMode={isDarkMode} textClass={textClass} textMutedClass={textMutedClass} />
+
+      {/* 🐺 WOLF Analyst Toggle Button */}
+      <button
+        onClick={() => setShowWolfAnalyst(prev => !prev)}
+        className={`fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-200 hover:scale-110
+          ${showWolfAnalyst
+            ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+            : 'bg-gradient-to-br from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-red-900/40'}`}
+        title={showWolfAnalyst ? 'Close WOLF Analyst' : 'Open WOLF Analyst'}
+      >
+        🐺
+      </button>
+
+      {/* 🐺 WOLF Analyst Panel */}
+      <WolfAnalystPanel
+        isOpen={showWolfAnalyst}
+        onClose={() => setShowWolfAnalyst(false)}
+        isDarkMode={isDarkMode}
+        financialData={financialData}
+        assumptions={calc.adjustedAssumptions}
+        comparables={comparables}
+        dcfProjections={calc.dcfProjections}
+        dcfValue={calc.dcfValue}
+        comparableValue={calc.comparableValue}
+        blendedValue={calc.blendedValue}
+        upside={calc.upside}
+      />
     </div>
   );
 }
