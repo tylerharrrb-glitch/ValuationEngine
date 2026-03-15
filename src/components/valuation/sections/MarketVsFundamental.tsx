@@ -56,7 +56,7 @@ export const MarketVsFundamental: React.FC<Props> = ({
         </div>
       </div>
     </div>
-    <div className={`p-4 rounded-xl ${upside > 10 ? 'bg-green-500/10 border border-green-500/30' : upside < -10 ? 'bg-red-500/10 border border-red-500/30' : 'bg-yellow-500/10 border border-yellow-500/30'}`}>
+    <div className={`p-4 rounded-xl ${upside > 10 ? 'bg-green-500/10 border border-green-500/30' : upside < -10 ? 'bg-red-500/10 border border-[var(--accent-gold)]/30' : 'bg-yellow-500/10 border border-yellow-500/30'}`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <span className={`text-sm font-medium ${textMutedClass}`}>VALUATION GAP</span>

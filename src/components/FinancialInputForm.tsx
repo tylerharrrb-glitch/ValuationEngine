@@ -84,8 +84,8 @@ export function FinancialInputForm({ data, onChange }: Props) {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id
-                ? 'bg-red-600 text-white shadow-lg shadow-red-900/30'
-                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white border border-zinc-700'
+                ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
+                : 'bg-zinc-900 text-zinc-400 hover:bg-[var(--bg-secondary)] hover:text-white border border-zinc-700'
               }`}
           >
             {tab.label}

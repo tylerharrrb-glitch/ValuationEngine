@@ -175,17 +175,17 @@ ${recommendation.includes('BUY') ?
 
   return (
     <div className={`rounded-xl border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-white border-gray-200'}`}>
-      <div className={`p-4 border-b ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+      <div className={`p-4 border-b ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
               <Sparkles size={20} className="text-white" />
             </div>
             <div>
-              <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`font-semibold ${'text-[var(--text-primary)]'}`}>
                 AI Investment Report
               </h3>
-              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p className={`text-sm ${'text-[var(--text-secondary)]'}`}>
                 Generate a professional analysis using AI
               </p>
             </div>
@@ -280,7 +280,7 @@ ${recommendation.includes('BUY') ?
                   const headerCells = parseCells(tableRows[0]);
                   const bodyRows = tableRows.slice(1);
                   return (
-                    <table key={`t${bIdx}`} className={`w-full my-3 text-xs border-collapse ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`}>
+                    <table key={`t${bIdx}`} className={`w-full my-3 text-xs border-collapse ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-300'}`}>
                       <thead>
                         <tr className={isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-200 text-gray-900'}>
                           {headerCells.map((c, ci) => (
@@ -293,8 +293,8 @@ ${recommendation.includes('BUY') ?
                       <tbody>
                         {bodyRows.map((row, ri) => (
                           <tr key={ri} className={ri % 2 === 0
-                            ? (isDarkMode ? 'bg-zinc-900' : 'bg-white')
-                            : (isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50')}>
+                            ? (isDarkMode ? 'bg-[var(--bg-card)]' : 'bg-white')
+                            : ('bg-[var(--bg-secondary)]')}>
                             {parseCells(row).map((c, ci) => (
                               <td key={ci} className="px-3 py-1.5 border border-zinc-700">
                                 {renderInline(c)}
@@ -314,13 +314,13 @@ ${recommendation.includes('BUY') ?
                   return <h1 key={index} className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>{line.replace('# ', '')}</h1>;
                 }
                 if (line.startsWith('## ')) {
-                  return <h2 key={index} className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{line.replace('## ', '')}</h2>;
+                  return <h2 key={index} className={`text-xl font-semibold mb-3 ${'text-[var(--text-primary)]'}`}>{line.replace('## ', '')}</h2>;
                 }
                 if (line.startsWith('### ')) {
                   return <h3 key={index} className={`text-lg font-semibold mt-4 mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{line.replace('### ', '')}</h3>;
                 }
                 if (line.startsWith('---')) {
-                  return <hr key={index} className={`my-4 ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`} />;
+                  return <hr key={index} className={`my-4 ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-300'}`} />;
                 }
                 if (line.startsWith('*Report') || line.startsWith('*Analysis') || line.startsWith('*Scenario')) {
                   return <p key={index} className="italic text-gray-500 text-xs mt-2">{line.replace(/\*/g, '')}</p>;
@@ -342,7 +342,7 @@ ${recommendation.includes('BUY') ?
       )}
 
       {!report && !loading && (
-        <div className={`p-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+        <div className={`p-8 text-center ${'text-[var(--text-muted)]'}`}>
           <FileText size={48} className="mx-auto mb-4 opacity-50" />
           <p>Click "Generate Report" to create an AI-powered investment analysis</p>
         </div>

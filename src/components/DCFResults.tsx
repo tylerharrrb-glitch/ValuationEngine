@@ -46,7 +46,7 @@ export function DCFResults({ data, assumptions }: Props) {
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-red-600/20 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/20 flex items-center justify-center">
           <Calculator className="w-4 h-4 text-red-500" />
         </div>
         <h2 className="text-xl font-bold text-white">DCF Valuation Results</h2>

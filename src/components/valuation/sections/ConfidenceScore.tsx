@@ -142,12 +142,12 @@ export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
     return (
         <div className={`p-4 rounded-xl border ${bgColor}`}>
             <div className="flex items-center justify-between mb-3">
-                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-sm font-semibold ${'text-[var(--text-primary)]'}`}>
                     Analysis Confidence
                 </h3>
                 <div className="flex items-center gap-2">
                     <span className={`text-2xl font-bold ${color}`}>{score}</span>
-                    <span className={`text-xs ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'}`}>/100</span>
+                    <span className={`text-xs ${isDarkMode ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}`}>/100</span>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded ${score >= 85 ? 'bg-green-500/20 text-green-400' :
                         score >= 65 ? 'bg-yellow-500/20 text-yellow-400' :
                             'bg-red-500/20 text-red-400'
@@ -155,7 +155,7 @@ export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
                 </div>
             </div>
             {/* Progress bar */}
-            <div className={`w-full h-2 rounded-full ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'} mb-3`}>
+            <div className={`w-full h-2 rounded-full ${'bg-[var(--border)]'} mb-3`}>
                 <div
                     className={`h-2 rounded-full transition-all ${score >= 85 ? 'bg-green-500' : score >= 65 ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
@@ -166,7 +166,7 @@ export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
             <div className="space-y-1">
                 {factors.map((f, i) => (
                     <div key={i} className="flex justify-between text-xs">
-                        <span className={isDarkMode ? 'text-zinc-400' : 'text-gray-600'}>{f.reason}</span>
+                        <span className={isDarkMode ? 'text-[var(--text-secondary)]' : 'text-gray-600'}>{f.reason}</span>
                         <span className={f.delta > 0 ? 'text-green-400' : 'text-red-400'}>
                             {f.delta > 0 ? '+' : ''}{f.delta}
                         </span>

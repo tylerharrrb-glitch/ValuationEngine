@@ -1,11 +1,10 @@
 /**
- * WOLF Header — Top bar with logo, scenario toggle, undo/redo, dark mode, save/load.
+ * WOLF Header — Glass morphism navbar with gold branding.
  */
 import React, { useState, useRef } from 'react';
-import { Moon, Sun, Undo2, Redo2, Save, Upload } from 'lucide-react';
+import { Undo2, Redo2, Save, Upload, ArrowLeft } from 'lucide-react';
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../../types/financial';
 import { ScenarioType, ScenarioToggle } from '../ScenarioToggle';
-import { WolfLogo } from '../WolfLogo';
 import { APIKeyModal } from '../APIKeyModal';
 import { UserAuth } from '../UserAuth';
 
@@ -27,10 +26,10 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  isDarkMode, toggleDarkMode, scenario, onScenarioChange,
+  scenario, onScenarioChange,
   canUndo, canRedo, onUndo, onRedo,
   financialData, assumptions, comparables, onLoadValuation,
-  textClass,
+  isDarkMode,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
@@ -66,18 +65,25 @@ export const Header: React.FC<HeaderProps> = ({
     e.target.value = '';
   };
 
-  const btnClass = `p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-zinc-800 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}`;
-
   return (
-    <header className={`sticky top-0 z-50 backdrop-blur-xl ${isDarkMode ? 'bg-black/80 border-b border-zinc-800' : 'bg-white/80 border-b border-gray-200'}`}>
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <header
+      className="fixed top-0 left-0 w-full z-[1000]"
+      style={{
+        background: 'rgba(10,14,23,.72)',
+        backdropFilter: 'blur(18px)',
+        borderBottom: '1px solid rgba(30,45,69,.5)',
+        height: '64px',
+      }}
+    >
+      <div className="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
         {/* Left: Logo */}
         <div className="flex items-center gap-3">
-          <WolfLogo size={32} />
-          <div>
-            <h1 className={`text-lg font-bold ${textClass}`}>WOLF</h1>
-            <p className={`text-[10px] tracking-widest uppercase ${isDarkMode ? 'text-red-500' : 'text-red-600'}`}>Valuation Engine</p>
-          </div>
+          <h1 style={{ fontFamily: "var(--ff-display)", fontWeight: 700, color: 'var(--accent-gold)', fontSize: '1.3rem', letterSpacing: '1px' }}>
+            WOLF
+          </h1>
+          <span style={{ fontFamily: "var(--ff-mono)", fontSize: '.72rem', color: 'var(--text-muted)', letterSpacing: '1px' }}>
+            Valuation Engine
+          </span>
         </div>
 
         {/* Center: Scenario Toggle */}
@@ -86,22 +92,22 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1">
-          <button onClick={onUndo} disabled={!canUndo} className={`${btnClass} disabled:opacity-30`} title="Undo (Ctrl+Z)">
-            <Undo2 size={18} />
+        <div className="flex items-center gap-2">
+          <button onClick={onUndo} disabled={!canUndo} className="nav-link p-2 disabled:opacity-30" title="Undo (Ctrl+Z)">
+            <Undo2 size={16} />
           </button>
-          <button onClick={onRedo} disabled={!canRedo} className={`${btnClass} disabled:opacity-30`} title="Redo (Ctrl+Shift+Z)">
-            <Redo2 size={18} />
+          <button onClick={onRedo} disabled={!canRedo} className="nav-link p-2 disabled:opacity-30" title="Redo (Ctrl+Shift+Z)">
+            <Redo2 size={16} />
           </button>
-          <div className={`w-px h-6 mx-1 ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'}`} />
-          <button onClick={handleSave} className={btnClass} title="Save Valuation">
-            <Save size={18} />
+          <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
+          <button onClick={handleSave} className="nav-link p-2" title="Save Valuation">
+            <Save size={16} />
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className={btnClass} title="Load Valuation">
-            <Upload size={18} />
+          <button onClick={() => fileInputRef.current?.click()} className="nav-link p-2" title="Load Valuation">
+            <Upload size={16} />
           </button>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleLoad} className="hidden" />
-          <div className={`w-px h-6 mx-1 ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'}`} />
+          <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
           <APIKeyModal isDarkMode={isDarkMode} />
           <UserAuth
             financialData={financialData}
@@ -110,12 +116,18 @@ export const Header: React.FC<HeaderProps> = ({
             onLoadValuation={onLoadValuation}
             isDarkMode={isDarkMode}
           />
-          <div className={`w-px h-6 mx-1 ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'}`} />
-          <button onClick={toggleDarkMode} className={btnClass} title="Toggle Theme">
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
+          <a
+            href="https://ahmedwael.pages.dev/"
+            className="nav-link flex items-center gap-1.5"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">Portfolio</span>
+          </a>
           {showSaveSuccess && (
-            <span className="text-xs text-green-400 ml-2 animate-pulse">Saved!</span>
+            <span className="text-xs ml-2 animate-pulse" style={{ color: '#4ade80' }}>Saved!</span>
           )}
         </div>
       </div>

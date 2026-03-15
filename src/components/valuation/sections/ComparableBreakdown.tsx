@@ -28,7 +28,7 @@ export const ComparableBreakdown: React.FC<Props> = ({
         { label: 'P/S Implied', value: comparableValuations.psImplied, mult: comparableValuations.multiplesUsed.ps, multLabel: 'P/S' },
         { label: 'P/B Implied', value: comparableValuations.pbImplied, mult: comparableValuations.multiplesUsed.pb, multLabel: 'P/B' },
       ].map(({ label, value, mult, multLabel }) => (
-        <div key={label} className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+        <div key={label} className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
           <div className={`text-sm ${textMutedClass}`}>{label}</div>
           <div className={`text-xl font-bold ${value > financialData.currentStockPrice ? 'text-green-400' : 'text-red-400'}`}>
             {formatPrice(value, currency)}

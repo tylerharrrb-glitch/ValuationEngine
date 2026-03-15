@@ -31,7 +31,7 @@ export const ValuationSummaryCards: React.FC<Props> = ({
       { label: 'Current Price', value: formatPrice(financialData.currentStockPrice, currency), sublabel: 'Market', color: 'border-gray-500' },
       { label: 'DCF Value', value: formatPrice(dcfValue, currency), sublabel: `${dcfWeight}% Weight`, color: 'border-blue-500', tooltip: 'DCF' },
       { label: 'Comps Value', value: formatPrice(comparableValue, currency), sublabel: `${compsWeight}% Weight (${comparableValuations.source})`, color: 'border-purple-500' },
-      { label: 'Blended Value', value: formatPrice(blendedValue, currency), sublabel: recommendation.text, color: 'border-red-500' },
+      { label: 'Blended Value', value: formatPrice(blendedValue, currency), sublabel: recommendation.text, color: 'border-[var(--accent-gold)]' },
     ].map(({ label, value, sublabel, color, tooltip }) => (
       <div key={label} className={`p-4 rounded-xl border-l-4 ${color} ${cardClass}`}>
         <div className={`text-sm ${textMutedClass}`}>

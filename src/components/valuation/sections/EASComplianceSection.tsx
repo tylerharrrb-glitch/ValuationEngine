@@ -56,7 +56,7 @@ export const EASComplianceSection: React.FC<Props> = ({
         0,
     );
 
-    const rowClass = isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200';
+    const rowClass = 'border-t border-[var(--border)]';
     const headerBg = isDarkMode ? 'bg-red-900/30' : 'bg-red-50';
 
     return (
@@ -68,7 +68,7 @@ export const EASComplianceSection: React.FC<Props> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* EAS 48 — Lease Adjustments */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 48 (IFRS 16) — Lease Adjustments</div>
                     <table className="w-full text-sm">
                         <tbody>
@@ -82,7 +82,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* EAS 23 — EPS */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 23 (IAS 33) — Basic & Diluted EPS</div>
                     <table className="w-full text-sm">
                         <tbody>
@@ -96,7 +96,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* EAS 12 — Deferred Tax */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 12 (IAS 12) — Deferred Tax Bridge</div>
                     <table className="w-full text-sm">
                         <tbody>
@@ -112,7 +112,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* C4: EAS 42 — End-of-Service Provisions */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 42 (IAS 19) — End-of-Service</div>
                     <table className="w-full text-sm">
                         <tbody>
@@ -124,7 +124,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* C4: EAS 13 — Impairment (Bug #1 fix: check intangibles + goodwill) */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 13 (IAS 36) — Impairment</div>
                     <div className="p-4">
                         {goodwill > 0 && intangibles > 0 ? (
@@ -155,7 +155,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* C4: EAS 26 — ECL (Banking) */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS 26 (IFRS 9) — ECL Provisions</div>
                     <div className="p-4">
                         {isBanking ? (
@@ -172,7 +172,7 @@ export const EASComplianceSection: React.FC<Props> = ({
                 </div>
 
                 {/* EAS Standards Summary */}
-                <div className={`rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'} overflow-hidden md:col-span-2`}>
+                <div className={`rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'} overflow-hidden md:col-span-2`}>
                     <div className={`px-4 py-2 font-semibold text-sm ${textClass} ${headerBg}`}>EAS Compliance Status</div>
                     <div className="p-4 space-y-2">
                         {[

@@ -80,7 +80,7 @@ export const DDMValuation: React.FC<Props> = ({
                     return (
                         <div
                             key={m.name}
-                            className={`p-4 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}
+                            className={`p-4 rounded-lg border ${'bg-[var(--bg-secondary)] border-[var(--border)]'}`}
                         >
                             <div className={`text-xs font-medium mb-1 ${textMutedClass}`}>{m.name}</div>
                             <div className={`text-2xl font-bold ${upside > 0 ? 'text-green-400' : 'text-red-400'}`}>

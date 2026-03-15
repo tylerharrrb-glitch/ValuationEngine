@@ -154,7 +154,7 @@ wolf-valuation/
                     </code>
                     <button
                       onClick={() => copyToClipboard(item.cmd, index)}
-                      className="p-1.5 hover:bg-zinc-800 rounded transition-colors flex-shrink-0"
+                      className="p-1.5 hover:bg-[var(--bg-secondary)] rounded transition-colors flex-shrink-0"
                       title="Copy to clipboard"
                     >
                       {copiedIndex === index ? (
@@ -217,7 +217,7 @@ wolf-valuation/
                 href={resource.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-zinc-800 hover:bg-zinc-700 rounded-lg p-3 text-center transition-colors border border-zinc-700"
+                className="bg-zinc-800 hover:bg-[var(--bg-secondary)] rounded-lg p-3 text-center transition-colors border border-zinc-700"
               >
                 <p className={`font-medium ${resource.color}`}>{resource.name}</p>
                 <p className="text-zinc-500 text-xs">docs →</p>
@@ -234,7 +234,7 @@ wolf-valuation/
             </p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+              className="px-4 py-2 btn-gold text-white rounded-lg transition-colors"
             >
               Let's Go!
             </button>

@@ -41,15 +41,17 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
   revenueProjectionData, valuationComparisonData, footballFieldData,
   industryMultiples, isDarkMode, cardClass, textClass, textMutedClass, currency,
 }) => {
-  const gridStroke = isDarkMode ? '#27272a' : '#e5e7eb';
-  const axisStroke = isDarkMode ? '#71717a' : '#9ca3af';
+  const gridStroke = '#1E2D45';
+  const axisStroke = '#8892A4';
   const tooltipStyle = {
-    backgroundColor: isDarkMode ? '#1f2937' : '#fff',
-    border: isDarkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+    backgroundColor: '#141B2D',
+    border: '1px solid #1E2D45',
     borderRadius: '8px',
-    color: isDarkMode ? '#ffffff' : '#111827',
+    color: '#F0F4FF',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: '.78rem',
   };
-  const labelColor = isDarkMode ? '#ffffff' : '#111827';
+  const labelColor = '#F0F4FF';
 
   // Monte Carlo State
   const [mcResult, setMcResult] = useState<MonteCarloResult | null>(null);
@@ -104,36 +106,36 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       />
 
       {/* Revenue & FCF Projections */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>Revenue & FCF Projections (in Billions)</h3>
+      <div className="wolf-card">
+        <span className="section-label" style={{ marginBottom: '16px' }}>REVENUE & FCF PROJECTIONS</span>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenueProjectionData}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorFCF" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-              <XAxis dataKey="year" stroke={axisStroke} />
-              <YAxis stroke={axisStroke} />
+              <XAxis dataKey="year" stroke={axisStroke} tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }} />
+              <YAxis stroke={axisStroke} tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }} />
               <RechartsTooltip contentStyle={tooltipStyle} labelStyle={{ color: labelColor }} itemStyle={{ color: labelColor }} formatter={(value: number | string | undefined) => [formatPrice(Number(value || 0), currency), undefined]} />
               <Legend />
-              <Area type="monotone" dataKey="Revenue" stroke="#ef4444" fillOpacity={1} fill="url(#colorRevenue)" />
-              <Area type="monotone" dataKey="FCF" stroke="#22c55e" fillOpacity={1} fill="url(#colorFCF)" />
+              <Area type="monotone" dataKey="Revenue" stroke="#C9A84C" fillOpacity={1} fill="url(#colorRevenue)" />
+              <Area type="monotone" dataKey="FCF" stroke="#3B82F6" fillOpacity={1} fill="url(#colorFCF)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Valuation Comparison */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>Valuation Comparison</h3>
+      <div className="wolf-card">
+        <span className="section-label" style={{ marginBottom: '16px' }}>VALUATION COMPARISON</span>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={valuationComparisonData}>
@@ -144,7 +146,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                 contentStyle={tooltipStyle} labelStyle={{ color: labelColor }} itemStyle={{ color: labelColor }}
                 formatter={(value: number | string | undefined) => [formatPrice(Number(value || 0), currency), 'Price']}
               />
-              <ReferenceLine y={financialData.currentStockPrice} stroke="#ef4444" strokeDasharray="5 5" />
+              <ReferenceLine y={financialData.currentStockPrice} stroke="#C9A84C" strokeDasharray="5 5" />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {valuationComparisonData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -156,9 +158,10 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       </div>
 
       {/* Sensitivity: WACC vs Terminal Growth */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
-          <Tooltip term="WACC">Sensitivity: DCF Fair Value ({currency}) — WACC vs Terminal Growth</Tooltip>
+      <div className="wolf-card">
+        <span className="section-label" style={{ marginBottom: '16px' }}>SENSITIVITY: WACC VS TERMINAL GROWTH</span>
+        <h3 style={{ fontFamily: 'var(--ff-body)', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '16px' }}>
+          <Tooltip term="WACC">DCF Fair Value ({currency})</Tooltip>
         </h3>
         {/* C1 Fix: Dynamic axes centered on actual computed WACC and growth */}
         {(() => {
@@ -174,15 +177,15 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className={textMutedClass}>
-                      <th className={`py-2 px-3 text-left font-semibold sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>WACC \ Growth</th>
-                      {growthAxis.map(g => <th key={g} className={`py-2 px-3 text-right font-semibold ${Math.abs(g - baseG) < 0.1 ? 'text-red-400' : ''}`}>{g.toFixed(1)}%{Math.abs(g - baseG) < 0.1 ? ' ★' : ''}</th>)}
+                    <tr style={{ color: 'var(--text-secondary)' }}>
+                      <th className="py-2 px-3 text-left font-semibold sticky left-0 z-10" style={{ background: 'var(--bg-card)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}>WACC \ Growth</th>
+                      {growthAxis.map(g => <th key={g} className="py-2 px-3 text-right font-semibold" style={{ fontFamily: 'var(--ff-mono)', fontSize: '.78rem', color: Math.abs(g - baseG) < 0.1 ? 'var(--accent-gold)' : 'var(--text-secondary)' }}>{g.toFixed(1)}%{Math.abs(g - baseG) < 0.1 ? ' ★' : ''}</th>)}
                     </tr>
                   </thead>
                   <tbody>
                     {waccAxis.map(wacc => (
-                      <tr key={wacc} className={`${isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'} ${Math.abs(wacc - baseW) < 0.1 ? (isDarkMode ? 'bg-zinc-900' : 'bg-gray-50') : ''}`}>
-                        <td className={`py-2 px-3 font-medium ${textClass} sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'} ${Math.abs(wacc - baseW) < 0.1 ? 'text-red-400 font-bold' : ''}`}>{wacc.toFixed(2)}%{Math.abs(wacc - baseW) < 0.1 ? ' ★' : ''}</td>
+                      <tr key={wacc} style={{ borderTop: '1px solid var(--border)', background: Math.abs(wacc - baseW) < 0.1 ? 'var(--bg-secondary)' : 'transparent' }}>
+                        <td className="py-2 px-3 font-medium sticky left-0 z-10" style={{ background: 'var(--bg-card)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem', color: Math.abs(wacc - baseW) < 0.1 ? 'var(--accent-gold)' : 'var(--text-primary)', fontWeight: Math.abs(wacc - baseW) < 0.1 ? 700 : 500 }}>{wacc.toFixed(2)}%{Math.abs(wacc - baseW) < 0.1 ? ' ★' : ''}</td>
                         {growthAxis.map(growth => {
                           if (growth >= wacc) {
                             return <td key={growth} className="py-2 px-3 text-right text-zinc-500">N/A</td>;
@@ -201,7 +204,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                           const vs = ((price - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
                           const isBase = Math.abs(wacc - baseW) < 0.1 && Math.abs(growth - baseG) < 0.1;
                           return (
-                            <td key={growth} className={`py-2 px-3 text-right ${isBase ? 'bg-red-500/20 font-bold ring-2 ring-red-500/50' : ''} ${vs > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            <td key={growth} className="py-2 px-3 text-right" style={{ fontFamily: 'var(--ff-mono)', fontSize: '.78rem', background: isBase ? 'rgba(201,168,76,.15)' : 'transparent', fontWeight: isBase ? 700 : 400, boxShadow: isBase ? 'inset 0 0 0 2px rgba(201,168,76,.4)' : 'none', color: vs > 0 ? '#4ade80' : '#f87171' }}>
                               {formatPrice(price, currency)}
                             </td>
                           );
@@ -211,7 +214,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                   </tbody>
                 </table>
               </div>
-              <div className={`mt-3 text-xs ${textMutedClass}`}>
+              <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}>
                 ★ Base case WACC: {baseW.toFixed(2)}% | Terminal Growth: {baseG.toFixed(2)}%
               </div>
             </>
@@ -220,20 +223,20 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       </div>
 
       {/* Sensitivity: Revenue Growth vs Margin Improvement */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>Sensitivity Analysis: Revenue Growth vs Margin Improvement</h3>
+      <div className="wolf-card">
+        <span className="section-label" style={{ marginBottom: '16px' }}>SENSITIVITY: REVENUE GROWTH VS MARGIN</span>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className={textMutedClass}>
-                <th className={`py-2 px-3 text-left font-semibold sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>Rev Growth \ Margin Imp</th>
+              <tr style={{ color: 'var(--text-secondary)' }}>
+                <th className="py-2 px-3 text-left font-semibold sticky left-0 z-10" style={{ background: 'var(--bg-card)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}>Rev Growth \ Margin Imp</th>
                 {[-0.5, 0, 0.5, 1.0, 1.5].map(m => <th key={m} className="py-2 px-3 text-right font-semibold">{m >= 0 ? '+' : ''}{m}%</th>)}
               </tr>
             </thead>
             <tbody>
               {[4, 6, 8, 10, 12].map(revGrowth => (
-                <tr key={revGrowth} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
-                  <td className={`py-2 px-3 font-medium ${textClass} sticky left-0 z-10 ${isDarkMode ? 'bg-black' : 'bg-white'}`}>{revGrowth}%</td>
+                <tr key={revGrowth} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td className="py-2 px-3 font-medium sticky left-0 z-10" style={{ background: 'var(--bg-card)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem', color: 'var(--text-primary)' }}>{revGrowth}%</td>
                   {[-0.5, 0, 0.5, 1.0, 1.5].map(marginImp => {
                     let revenue = financialData.incomeStatement.revenue;
                     const baseFCFMargin = financialData.cashFlowStatement.freeCashFlow / financialData.incomeStatement.revenue;
@@ -254,7 +257,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                     const vs = ((price - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
                     const isBase = Math.abs(revGrowth - adjustedAssumptions.revenueGrowthRate) < 1 && Math.abs(marginImp - adjustedAssumptions.marginImprovement) < 0.3;
                     return (
-                      <td key={marginImp} className={`py-2 px-3 text-right ${isBase ? 'bg-red-500/20 font-bold' : ''} ${vs > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <td key={marginImp} className="py-2 px-3 text-right" style={{ fontFamily: 'var(--ff-mono)', fontSize: '.78rem', background: isBase ? 'rgba(201,168,76,.15)' : 'transparent', fontWeight: isBase ? 700 : 400, color: vs > 0 ? '#4ade80' : '#f87171' }}>
                         {formatPrice(price, currency)}
                       </td>
                     );
@@ -264,37 +267,38 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
             </tbody>
           </table>
         </div>
-        <div className={`mt-3 text-sm ${textMutedClass}`}>
+        <div className="mt-3 text-sm" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)', fontSize: '.72rem' }}>
           Shows how implied share price changes with different revenue growth rates and annual margin improvement assumptions.
         </div>
       </div>
 
       {/* Monte Carlo Simulation */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
-          Monte Carlo Simulation (5,000 runs)
+      <div className="wolf-card">
+        <span className="section-label" style={{ marginBottom: '16px' }}>MONTE CARLO SIMULATION</span>
+        <h3 style={{ fontFamily: 'var(--ff-body)', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '16px' }}>
+          5,000 Scenarios
         </h3>
 
         {isMCLoading && (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-2"></div>
-            <p className={textMutedClass}>Running 5,000 scenarios...</p>
+            <div className="animate-spin rounded-full h-8 w-8 mb-2" style={{ borderBottom: '2px solid var(--accent-gold)' }}></div>
+            <p style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)' }}>Running 5,000 scenarios...</p>
           </div>
         )}
 
         {!isMCLoading && mcResult && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-                <div className={`text-sm ${textMutedClass}`}>Mean Price</div>
-                <div className={`text-xl font-bold ${textClass}`}>{formatPrice(mcResult.meanPrice, currency)}</div>
+              <div className="wolf-stat-card">
+                <div className="wolf-stat-label">Mean Price</div>
+                <div className="wolf-stat-value" style={{ fontSize: '1.2rem' }}>{formatPrice(mcResult.meanPrice, currency)}</div>
               </div>
-              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-                <div className={`text-sm ${textMutedClass}`}>Median Price</div>
-                <div className={`text-xl font-bold ${textClass}`}>{formatPrice(mcResult.medianPrice, currency)}</div>
+              <div className="wolf-stat-card">
+                <div className="wolf-stat-label">Median Price</div>
+                <div className="wolf-stat-value" style={{ fontSize: '1.2rem' }}>{formatPrice(mcResult.medianPrice, currency)}</div>
               </div>
-              <div className={`p-4 rounded-lg ${mcResult.probabilityAboveCurrentPrice > 50 ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
-                <div className={`text-sm ${textMutedClass}`}>P(Above Current Price)</div>
+              <div className={`p-4 rounded-lg border ${mcResult.probabilityAboveCurrentPrice > 50 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-[var(--accent-gold)]/30'}`}>
+                <div className="wolf-stat-label">P(Above Current Price)</div>
                 <div className={`text-xl font-bold ${mcResult.probabilityAboveCurrentPrice > 50 ? 'text-green-400' : 'text-red-400'}`}>
                   {mcResult.probabilityAboveCurrentPrice}%
                 </div>
@@ -334,7 +338,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                 const pBelowBear = z > 0 ? 1 - p : p;
                 const pPct = pBelowBear * 100;
                 const color = pPct > 5 ? 'text-red-400' : pPct > 1 ? 'text-yellow-400' : 'text-green-400';
-                const bgColor = pPct > 5 ? 'bg-red-500/10 border border-red-500/30' : pPct > 1 ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30';
+                const bgColor = pPct > 5 ? 'bg-red-500/10 border border-[var(--accent-gold)]/30' : pPct > 1 ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30';
                 return (
                   <div className={`p-4 rounded-lg ${bgColor}`}>
                     <div className={`text-sm ${textMutedClass}`}>P(Below Bear Case)</div>
@@ -342,14 +346,14 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                   </div>
                 );
               })()}
-              <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-                <div className={`text-sm ${textMutedClass}`}>Std Deviation</div>
-                <div className={`text-xl font-bold ${textClass}`}>{formatPrice(mcResult.stdDev, currency)}</div>
+              <div className="wolf-stat-card">
+                <div className="wolf-stat-label">Std Deviation</div>
+                <div className="wolf-stat-value" style={{ fontSize: '1.2rem' }}>{formatPrice(mcResult.stdDev, currency)}</div>
               </div>
             </div>
             {/* Percentile range */}
-            <div className={`p-4 rounded-lg mb-4 ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
-              <div className={`text-sm font-medium mb-2 ${textMutedClass}`}>Confidence Intervals</div>
+            <div className="wolf-stat-card" style={{ marginBottom: '16px', textAlign: 'left' }}>
+              <div className="wolf-stat-label" style={{ marginBottom: '8px' }}>Confidence Intervals</div>
               <div className="grid grid-cols-5 gap-2 text-center">
                 {[
                   { label: '5th %ile', value: mcResult.percentile5, color: 'text-red-400' },
@@ -359,28 +363,28 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                   { label: '95th %ile', value: mcResult.percentile95, color: 'text-red-400' },
                 ].map(p => (
                   <div key={p.label}>
-                    <div className={`text-xs ${p.color}`}>{p.label}</div>
-                    <div className={`text-sm font-bold ${textClass}`}>{formatPrice(p.value, currency)}</div>
+                    <div className={`text-xs ${p.color}`} style={{ fontFamily: 'var(--ff-mono)' }}>{p.label}</div>
+                    <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-mono)' }}>{formatPrice(p.value, currency)}</div>
                   </div>
                 ))}
               </div>
               {/* Visual range bar */}
               <div className="mt-3 relative h-6">
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gradient-to-r from-red-500/40 via-green-500/40 to-red-500/40" />
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full" style={{ background: 'linear-gradient(to right, rgba(201,168,76,.4), rgba(59,130,246,.4), rgba(201,168,76,.4))' }} />
                 {(() => {
                   const range = mcResult.percentile95 - mcResult.percentile5;
                   const curPos = range > 0 ? Math.min(100, Math.max(0, ((financialData.currentStockPrice - mcResult.percentile5) / range) * 100)) : 50;
                   return (
                     <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${curPos}%` }}>
-                      <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white" title="Current Price" />
+                      <div className="w-4 h-4 rounded-full border-2 border-white" style={{ background: 'var(--accent-gold)' }} title="Current Price" />
                     </div>
                   );
                 })()}
               </div>
               <div className="flex justify-between mt-1">
-                <span className="text-xs text-red-400">{formatPrice(mcResult.percentile5, currency)}</span>
-                <span className={`text-xs ${textMutedClass}`}>Current: {formatPrice(financialData.currentStockPrice, currency)}</span>
-                <span className="text-xs text-red-400">{formatPrice(mcResult.percentile95, currency)}</span>
+                <span className="text-xs" style={{ color: 'var(--accent-gold)', fontFamily: 'var(--ff-mono)' }}>{formatPrice(mcResult.percentile5, currency)}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}>Current: {formatPrice(financialData.currentStockPrice, currency)}</span>
+                <span className="text-xs" style={{ color: 'var(--accent-gold)', fontFamily: 'var(--ff-mono)' }}>{formatPrice(mcResult.percentile95, currency)}</span>
               </div>
             </div>
             {/* Distribution histogram */}
@@ -395,11 +399,11 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
                     labelStyle={{ color: labelColor }}
                     formatter={(value: number | string | undefined) => [`${value} sims`, 'Count']}
                   />
-                  <Bar dataKey="count" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="count" fill="#C9A84C" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className={`mt-2 text-xs ${textMutedClass}`}>
+            <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}>
               Simulates 5,000 scenarios varying revenue growth (±4%), WACC (±1.5%), terminal growth (±0.8%), and margin (±0.5%).
             </div>
           </>
@@ -407,26 +411,27 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
       </div>
 
       {/* Sector Benchmarking */}
-      <div className={`p-6 rounded-xl border ${cardClass}`}>
+      <div className="wolf-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className={`text-lg font-semibold ${textClass}`}>
-            Sector Benchmarking — {financialData.ticker} vs {industryMultiples.label}
-          </h3>
+          <div>
+            <span className="section-label">SECTOR BENCHMARKING</span>
+            <h3 style={{ fontFamily: 'var(--ff-body)', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {financialData.ticker} vs {industryMultiples.label}
+            </h3>
+          </div>
           <div className="flex items-center gap-2">
-            <span className={`text-2xl font-bold ${benchmark.overallScore >= 70 ? 'text-green-400' :
-              benchmark.overallScore >= 50 ? 'text-yellow-400' : 'text-red-400'
-              }`}>{benchmark.overallScore}</span>
-            <span className={`text-sm ${textMutedClass}`}>/100</span>
+            <span className="wolf-stat-value" style={{ fontSize: '1.8rem', color: benchmark.overallScore >= 70 ? '#4ade80' : benchmark.overallScore >= 50 ? '#facc15' : '#f87171' }}>{benchmark.overallScore}</span>
+            <span className="wolf-stat-label">/100</span>
           </div>
         </div>
-        <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
-          <div className={`text-sm font-medium ${textClass}`}>{benchmark.overallRating}</div>
-          <div className={`text-xs ${textMutedClass}`}>{benchmark.insight}</div>
+        <div className="mb-4 p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+          <div className="text-sm font-medium" style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-body)' }}>{benchmark.overallRating}</div>
+          <div className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)' }}>{benchmark.insight}</div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className={textMutedClass}>
+              <tr style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)', fontSize: '.75rem' }}>
                 <th className="text-left py-2 px-3 font-semibold">Metric</th>
                 <th className="text-right py-2 px-3 font-semibold">{financialData.ticker}</th>
                 <th className="text-right py-2 px-3 font-semibold">Sector Median</th>
@@ -436,12 +441,12 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
             </thead>
             <tbody>
               {benchmark.benchmarks.map((b) => (
-                <tr key={b.metric} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
-                  <td className={`py-2 px-3 ${textClass}`}>{b.metric}</td>
-                  <td className={`py-2 px-3 text-right font-medium ${textClass}`}>{b.formatted.company}</td>
-                  <td className={`py-2 px-3 text-right ${textMutedClass}`}>{b.formatted.sector}</td>
+                <tr key={b.metric} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td className="py-2 px-3" style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}>{b.metric}</td>
+                  <td className="py-2 px-3 text-right font-medium" style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}>{b.formatted.company}</td>
+                  <td className="py-2 px-3 text-right" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}>{b.formatted.sector}</td>
                   <td className="py-2 px-3 text-center">
-                    <div className="w-full bg-zinc-700 rounded-full h-1.5 mx-auto max-w-[80px]">
+                    <div className="w-full rounded-full h-1.5 mx-auto max-w-[80px]" style={{ background: 'var(--border)' }}>
                       <div className={`h-1.5 rounded-full ${b.percentile >= 70 ? 'bg-green-500' : b.percentile >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                         }`} style={{ width: `${b.percentile}%` }} />
                     </div>
@@ -460,7 +465,7 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
           </table>
         </div>
         {/* M2: Benchmarking data source note */}
-        <div className={`mt-3 text-xs ${textMutedClass}`}>
+        <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}>
           Using EGX Market Average defaults. Add sector-specific peers for more accurate benchmarking.
         </div>
       </div>

@@ -36,7 +36,7 @@ export const DCFProjectionsTable: React.FC<Props> = ({
         </thead>
         <tbody>
           {dcfProjections.map((proj) => (
-            <tr key={proj.year} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
+            <tr key={proj.year} className={'border-t border-[var(--border)]'}>
               <td className={`py-2 px-3 font-medium ${textClass}`}>{proj.year}</td>
               <td className={`py-2 px-3 text-right ${textClass}`}>{formatCurrencyShort(proj.revenue, currency)}</td>
               <td className={`py-2 px-3 text-right ${textClass}`}>{formatCurrencyShort(proj.ebitda, currency)}</td>

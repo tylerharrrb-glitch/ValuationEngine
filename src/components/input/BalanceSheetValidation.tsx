@@ -101,7 +101,7 @@ export const BalanceSheetValidation: React.FC<Props> = ({ financialData, isDarkM
                         <span className={check.passed ? 'text-green-400' : check.severity === 'error' ? 'text-red-400' : 'text-yellow-400'}>
                             {check.passed ? '✓' : '✗'}
                         </span>
-                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        <span className={isDarkMode ? 'text-[var(--text-secondary)]' : 'text-gray-600'}>
                             {check.label}: {check.message}
                         </span>
                     </div>

@@ -124,7 +124,7 @@ export const InputTab: React.FC<InputTabProps> = ({
       />
 
       {/* Sub-tabs for input sections */}
-      <div className={`flex flex-wrap gap-2 p-2 rounded-lg ${isDarkMode ? 'bg-zinc-900' : 'bg-gray-100'}`}>
+      <div className={`flex flex-wrap gap-2 p-2 rounded-lg ${isDarkMode ? 'bg-[var(--bg-card)]' : 'bg-gray-100'}`}>
         {([
           { id: 'company', label: 'Company Info' },
           { id: 'income', label: 'Income Statement' },
@@ -138,9 +138,9 @@ export const InputTab: React.FC<InputTabProps> = ({
             key={id}
             onClick={() => setInputSubTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${inputSubTab === id
-              ? 'bg-red-600 text-white'
+              ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
               : isDarkMode
-                ? 'text-gray-400 hover:text-white hover:bg-zinc-800'
+                ? 'text-gray-400 hover:text-white hover:bg-[var(--bg-secondary)]'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
           >
@@ -225,8 +225,8 @@ export const InputTab: React.FC<InputTabProps> = ({
                           key={t}
                           onClick={() => updateFinancialData(prev => ({ ...prev, ticker: t }))}
                           className={`px-2 py-1 text-xs rounded font-mono transition-all ${financialData.ticker === t
-                            ? 'bg-red-600 text-white'
-                            : isDarkMode ? 'bg-zinc-800 text-gray-400 hover:bg-zinc-700 hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                            : isDarkMode ? 'bg-zinc-800 text-gray-400 hover:bg-[var(--bg-secondary)] hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                         >
                           {t.replace('.CA', '')}
@@ -465,7 +465,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'USA'
-                      ? 'bg-red-600 text-white shadow-lg'
+                      ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
                       : isDarkMode
                         ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -485,7 +485,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'Egypt'
-                      ? 'bg-red-600 text-white shadow-lg'
+                      ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
                       : isDarkMode
                         ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -532,7 +532,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               <button
                 onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'A' }))}
                 className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'A'
-                  ? 'bg-red-600 text-white shadow-lg'
+                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
                   : isDarkMode
                     ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -543,7 +543,7 @@ export const InputTab: React.FC<InputTabProps> = ({
               <button
                 onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'B' }))}
                 className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'B'
-                  ? 'bg-red-600 text-white shadow-lg'
+                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
                   : isDarkMode
                     ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -685,7 +685,7 @@ export const InputTab: React.FC<InputTabProps> = ({
             )}
 
             {/* Calculated WACC Display */}
-            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+            <div className={`mt-3 p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
               <div className="flex items-center justify-between">
                 <span className={textMutedClass}>
                   <Tooltip term="WACC">Calculated Ke (Cost of Equity)</Tooltip>
@@ -734,7 +734,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                       )}
                     </div>
                     {delta < 0 && assumptions.revenueGrowthRate > 0 && (assumptions.ebitdaMargin * (1 + assumptions.revenueGrowthRate / 100) < hist) && (
-                      <div className="text-xs text-amber-400 mt-0.5">⚠️ Year 1 EBITDA ({(financialData.incomeStatement.revenue * (1 + assumptions.revenueGrowthRate / 100) * assumptions.ebitdaMargin / 100 / 1e9).toFixed(2)}B) may decline vs base ({(ebitda / 1e9).toFixed(2)}B) despite {assumptions.revenueGrowthRate}% revenue growth</div>
+                      <div className="text-xs text-[var(--accent-gold)] mt-0.5">⚠️ Year 1 EBITDA ({(financialData.incomeStatement.revenue * (1 + assumptions.revenueGrowthRate / 100) * assumptions.ebitdaMargin / 100 / 1e9).toFixed(2)}B) may decline vs base ({(ebitda / 1e9).toFixed(2)}B) despite {assumptions.revenueGrowthRate}% revenue growth</div>
                     )}
                   </>);
                 })()}
@@ -840,7 +840,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <button
                     onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'end_of_year' }))}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'end_of_year'
-                      ? 'bg-red-600 text-white'
+                      ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
                       : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
@@ -849,7 +849,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <button
                     onClick={() => updateAssumptions(prev => ({ ...prev, discountingConvention: 'mid_year' }))}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'mid_year'
-                      ? 'bg-red-600 text-white'
+                      ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
                       : isDarkMode ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
@@ -870,7 +870,7 @@ export const InputTab: React.FC<InputTabProps> = ({
             </div>
 
             {/* Quick-Set WACC */}
-            <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+            <div className={`mt-3 p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
               {/* C1: Inline WACC breakdown */}
               <div className={`text-xs ${textMutedClass} mb-2`}>
                 WACC = {(waccBreakdown.We * 100).toFixed(2)}% × {waccBreakdown.Ke.toFixed(2)}% + {(waccBreakdown.Wd * 100).toFixed(2)}% × {waccBreakdown.KdAfterTax.toFixed(2)}% = {autoWACC.toFixed(2)}%
@@ -1004,7 +1004,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                     psRatio: 0, pbRatio: 0, marketCap: 0, revenue: 0,
                   }]);
                 }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+                className="px-4 py-2 btn-gold text-white text-sm rounded-lg transition-colors"
               >
                 + Add Company
               </button>
@@ -1028,7 +1028,7 @@ export const InputTab: React.FC<InputTabProps> = ({
                 </thead>
                 <tbody>
                   {comparables.map((comp, index) => (
-                    <tr key={index} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
+                    <tr key={index} className={'border-t border-[var(--border)]'}>
                       <td className="py-2 px-3">
                         <input
                           type="text"

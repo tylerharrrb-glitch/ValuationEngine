@@ -254,7 +254,7 @@ export async function fetchFromAPI(
 ): Promise<{ success: boolean; data?: ExtendedFinancialData; error?: string }> {
 
   console.log(`\n${'='.repeat(50)}`);
-  console.log(`[WOLF API] 🐺 Starting data fetch for: ${ticker.toUpperCase()}`);
+  console.log(`[WOLF API] Starting data fetch for: ${ticker.toUpperCase()}`);
   console.log(`[WOLF API] Using NEW Stable API format (2026)`);
   console.log(`${'='.repeat(50)}\n`);
 

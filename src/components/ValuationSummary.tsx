@@ -79,7 +79,7 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
   const getRecommendation = () => {
     if (avgUpside > 10) return { text: 'Buy', color: 'text-green-400', bg: 'bg-green-950/50', border: 'border-green-600' };
     if (avgUpside >= -10) return { text: 'Hold', color: 'text-yellow-400', bg: 'bg-yellow-950/30', border: 'border-yellow-700' };
-    return { text: 'Sell', color: 'text-red-400', bg: 'bg-red-950/50', border: 'border-red-600' };
+    return { text: 'Sell', color: 'text-red-400', bg: 'bg-red-950/50', border: 'border-[var(--accent-gold)]' };
   };
 
   const recommendation = getRecommendation();
@@ -87,7 +87,7 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-red-600/20 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/20 flex items-center justify-center">
           <Target className="w-4 h-4 text-red-500" />
         </div>
         <h2 className="text-xl font-bold text-white">Valuation Summary</h2>
@@ -156,7 +156,7 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
       <div className="mb-6">
         <button
           onClick={() => setShowSensitivity(!showSensitivity)}
-          className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-zinc-900/70 border border-zinc-700 hover:border-red-600/50 transition-colors group"
+          className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-zinc-900/70 border border-zinc-700 hover:border-[var(--accent-gold)]/50 transition-colors group"
         >
           <div className="w-7 h-7 rounded-lg bg-orange-600/20 flex items-center justify-center">
             <Gauge className="w-4 h-4 text-orange-500" />
@@ -186,11 +186,11 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
                 <div
                   key={i}
                   className={`rounded-lg p-3 text-center border transition-all ${s.isCurrent
-                      ? 'bg-red-600/10 border-red-600/40'
+                      ? 'bg-[var(--accent-gold)]/10 border-[var(--accent-gold)]/40'
                       : 'bg-zinc-800/50 border-zinc-700/50 hover:border-zinc-600'
                     }`}
                 >
-                  <p className={`text-xs font-medium mb-1 ${s.isCurrent ? 'text-red-400' : 'text-zinc-400'}`}>
+                  <p className={`text-xs font-medium mb-1 ${s.isCurrent ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
                     WACC {s.wacc.toFixed(1)}%
                   </p>
                   <p className={`text-lg font-bold ${s.isCurrent ? 'text-white' : 'text-zinc-200'}`}>

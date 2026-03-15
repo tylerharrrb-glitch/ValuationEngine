@@ -92,7 +92,7 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
     return (
         <div className={`p-4 rounded-xl border ${cardBg}`}>
             <div className="flex items-center justify-between mb-3">
-                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-sm font-semibold ${'text-[var(--text-primary)]'}`}>
                     Historical Data (Multi-Period)
                 </h3>
                 <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
                             key={n}
                             onClick={() => handleYearCountChange(n)}
                             className={`px-2 py-1 text-xs rounded font-mono transition-all ${numYears === n
-                                ? 'bg-red-600 text-white'
+                                ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
                                 : isDarkMode ? 'bg-zinc-700 text-gray-400 hover:bg-zinc-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                         >
@@ -125,7 +125,7 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
                     </thead>
                     <tbody>
                         {fields.map(f => (
-                            <tr key={f.key} className={isDarkMode ? 'border-zinc-800' : 'border-gray-100'}>
+                            <tr key={f.key} className={isDarkMode ? 'border-[var(--border)]' : 'border-gray-100'}>
                                 <td className={`px-2 py-1 font-medium ${textMutedClass}`}>{f.label}</td>
                                 {activeYears.map((y, yi) => (
                                     <td key={y.year} className="px-1 py-1">
@@ -146,8 +146,8 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
 
             {/* CAGR Summary */}
             {hasData && (
-                <div className={`mt-3 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-900' : 'bg-gray-50'}`}>
-                    <h4 className={`text-xs font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Trend Analysis</h4>
+                <div className={`mt-3 p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
+                    <h4 className={`text-xs font-semibold mb-2 ${'text-[var(--text-primary)]'}`}>Trend Analysis</h4>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex justify-between">
                             <span className={textMutedClass}>Revenue CAGR:</span>
@@ -205,7 +205,7 @@ export const HistoricalDataPanel: React.FC<HistoricalDataPanelProps> = ({
                         return (
                             <div className="mt-3">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    <span className={`text-xs font-semibold ${'text-[var(--text-primary)]'}`}>
                                         Piotroski F-Score (Full 9/9)
                                     </span>
                                     <span className={`text-sm font-bold ${color}`}>{score}/9 — {grade}</span>

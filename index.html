@@ -2,16 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%231a1a1a' stroke='%23ef4444' stroke-width='3'/%3E%3Cpath d='M50 20 L28 40 L18 35 L28 55 L50 80 L72 55 L82 35 L72 40 Z' fill='%23ef4444'/%3E%3Ccircle cx='38' cy='48' r='4' fill='%231a1a1a'/%3E%3Ccircle cx='62' cy='48' r='4' fill='%231a1a1a'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230A0E17'/%3E%3Ctext x='32' y='40' font-family='serif' font-weight='900' font-size='18' fill='%23C9A84C' text-anchor='middle'%3EWOLF%3C/text%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="WOLF Valuation Engine - Professional financial analysis and company valuation tool with DCF, comparable analysis, and Excel export" />
-    <meta name="keywords" content="valuation, DCF, financial analysis, stock valuation, investment, finance" />
-    <meta name="author" content="WOLF" />
-    <meta name="theme-color" content="#ef4444" />
+    <meta name="description" content="WOLF Valuation Engine - Institutional-grade equity valuation with DCF, Monte Carlo simulation, and Comparable Company Analysis" />
+    <meta name="keywords" content="valuation, DCF, financial analysis, stock valuation, investment, finance, equity research" />
+    <meta name="author" content="Ahmed Wael Metwally" />
+    <meta name="theme-color" content="#0A0E17" />
     <title>WOLF | Valuation Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@700;900&family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
       body {
-        background-color: #0a0a0a;
+        background-color: #0A0E17;
+        overflow-x: hidden;
       }
       /* Loading state */
       .wolf-loading {
@@ -19,26 +23,26 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+        background: linear-gradient(135deg, #0A0E17 0%, #0F1623 100%);
       }
-      .wolf-loading svg {
-        animation: pulse 2s ease-in-out infinite;
+      .wolf-loading-text {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-weight: 900;
+        font-size: 2.5rem;
+        letter-spacing: .15em;
+        color: #C9A84C;
+        animation: wolfPulse 2s ease-in-out infinite;
       }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.8; }
+      @keyframes wolfPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
       }
     </style>
   </head>
   <body>
     <div id="root">
       <div class="wolf-loading">
-        <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="48" fill="#1a1a1a" stroke="#ef4444" stroke-width="3"/>
-          <path d="M50 20 L28 40 L18 35 L28 55 L50 80 L72 55 L82 35 L72 40 Z" fill="#ef4444"/>
-          <circle cx="38" cy="48" r="4" fill="#1a1a1a"/>
-          <circle cx="62" cy="48" r="4" fill="#1a1a1a"/>
-        </svg>
+        <span class="wolf-loading-text">WOLF</span>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

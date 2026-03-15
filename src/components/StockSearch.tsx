@@ -100,10 +100,10 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onDataFetched, isDarkM
   const hasApiKey = !!localStorage.getItem('fmp_api_key');
 
   return (
-    <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+    <div className={`p-4 rounded-xl border ${'bg-[var(--bg-card)] border-[var(--border)]'}`}>
       <div className="flex items-center gap-2 mb-3">
         <Search size={18} className="text-red-500" />
-        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        <span className={`font-medium ${'text-[var(--text-primary)]'}`}>
           Fetch Stock Data
         </span>
         {hasApiKey ? (
@@ -134,7 +134,7 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onDataFetched, isDarkM
         <button
           onClick={() => fetchStock(ticker)}
           disabled={loading}
-          className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 font-medium"
+          className="px-6 py-2.5 btn-gold text-white rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 font-medium"
         >
           {loading && loadingTicker === ticker.toUpperCase() ? (
             <>
@@ -167,7 +167,7 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onDataFetched, isDarkM
       {/* Quick Access Buttons — Now trigger LIVE fetch */}
       <div className="mt-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <span className={`text-xs font-medium ${'text-[var(--text-secondary)]'}`}>
             {market === 'Egypt' ? '🇪🇬 Egyptian Stocks' : '🇺🇸 US Stocks'} {hasApiKey ? '(Live Data)' : '(API Key Required)'}:
           </span>
         </div>
@@ -179,9 +179,9 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onDataFetched, isDarkM
                 disabled={loading}
                 className={`text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
                   loadingTicker === t 
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
                     : isDarkMode 
-                      ? 'bg-zinc-800 text-gray-300 hover:bg-red-600/20 hover:text-red-400 border border-zinc-700 hover:border-red-600'
+                      ? 'bg-zinc-800 text-gray-300 hover:bg-[var(--accent-gold)]/20 hover:text-[var(--accent-gold)] border border-zinc-700 hover:border-[var(--accent-gold)]'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200 hover:border-red-300'
                 } ${loading && loadingTicker !== t ? 'opacity-50 cursor-not-allowed' : ''}`}
               >

@@ -75,7 +75,7 @@ export const InputField: React.FC<InputFieldProps> = ({
           step={step}
           value={value}
           onChange={handleChange}
-          className={`w-full px-3 py-2 rounded-lg border focus:ring-2 ${error ? 'border-red-500 focus:ring-red-500 bg-red-50 dark:bg-red-900/10' : inputClass}`}
+          className={`w-full px-3 py-2 rounded-lg border focus:ring-2 ${error ? 'border-[var(--accent-gold)] focus:ring-red-500 bg-red-50 dark:bg-red-900/10' : inputClass}`}
         />
         {suffix && <span className={`ml-2 ${textMutedClass}`}>{suffix}</span>}
       </div>

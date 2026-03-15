@@ -33,48 +33,48 @@ export const WolfLogo: React.FC<WolfLogoProps> = ({ className = '', size = 48 })
            L85 30
            L70 35
            L50 15Z"
-        fill="#1a1a1a"
-        stroke="#ef4444"
+        fill="#0A0E17"
+        stroke="#C9A84C"
         strokeWidth="2"
       />
       
       {/* Left ear */}
       <path
         d="M30 35 L15 30 L25 50 L35 42 Z"
-        fill="#2a2a2a"
-        stroke="#ef4444"
+        fill="#0F1623"
+        stroke="#C9A84C"
         strokeWidth="1.5"
       />
       
       {/* Right ear */}
       <path
         d="M70 35 L85 30 L75 50 L65 42 Z"
-        fill="#2a2a2a"
-        stroke="#ef4444"
+        fill="#0F1623"
+        stroke="#C9A84C"
         strokeWidth="1.5"
       />
       
       {/* Left eye */}
-      <ellipse cx="38" cy="48" rx="6" ry="5" fill="#ef4444" />
+      <ellipse cx="38" cy="48" rx="6" ry="5" fill="#C9A84C" />
       <ellipse cx="39" cy="47" rx="2" ry="2" fill="#ffffff" />
       
       {/* Right eye */}
-      <ellipse cx="62" cy="48" rx="6" ry="5" fill="#ef4444" />
+      <ellipse cx="62" cy="48" rx="6" ry="5" fill="#C9A84C" />
       <ellipse cx="63" cy="47" rx="2" ry="2" fill="#ffffff" />
       
       {/* Nose */}
-      <ellipse cx="50" cy="62" rx="5" ry="4" fill="#333" stroke="#ef4444" strokeWidth="1" />
+      <ellipse cx="50" cy="62" rx="5" ry="4" fill="#141B2D" stroke="#C9A84C" strokeWidth="1" />
       
       {/* Snout lines */}
       <path
         d="M50 66 L50 72"
-        stroke="#ef4444"
+        stroke="#C9A84C"
         strokeWidth="1.5"
         strokeLinecap="round"
       />
       <path
         d="M45 74 Q50 78 55 74"
-        stroke="#ef4444"
+        stroke="#C9A84C"
         strokeWidth="1.5"
         fill="none"
         strokeLinecap="round"
@@ -83,14 +83,14 @@ export const WolfLogo: React.FC<WolfLogoProps> = ({ className = '', size = 48 })
       {/* Forehead mark */}
       <path
         d="M50 25 L47 35 L50 33 L53 35 Z"
-        fill="#ef4444"
+        fill="#C9A84C"
       />
       
       {/* Gradient definition */}
       <defs>
         <linearGradient id="wolfGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#1f1f1f" />
-          <stop offset="100%" stopColor="#0a0a0a" />
+          <stop offset="0%" stopColor="#141B2D" />
+          <stop offset="100%" stopColor="#0A0E17" />
         </linearGradient>
       </defs>
     </svg>
@@ -108,7 +108,7 @@ export const WolfLogoSmall: React.FC<WolfLogoProps> = ({ className = '', size = 
       className={className}
     >
       {/* Simplified wolf head for small sizes */}
-      <circle cx="50" cy="50" r="48" fill="#1a1a1a" stroke="#ef4444" strokeWidth="3" />
+      <circle cx="50" cy="50" r="48" fill="#0A0E17" stroke="#C9A84C" strokeWidth="3" />
       
       {/* Simplified wolf shape */}
       <path
@@ -121,12 +121,12 @@ export const WolfLogoSmall: React.FC<WolfLogoProps> = ({ className = '', size = 
            L82 35
            L72 40
            Z"
-        fill="#ef4444"
+        fill="#C9A84C"
       />
       
       {/* Eyes */}
-      <circle cx="38" cy="48" r="4" fill="#1a1a1a" />
-      <circle cx="62" cy="48" r="4" fill="#1a1a1a" />
+      <circle cx="38" cy="48" r="4" fill="#0A0E17" />
+      <circle cx="62" cy="48" r="4" fill="#0A0E17" />
     </svg>
   );
 };

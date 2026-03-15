@@ -88,22 +88,22 @@ export const FXSensitivity: React.FC<Props> = ({
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className={`border-b ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                                <tr className={`border-b ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                                     <th className={`text-left py-2 ${textMutedClass}`}>EGP Depreciation</th>
                                     {depScenarios.map(d => (
-                                        <th key={d} className={`text-center py-2 ${d === expectedDepreciation ? 'text-amber-400 font-bold' : textMutedClass}`}>
+                                        <th key={d} className={`text-center py-2 ${d === expectedDepreciation ? 'text-[var(--accent-gold)] font-bold' : textMutedClass}`}>
                                             {d}%
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr className={`border-b ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                                <tr className={`border-b ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                                     <td className={`py-2 ${textMutedClass}`}>DCF Price (EGP)</td>
                                     {depScenarios.map(d => {
                                         const adj = calcFXAdjusted(d);
                                         return (
-                                            <td key={d} className={`text-center py-2 font-medium ${d === expectedDepreciation ? 'text-amber-400' : textClass
+                                            <td key={d} className={`text-center py-2 font-medium ${d === expectedDepreciation ? 'text-[var(--accent-gold)]' : textClass
                                                 }`}>
                                                 {formatPrice(adj, currency)}
                                             </td>

@@ -58,7 +58,7 @@ export const EVBridgeChart: React.FC<Props> = ({
                                     {item.value < 0 ? '−' : '+'}{formatCurrencyShort(Math.abs(item.value), currency)}
                                 </span>
                             </div>
-                            <div className={`h-6 rounded-full ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'} overflow-hidden`}>
+                            <div className={`h-6 rounded-full ${'bg-[var(--bg-secondary)]'} overflow-hidden`}>
                                 <div
                                     className={`h-full rounded-full ${barColor} transition-all duration-500`}
                                     style={{ width: `${barWidth}%` }}
@@ -75,7 +75,7 @@ export const EVBridgeChart: React.FC<Props> = ({
                     <span className={`text-sm font-medium ${textMutedClass}`}>
                         ÷ {(sharesOutstanding / 1e6).toFixed(0)}M shares
                     </span>
-                    <span className="text-xl font-bold text-amber-400">
+                    <span className="text-xl font-bold text-[var(--accent-gold)]">
                         = {formatCurrencyShort(perSharePrice, currency)}/share
                     </span>
                 </div>

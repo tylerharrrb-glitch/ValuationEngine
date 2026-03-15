@@ -41,7 +41,7 @@ export function KeyMetrics({ data }: Props) {
   const roic = investedCapital > 0 ? (incomeStatement.operatingIncome * (1 - 0.25)) / investedCapital * 100 : 0;
 
   const MetricCard = ({ label, value, unit = '', description = '' }: { label: string; value: string; unit?: string; description?: string }) => (
-    <div className="bg-zinc-900/50 rounded-lg p-3 hover:bg-zinc-800/50 transition-colors border border-zinc-800/50">
+    <div className="bg-zinc-900/50 rounded-lg p-3 hover:bg-[var(--bg-secondary)] transition-colors border border-zinc-800/50">
       <p className="text-zinc-500 text-xs mb-1">{label}</p>
       <p className="text-lg font-bold text-white">
         {value}{unit}
@@ -53,7 +53,7 @@ export function KeyMetrics({ data }: Props) {
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-red-600/20 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/20 flex items-center justify-center">
           <PieChart className="w-4 h-4 text-red-500" />
         </div>
         <h2 className="text-xl font-bold text-white">Key Financial Metrics</h2>

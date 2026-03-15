@@ -130,9 +130,9 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         isDarkMode={isDarkMode}
       />
       {/* Method Explainer */}
-      <div className={`p-5 rounded-xl border ${isDarkMode ? 'bg-zinc-900/80 border-zinc-700' : 'bg-amber-50 border-amber-200'}`}>
+      <div className={`p-5 rounded-xl border ${'bg-[var(--bg-card)] border-[var(--border)]'}`}>
         <div className="flex items-start gap-3">
-          <Info size={22} className="text-amber-400 mt-0.5 flex-shrink-0" />
+          <Info size={22} className="text-[var(--accent-gold)] mt-0.5 flex-shrink-0" />
           <div>
             <h4 className={`font-semibold mb-2 ${textClass}`}>⚠️ UNDERSTANDING RECOMMENDATIONS</h4>
             <ul className={`text-sm space-y-1 ${textMutedClass}`}>
@@ -177,23 +177,23 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
               <input
                 type="number" value={inflationRate} step={0.5} min={0} max={100}
                 onChange={(e) => setInflationRate(parseFloat(e.target.value) || 0)}
-                className={`w-24 px-2 py-1 rounded border text-sm ${isDarkMode ? 'bg-zinc-800 border-zinc-600 text-white' : 'bg-white border-gray-300'}`}
+                className={`w-24 px-2 py-1 rounded border text-sm ${'wolf-input'}`}
               />
               <span className={`text-sm ${textMutedClass}`}>%</span>
               <span className={`text-xs ${textMutedClass}`}>(CBE target: 7±2% | Recent actual: 25-35%)</span>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div className={`p-3 rounded-lg border ${'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
                 <p className={`text-xs ${textMutedClass}`}>Nominal Upside</p>
                 <p className={`text-lg font-bold ${nominalUpside >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {nominalUpside >= 0 ? '+' : ''}{(nominalUpside * 100).toFixed(2)}%
                 </p>
               </div>
-              <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div className={`p-3 rounded-lg border ${'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
                 <p className={`text-xs ${textMutedClass}`}>Inflation Drag</p>
                 <p className="text-lg font-bold text-orange-400">−{inflationRate.toFixed(1)}%</p>
               </div>
-              <div className={`p-3 rounded-lg border-2 ${realPct >= 0 ? 'border-green-600/40 bg-green-950/20' : 'border-red-600/40 bg-red-950/20'}`}>
+              <div className={`p-3 rounded-lg border-2 ${realPct >= 0 ? 'border-green-600/40 bg-green-950/20' : 'border-[var(--accent-gold)]/40 bg-red-950/20'}`}>
                 <p className={`text-xs ${textMutedClass}`}>Real Return</p>
                 <p className={`text-lg font-bold ${realPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {realPct >= 0 ? '+' : ''}{realPct.toFixed(2)}%
@@ -228,7 +228,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
           ? { label: 'CONSERVATIVE — Highly Sustainable', color: 'text-green-400', bg: 'bg-green-950/20 border-green-600/40' }
           : payoutRatio <= 75 && fcfCoverage > 1
             ? { label: 'MODERATE — Sustainable', color: 'text-yellow-400', bg: 'bg-yellow-950/20 border-yellow-600/40' }
-            : { label: 'AGGRESSIVE — At Risk', color: 'text-red-400', bg: 'bg-red-950/20 border-red-600/40' };
+            : { label: 'AGGRESSIVE — At Risk', color: 'text-red-400', bg: 'bg-red-950/20 border-[var(--accent-gold)]/40' };
 
         return (
           <div className={`p-5 rounded-xl border ${cardClass}`}>
@@ -240,7 +240,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
                 { label: 'Sustainable Growth', value: `${sustainableGrowth.toFixed(1)}%` },
                 { label: 'DPS', value: `${currency} ${dps.toFixed(2)}` },
               ].map(m => (
-                <div key={m.label} className={`p-3 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-200'}`}>
+                <div key={m.label} className={`p-3 rounded-lg border ${'bg-[var(--bg-secondary)] border-[var(--border)]'}`}>
                   <p className={`text-xs ${textMutedClass}`}>{m.label}</p>
                   <p className={`text-lg font-bold ${textClass}`}>{m.value}</p>
                 </div>

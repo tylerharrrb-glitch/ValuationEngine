@@ -36,14 +36,14 @@ export function ComparableCompanies({ comparables, onChange }: Props) {
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-red-600/20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/20 flex items-center justify-center">
             <Building2 className="w-4 h-4 text-red-500" />
           </div>
           <h2 className="text-xl font-bold text-white">Comparable Companies</h2>
         </div>
         <button
           onClick={addCompany}
-          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm transition-all shadow-lg shadow-red-900/30"
+          className="flex items-center gap-1 px-3 py-1.5 btn-gold text-white rounded-lg text-sm transition-all shadow-lg shadow-[var(--accent-gold)]/10"
         >
           <Plus className="w-4 h-4" />
           Add Company
@@ -113,7 +113,7 @@ export function ComparableCompanies({ comparables, onChange }: Props) {
                   <td className="py-2 px-2">
                     <button
                       onClick={() => removeCompany(index)}
-                      className="p-1.5 text-red-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors"
+                      className="p-1.5 text-red-500 hover:text-[var(--accent-gold)] hover:bg-[var(--bg-secondary)] rounded transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -26,7 +26,7 @@ export const ReverseDCFSection: React.FC<Props> = ({
       Reverse DCF — What the Market is Pricing In
     </h3>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+      <div className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
         <div className={`text-sm ${textMutedClass}`}>Implied Growth Rate</div>
         <div className={`text-2xl font-bold ${
           reverseDCF.marketExpectation === 'aggressive' ? 'text-red-400'
@@ -35,13 +35,13 @@ export const ReverseDCFSection: React.FC<Props> = ({
         }`}>{reverseDCF.impliedGrowthRate}%</div>
         <div className={`text-xs ${textMutedClass}`}>Annual revenue growth priced in</div>
       </div>
-      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+      <div className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
         <div className={`text-sm ${textMutedClass}`}>Our Base Case Growth</div>
         <div className="text-2xl font-bold text-blue-400">{reverseDCF.baseGrowthRate}%</div>
         <div className={`text-xs ${textMutedClass}`}>WOLF fundamental estimate</div>
       </div>
       <div className={`p-4 rounded-lg ${
-        reverseDCF.growthGap > 3 ? 'bg-red-500/10 border border-red-500/30'
+        reverseDCF.growthGap > 3 ? 'bg-red-500/10 border border-[var(--accent-gold)]/30'
         : reverseDCF.growthGap < -3 ? 'bg-green-500/10 border border-green-500/30'
         : 'bg-yellow-500/10 border border-yellow-500/30'
       }`}>
@@ -54,7 +54,7 @@ export const ReverseDCFSection: React.FC<Props> = ({
         </div>
       </div>
     </div>
-    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
+    <div className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
       <p className={`text-sm ${textMutedClass}`}>{reverseDCF.narrative}</p>
     </div>
   </div>

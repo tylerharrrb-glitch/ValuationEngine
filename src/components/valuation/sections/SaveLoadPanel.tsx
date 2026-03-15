@@ -99,12 +99,12 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
     };
 
     const cardBg = isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-white border-gray-200';
-    const btnPrimary = 'bg-red-600 hover:bg-red-700 text-white';
+    const btnPrimary = 'btn-gold text-white';
     const btnSecondary = isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700';
 
     return (
         <div className={`p-4 rounded-xl border ${cardBg}`}>
-            <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-sm font-semibold mb-3 ${'text-[var(--text-primary)]'}`}>
                 Save / Load Valuations
             </h3>
 
@@ -136,16 +136,16 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
             {saved.length > 0 && (
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {saved.map((s, i) => (
-                        <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isDarkMode ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-gray-50 hover:bg-gray-100'} transition-all`}>
+                        <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isDarkMode ? 'bg-zinc-900 hover:bg-[var(--bg-secondary)]' : 'bg-gray-50 hover:bg-gray-100'} transition-all`}>
                             <div className="flex-1 min-w-0">
-                                <span className={`font-medium truncate block ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{s.name}</span>
-                                <span className={`flex items-center gap-1 ${isDarkMode ? 'text-zinc-500' : 'text-gray-400'}`}>
+                                <span className={`font-medium truncate block ${'text-[var(--text-primary)]'}`}>{s.name}</span>
+                                <span className={`flex items-center gap-1 ${isDarkMode ? 'text-zinc-500' : 'text-[var(--text-secondary)]'}`}>
                                     <Clock size={10} /> {new Date(s.timestamp).toLocaleDateString()} {new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
                             <div className="flex gap-1 ml-2">
                                 <button onClick={() => handleLoad(s)} className="px-2 py-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs">Load</button>
-                                <button onClick={() => handleDelete(s.name)} className="px-1.5 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30"><Trash2 size={12} /></button>
+                                <button onClick={() => handleDelete(s.name)} className="px-1.5 py-1 rounded bg-[var(--accent-gold)]/20 text-red-400 hover:bg-[var(--accent-gold)]/30"><Trash2 size={12} /></button>
                             </div>
                         </div>
                     ))}

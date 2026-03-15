@@ -87,7 +87,7 @@ export const FCFFReconciliation: React.FC<Props> = ({
                     </thead>
                     <tbody>
                         {rows.map((row) => (
-                            <tr key={row.method} className={isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'}>
+                            <tr key={row.method} className={'border-t border-[var(--border)]'}>
                                 <td className={`py-2 px-3 font-medium ${textClass}`}>{row.method}</td>
                                 <td className={`py-2 px-3 ${textMutedClass} font-mono text-xs`}>{row.formula}</td>
                                 <td className="py-2 px-3 text-right text-green-400 font-bold">{formatCurrencyShort(row.value, currency)}</td>

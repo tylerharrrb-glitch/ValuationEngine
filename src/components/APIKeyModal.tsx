@@ -140,7 +140,7 @@ export const APIKeyModal: React.FC<APIKeyModalProps> = ({ isDarkMode }) => {
             {hasKey && (
               <button
                 onClick={handleRemove}
-                className="flex-1 py-2.5 px-4 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 transition-colors font-medium"
+                className="flex-1 py-2.5 px-4 rounded-lg border border-[var(--accent-gold)]/50 text-red-400 hover:bg-red-500/10 transition-colors font-medium"
               >
                 Remove Key
               </button>
@@ -151,7 +151,7 @@ export const APIKeyModal: React.FC<APIKeyModalProps> = ({ isDarkMode }) => {
               className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${saved
                   ? 'bg-green-500 text-white'
                   : apiKey.trim()
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    ? 'btn-gold text-white'
                     : 'bg-zinc-700 text-gray-500 cursor-not-allowed'
                 }`}
             >
@@ -179,7 +179,7 @@ export const APIKeyModal: React.FC<APIKeyModalProps> = ({ isDarkMode }) => {
         className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${hasKey
             ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
             : isDarkMode
-              ? 'bg-zinc-800 hover:bg-zinc-700 text-gray-300'
+              ? 'bg-zinc-800 hover:bg-[var(--bg-secondary)] text-gray-300'
               : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
           }`}
         title={hasKey ? 'API Key Connected' : 'Add API Key'}

@@ -56,7 +56,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ term, definition, children, si
     <span className="relative inline-flex items-center">
       {children}
       <button
-        className="ml-1 text-gray-400 hover:text-red-400 transition-colors focus:outline-none"
+        className="ml-1 text-gray-400 hover:text-[var(--accent-gold)] transition-colors focus:outline-none"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onClick={() => setIsVisible(!isVisible)}
@@ -66,10 +66,10 @@ export const Tooltip: React.FC<TooltipProps> = ({ term, definition, children, si
       </button>
       
       {isVisible && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-72 p-3 bg-zinc-900 border border-red-500/30 rounded-lg shadow-xl text-sm text-gray-300">
+        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-72 p-3 bg-zinc-900 border border-[var(--accent-gold)]/30 rounded-lg shadow-xl text-sm text-gray-300">
           <div className="font-semibold text-red-400 mb-1">{term}</div>
           <div className="leading-relaxed">{displayText}</div>
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-zinc-900 border-r border-b border-red-500/30"></div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-zinc-900 border-r border-b border-[var(--accent-gold)]/30"></div>
         </div>
       )}
     </span>

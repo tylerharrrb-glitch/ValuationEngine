@@ -71,7 +71,7 @@ export const ValuationStyleSelector: React.FC<Props> = ({
           </div>
         </div>
       ) : (
-        <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+        <div className={`mt-4 p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
           <span className={`text-sm ${textMutedClass}`}>
             BASE CASE — Using your original assumptions as entered. Select Conservative or Aggressive to see adjusted values.
           </span>
@@ -123,7 +123,7 @@ export const ValuationStyleSelector: React.FC<Props> = ({
               const isActive = key === valuationStyle;
 
               return (
-                <tr key={key} className={`${isDarkMode ? 'border-t border-zinc-800' : 'border-t border-gray-200'} ${isActive ? 'bg-red-500/10' : ''}`}>
+                <tr key={key} className={`${'border-t border-[var(--border)]'} ${isActive ? 'bg-red-500/10' : ''}`}>
                   <td className={`py-2 px-3 font-medium ${isActive ? 'text-red-400' : textClass}`}>{isActive && '▶ '}{style.label}</td>
                   <td className={`py-2 px-3 text-right ${textClass}`}>{sRevGrowth.toFixed(1)}%</td>
                   <td className={`py-2 px-3 text-right ${textClass}`}>{sWACC.toFixed(1)}%</td>

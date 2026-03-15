@@ -1,5 +1,5 @@
 /**
- * 🐺 WOLF Analyst Panel — Floating AI chat panel
+ * WOLF Analyst Panel — Floating AI chat panel
  * CFA-grade calculation verifier & methodology Q&A.
  * Powered by Google Gemini 1.5 Flash.
  */
@@ -75,8 +75,8 @@ function renderMarkdown(text: string, isDarkMode: boolean): React.ReactNode[] {
               <tbody>
                 {bodyRows.map((row, ri) => (
                   <tr key={ri} className={ri % 2 === 0
-                    ? (isDarkMode ? 'bg-zinc-900' : 'bg-white')
-                    : (isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50')}>
+                    ? (isDarkMode ? 'bg-[var(--bg-card)]' : 'bg-white')
+                    : ('bg-[var(--bg-secondary)]')}>
                     {parseCells(row).map((c, ci) => (
                       <td key={ci} className={`px-2 py-1 border ${isDarkMode ? 'border-zinc-600' : 'border-gray-300'}`}>
                         {renderInline(c)}
@@ -98,7 +98,7 @@ function renderMarkdown(text: string, isDarkMode: boolean): React.ReactNode[] {
       i++; continue;
     }
     if (line.startsWith('## ')) {
-      elements.push(<h3 key={i} className={`text-base font-bold mt-3 mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{renderInline(line.slice(3))}</h3>);
+      elements.push(<h3 key={i} className={`text-base font-bold mt-3 mb-1 ${'text-[var(--text-primary)]'}`}>{renderInline(line.slice(3))}</h3>);
       i++; continue;
     }
     if (line.startsWith('# ')) {
@@ -108,7 +108,7 @@ function renderMarkdown(text: string, isDarkMode: boolean): React.ReactNode[] {
 
     // Horizontal rule
     if (line.match(/^---+$/)) {
-      elements.push(<hr key={i} className={`my-2 ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`} />);
+      elements.push(<hr key={i} className={`my-2 ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-300'}`} />);
       i++; continue;
     }
 
@@ -246,40 +246,49 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
 
   return (
     <div
-      className={`fixed right-0 top-0 h-full z-50 flex flex-col shadow-2xl transition-all duration-300
-        ${isDarkMode
-          ? 'bg-zinc-900/95 border-l border-zinc-700 text-gray-200'
-          : 'bg-white/95 border-l border-gray-200 text-gray-800'}
-        backdrop-blur-xl`}
-      style={{ width: 420, maxWidth: '100vw' }}
+      className="fixed right-0 top-0 h-full flex flex-col shadow-2xl transition-all duration-300 backdrop-blur-xl"
+      style={{
+        width: 420,
+        maxWidth: '100vw',
+        zIndex: 9000,
+        background: 'rgba(10,14,23,.96)',
+        borderLeft: '1px solid var(--border)',
+        color: 'var(--text-primary)',
+      }}
     >
       {/* ── Header ── */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b
-        ${isDarkMode ? 'border-zinc-700 bg-zinc-800/80' : 'border-gray-200 bg-gray-50/80'}`}>
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
         <div className="flex items-center gap-2">
-          <span className="text-xl">🐺</span>
+          <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: '1.2rem', color: 'var(--accent-gold)' }}>W</span>
           <div>
-            <h3 className="text-sm font-bold tracking-wide">WOLF Analyst</h3>
-            <p className={`text-[10px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>CFA-grade AI Verifier · Groq Llama 3.1</p>
+            <h3 style={{ fontFamily: 'var(--ff-mono)', fontSize: '.85rem', fontWeight: 700, color: 'var(--accent-gold)' }}>WOLF Analyst</h3>
+            <p style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>CFA-grade AI Verifier · Groq Llama 3.1</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-zinc-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
+          className="flex items-center justify-center rounded-lg transition-colors"
+          style={{
+            width: 32,
+            height: 32,
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-gold)'; e.currentTarget.style.color = 'var(--accent-gold)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
         >
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
 
       {/* ── Verify Button ── */}
-      <div className={`px-4 py-2 border-b ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+      <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
         <button
           onClick={runFullVerification}
           disabled={loading}
-          className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all
-            ${loading
-              ? 'bg-zinc-700 text-gray-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-900/30'}`}
+          className="btn-gold w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -298,7 +307,7 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && !loading && (
-          <div className={`text-center py-12 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+          <div className={`text-center py-12 ${isDarkMode ? 'text-gray-600' : 'text-[var(--text-secondary)]'}`}>
             <MessageSquare size={36} className="mx-auto mb-3 opacity-40" />
             <p className="text-xs font-medium">Ask WOLF Analyst anything about the valuation</p>
             <p className="text-[10px] mt-1 opacity-70">or click "Verify All Calculations" for a full audit</p>
@@ -309,10 +318,8 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
           <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[95%] rounded-xl px-3 py-2 ${
               m.role === 'user'
-                ? 'bg-red-600 text-white rounded-br-sm'
-                : isDarkMode
-                  ? 'bg-zinc-800 border border-zinc-700 rounded-bl-sm'
-                  : 'bg-gray-100 border border-gray-200 rounded-bl-sm'
+                ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] rounded-br-sm'
+                : 'bg-[var(--bg-card)] border border-[var(--border)] rounded-bl-sm'
             }`}>
               {m.role === 'assistant'
                 ? <div className="wolf-md">{renderMarkdown(m.content, isDarkMode)}</div>
@@ -324,10 +331,10 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
 
         {loading && (
           <div className="flex justify-start">
-            <div className={`rounded-xl px-3 py-2 rounded-bl-sm flex items-center gap-2
-              ${isDarkMode ? 'bg-zinc-800 border border-zinc-700' : 'bg-gray-100 border border-gray-200'}`}>
-              <Loader2 size={12} className="animate-spin text-red-400" />
-              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Analyzing…</span>
+            <div className="rounded-xl px-3 py-2 rounded-bl-sm flex items-center gap-2"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <Loader2 size={12} className="animate-spin" style={{ color: 'var(--accent-gold)' }} />
+              <span className={`text-xs ${'text-[var(--text-secondary)]'}`}>Analyzing…</span>
             </div>
           </div>
         )}
@@ -344,7 +351,7 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
       </div>
 
       {/* ── Input ── */}
-      <div className={`px-4 py-3 border-t ${isDarkMode ? 'border-zinc-700 bg-zinc-800/50' : 'border-gray-200 bg-gray-50/50'}`}>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -358,19 +365,16 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
             }}
             placeholder="Ask about any calculation or formula…"
             disabled={loading}
-            className={`flex-1 px-3 py-2 rounded-lg text-xs border transition-colors
-              ${isDarkMode
-                ? 'bg-zinc-900 border-zinc-600 text-white placeholder:text-gray-600 focus:border-red-500'
-                : 'bg-white border-gray-300 text-gray-800 placeholder:text-gray-400 focus:border-red-500'}
-              focus:outline-none focus:ring-1 focus:ring-red-500/30`}
+            className="wolf-input flex-1 text-xs"
+            style={{ fontSize: '.78rem' }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
             className={`px-3 py-2 rounded-lg transition-all
               ${loading || !input.trim()
-                ? isDarkMode ? 'bg-zinc-700 text-gray-500' : 'bg-gray-200 text-gray-400'
-                : 'bg-red-600 hover:bg-red-700 text-white shadow-md'}`}
+                ? 'opacity-40 cursor-not-allowed'
+                : ''} btn-gold`}
           >
             <Send size={14} />
           </button>

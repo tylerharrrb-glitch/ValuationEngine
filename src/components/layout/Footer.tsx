@@ -1,5 +1,5 @@
 /**
- * WOLF Footer — Disclaimer and copyright.
+ * WOLF Footer — Branded footer with portfolio link.
  */
 import React from 'react';
 
@@ -9,27 +9,24 @@ interface FooterProps {
   textMutedClass: string;
 }
 
-export const Footer: React.FC<FooterProps> = ({ isDarkMode, textMutedClass }) => {
+export const Footer: React.FC<FooterProps> = () => {
   return (
-    <footer className={`border-t py-6 mt-8 ${isDarkMode ? 'border-zinc-800' : 'border-gray-200'}`}>
-      <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <span className={`text-xs font-semibold tracking-wider uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-          WOLF Valuation Engine v3.0
-        </span>
-        <p className={`text-[11px] text-center max-w-lg ${textMutedClass}`}>
-          Financial data provided by{' '}
-          <a href="https://financialmodelingprep.com" target="_blank" rel="noopener noreferrer"
-            className="underline hover:text-red-400 transition-colors">
-            Financial Modeling Prep
-          </a>
-          . For educational purposes only. Not financial advice.
-          Past performance does not guarantee future results.
-          Always verify data independently before making investment decisions.
-        </p>
-        <span className={`text-[11px] ${textMutedClass}`}>
-          &copy; {new Date().getFullYear()}
-        </span>
-      </div>
+    <footer style={{ padding: '40px 0', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+      <p style={{ fontFamily: 'var(--ff-mono)', fontSize: '.78rem', color: 'var(--text-secondary)' }}>
+        WOLF Valuation Engine · Built by{' '}
+        <a
+          href="https://ahmedwael.pages.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--accent-gold)', textDecoration: 'none' }}
+        >
+          Ahmed Wael Metwally
+        </a>
+        {' '}· Cairo, Egypt
+      </p>
+      <p style={{ fontFamily: 'var(--ff-mono)', fontSize: '.68rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+        Institutional-grade equity analysis · FMVA® Certified
+      </p>
     </footer>
   );
 };

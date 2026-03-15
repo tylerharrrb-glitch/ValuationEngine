@@ -166,7 +166,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
               onClick={() => setShowSaveModal(true)}
               className={`p-2 rounded-lg transition-colors ${
                 isDarkMode 
-                  ? 'bg-zinc-800 hover:bg-zinc-700 text-gray-300'
+                  ? 'bg-zinc-800 hover:bg-[var(--bg-secondary)] text-gray-300'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               }`}
               title="Save Valuation"
@@ -179,7 +179,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
               onClick={() => setShowValuationsModal(true)}
               className={`p-2 rounded-lg transition-colors ${
                 isDarkMode 
-                  ? 'bg-zinc-800 hover:bg-zinc-700 text-gray-300'
+                  ? 'bg-zinc-800 hover:bg-[var(--bg-secondary)] text-gray-300'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               }`}
               title="My Valuations"
@@ -188,9 +188,9 @@ export const UserAuth: React.FC<UserAuthProps> = ({
             </button>
             
             {/* User Badge */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-600/20 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[var(--accent-gold)]/20 rounded-lg">
               <User size={16} className="text-red-400" />
-              <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className={`text-sm font-medium ${'text-[var(--text-primary)]'}`}>
                 {userName}
               </span>
             </div>
@@ -200,7 +200,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
               onClick={handleLogout}
               className={`p-2 rounded-lg transition-colors ${
                 isDarkMode 
-                  ? 'bg-zinc-800 hover:bg-red-900/50 text-gray-300 hover:text-red-400'
+                  ? 'bg-zinc-800 hover:bg-red-900/50 text-gray-300 hover:text-[var(--accent-gold)]'
                   : 'bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-600'
               }`}
               title="Logout"
@@ -211,7 +211,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
         ) : (
           <button
             onClick={() => setShowLoginModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 btn-gold text-white rounded-lg transition-colors font-medium"
           >
             <LogIn size={18} />
             <span>Sign In</span>
@@ -254,7 +254,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
           </div>
           <button
             type="submit"
-            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors mt-2"
+            className="w-full py-3 btn-gold text-white font-semibold rounded-lg transition-colors mt-2"
           >
             Sign In
           </button>
@@ -336,7 +336,7 @@ export const UserAuth: React.FC<UserAuthProps> = ({
           <button
             onClick={saveValuation}
             disabled={!newValuationName.trim()}
-            className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 btn-gold disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <Plus size={18} />
             Save Valuation

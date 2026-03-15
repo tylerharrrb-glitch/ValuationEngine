@@ -47,7 +47,7 @@ export const QualityScorecard: React.FC<Props> = ({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {categories.map((cat) => (
-          <div key={cat.category} className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+          <div key={cat.category} className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
             <div className="flex items-center justify-between mb-3">
               <span className={`font-semibold ${textClass}`}>{cat.category}</span>
               <span className={`text-sm font-bold ${

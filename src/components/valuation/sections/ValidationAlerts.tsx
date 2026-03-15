@@ -111,7 +111,7 @@ export const ValidationAlerts: React.FC<Props> = ({
   return (
     <div className="space-y-2">
       {alerts.map((alert, i) => (
-        <div key={i} className={`flex items-center gap-3 p-3 rounded-lg ${alert.type === 'error' ? 'bg-red-500/20 border border-red-500/50'
+        <div key={i} className={`flex items-center gap-3 p-3 rounded-lg ${alert.type === 'error' ? 'bg-red-500/20 border border-[var(--accent-gold)]/50'
           : alert.type === 'info' ? 'bg-blue-500/20 border border-blue-500/50'
             : 'bg-yellow-500/20 border border-yellow-500/50'
           }`}>

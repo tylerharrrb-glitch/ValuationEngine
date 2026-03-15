@@ -15,7 +15,7 @@ export function HowToBuildModal({ isOpen, onClose }: Props) {
       duration: '2-4 months',
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
-      borderColor: 'border-red-500/30',
+      borderColor: 'border-[var(--accent-gold)]/30',
       items: [
         { name: 'HTML & CSS', desc: 'Structure and styling of web pages', weeks: '2-4 weeks' },
         { name: 'JavaScript', desc: 'Programming logic, DOM manipulation', weeks: '4-8 weeks' },
@@ -69,7 +69,7 @@ export function HowToBuildModal({ isOpen, onClose }: Props) {
       duration: '2-4 weeks',
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
-      borderColor: 'border-red-500/30',
+      borderColor: 'border-[var(--accent-gold)]/30',
       items: [
         { name: 'Type Definitions', desc: 'Define TypeScript interfaces for financial data' },
         { name: 'Calculation Functions', desc: 'DCF, WACC, comparable multiples' },
@@ -234,7 +234,7 @@ export function HowToBuildModal({ isOpen, onClose }: Props) {
                           href={res.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-red-400 px-3 py-1 rounded-full transition-colors"
+                          className="flex items-center gap-1 text-sm bg-zinc-800 hover:bg-[var(--bg-secondary)] text-red-400 px-3 py-1 rounded-full transition-colors"
                         >
                           {res.name}
                           <ExternalLink className="w-3 h-3" />
@@ -305,7 +305,7 @@ export function HowToBuildModal({ isOpen, onClose }: Props) {
             </p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+              className="px-4 py-2 btn-gold text-white rounded-lg transition-colors"
             >
               Got it!
             </button>

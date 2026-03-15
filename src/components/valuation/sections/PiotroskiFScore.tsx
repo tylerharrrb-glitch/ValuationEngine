@@ -129,11 +129,11 @@ export const PiotroskiFScore: React.FC<Props> = ({
                             <div className="space-y-1">
                                 {cat.items.map(item => (
                                     <div key={item.id} className="flex items-center gap-2 text-xs">
-                                        <span className={item.score === 1 ? 'text-green-400' : item.score === 0 ? 'text-red-400' : 'text-gray-500'}>
+                                        <span className={item.score === 1 ? 'text-green-400' : item.score === 0 ? 'text-red-400' : 'text-[var(--text-muted)]'}>
                                             {item.score === 1 ? '✓' : item.score === 0 ? '✗' : '—'}
                                         </span>
                                         <span className={textMutedClass}>{item.id}: {item.label}</span>
-                                        <span className={`ml-auto text-xs ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>{item.description}</span>
+                                        <span className={`ml-auto text-xs ${isDarkMode ? 'text-gray-600' : 'text-[var(--text-secondary)]'}`}>{item.description}</span>
                                     </div>
                                 ))}
                             </div>

@@ -23,7 +23,7 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-black rounded-xl p-6 border border-zinc-800">
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-red-600/20 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/20 flex items-center justify-center">
           <Settings className="w-4 h-4 text-red-500" />
         </div>
         <h2 className="text-xl font-bold text-white">Valuation Assumptions</h2>
@@ -38,8 +38,8 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
         <div className="flex gap-2">
           <button
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${assumptions.capmMethod === 'A'
-              ? 'bg-red-600 text-white'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
               }`}
             onClick={() => updateField('capmMethod', 'A')}
           >
@@ -47,8 +47,8 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
           </button>
           <button
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${assumptions.capmMethod === 'B'
-              ? 'bg-red-600 text-white'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
               }`}
             onClick={() => updateField('capmMethod', 'B')}
           >
@@ -347,8 +347,8 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
             <div className="flex gap-2">
               <button
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'end_of_year'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
                   }`}
                 onClick={() => updateField('discountingConvention', 'end_of_year')}
               >
@@ -356,8 +356,8 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
               </button>
               <button
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${assumptions.discountingConvention === 'mid_year'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
                   }`}
                 onClick={() => updateField('discountingConvention', 'mid_year')}
               >

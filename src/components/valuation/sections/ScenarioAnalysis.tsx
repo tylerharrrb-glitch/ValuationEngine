@@ -36,7 +36,7 @@ export const ScenarioAnalysis: React.FC<Props> = ({
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Bear */}
-        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'border-red-500/40 bg-red-500/5' : 'border-red-200 bg-red-50'}`}>
+        <div className={`p-5 rounded-xl border-2 ${isDarkMode ? 'border-[var(--accent-gold)]/40 bg-red-500/5' : 'border-red-200 bg-red-50'}`}>
           <div className="flex items-center gap-2 mb-3">
             <TrendingDown size={22} className="text-red-400" />
             <div>
@@ -94,7 +94,7 @@ export const ScenarioAnalysis: React.FC<Props> = ({
         </div>
       </div>
       {/* Scenario Range Bar */}
-      <div className={`mt-5 p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+      <div className={`mt-5 p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
         <div className={`text-sm font-medium mb-2 ${textMutedClass}`}>Price Range Spectrum</div>
         <div className="relative h-10">
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3 rounded-full bg-gradient-to-r from-red-500/30 via-yellow-500/30 to-green-500/30" />
@@ -134,7 +134,7 @@ export const ScenarioAnalysis: React.FC<Props> = ({
         </div>
       </div>
       {/* S3: Blended context note */}
-      <div className={`mt-4 p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800/50' : 'bg-gray-50'}`}>
+      <div className={`mt-4 p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
         <div className={`text-xs ${textMutedClass}`}>
           Scenario values reflect DCF-only analysis (varying growth, WACC, and margins).
           {blendedValue !== undefined && blendedUpside !== undefined && (

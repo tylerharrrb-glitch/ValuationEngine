@@ -58,21 +58,24 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
   const currentPricePosition = getPosition(currentPrice);
 
   return (
-    <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+    <div className="wolf-card">
       <div className="flex items-center justify-between mb-6">
-        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          <Tooltip term="Intrinsic Value">Football Field Valuation</Tooltip>
-        </h3>
+        <div>
+          <span className="section-label">FOOTBALL FIELD VALUATION</span>
+          <h3 style={{ fontFamily: 'var(--ff-body)', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>
+            <Tooltip term="Intrinsic Value">Valuation Range Comparison</Tooltip>
+          </h3>
+        </div>
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+            <div className="w-3 h-3 rounded-full" style={{ background: 'var(--accent-gold)' }}></div>
+            <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)', fontSize: '.75rem' }}>
               Current: {formatPrice(currentPrice)}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Mid Value</span>
+            <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)', fontSize: '.75rem' }}>Mid Value</span>
           </div>
         </div>
       </div>
@@ -84,7 +87,8 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
           {valuations.map((val, index) => (
             <div
               key={index}
-              className={`h-16 flex items-center text-sm font-medium text-right pr-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              className="h-16 flex items-center text-sm font-medium text-right pr-4"
+              style={{ color: 'var(--text-secondary)', fontFamily: 'var(--ff-mono)', fontSize: '.78rem' }}
             >
               {val.method}
             </div>
@@ -94,7 +98,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
         {/* Chart area */}
         <div className="flex-1 relative">
           {/* Price scale at top */}
-          <div className="flex justify-between text-xs text-gray-500 mb-4 px-1">
+          <div className="flex justify-between text-xs mb-4 px-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}>
             <span>{formatPrice(minValue)}</span>
             <span>{formatPrice((minValue + maxValue) / 2)}</span>
             <span>{formatPrice(maxValue)}</span>
@@ -104,13 +108,14 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
           <div className="relative">
             {/* Current price vertical line - positioned within the bars container */}
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
+              className="absolute top-0 bottom-0 w-0.5 z-20"
               style={{
                 left: `${currentPricePosition}%`,
+                background: 'var(--accent-gold)',
               }}
             >
               {/* Price label at top */}
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap font-semibold shadow-lg">
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs px-2 py-1 rounded whitespace-nowrap font-semibold shadow-lg" style={{ background: 'var(--accent-gold)', color: 'var(--bg-primary)', fontFamily: 'var(--ff-mono)' }}>
                 {formatPrice(currentPrice)}
               </div>
             </div>
@@ -126,7 +131,7 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
                 <div key={index} className="h-16 flex items-center">
                   <div className="flex-1 relative h-10">
                     {/* Background bar */}
-                    <div className={`absolute inset-y-0 left-0 right-0 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}></div>
+                    <div className="absolute inset-y-0 left-0 right-0 rounded-lg" style={{ background: 'var(--bg-secondary)' }}></div>
 
                     {/* Range bar */}
                     <div
@@ -147,8 +152,8 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
                     {(highPos - lowPos) < 8 ? (
                       /* Single combined label when range is too narrow */
                       <div
-                        className={`absolute top-full mt-1 text-xs font-medium whitespace-nowrap ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                        style={{ left: `${(lowPos + highPos) / 2}%`, transform: 'translateX(-50%)' }}
+                      className="absolute top-full mt-1 text-xs font-medium whitespace-nowrap"
+                        style={{ left: `${(lowPos + highPos) / 2}%`, transform: 'translateX(-50%)', color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}
                       >
                         {formatPrice(val.low)} — {formatPrice(val.high)}
                       </div>
@@ -156,14 +161,14 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
                       /* Two separate labels when there's enough space */
                       <>
                         <div
-                          className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                          style={{ left: `${lowPos}%`, transform: 'translateX(-50%)' }}
+                          className="absolute top-full mt-1 text-xs font-medium"
+                          style={{ left: `${lowPos}%`, transform: 'translateX(-50%)', color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}
                         >
                           {formatPrice(val.low)}
                         </div>
                         <div
-                          className={`absolute top-full mt-1 text-xs font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                          style={{ left: `${highPos}%`, transform: 'translateX(-50%)' }}
+                          className="absolute top-full mt-1 text-xs font-medium"
+                          style={{ left: `${highPos}%`, transform: 'translateX(-50%)', color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)' }}
                         >
                           {formatPrice(val.high)}
                         </div>
@@ -178,19 +183,19 @@ export const FootballFieldChart: React.FC<FootballFieldChartProps> = ({
       </div>
 
       {/* Legend - Valuation summary cards */}
-      <div className={`mt-10 pt-4 border-t ${isDarkMode ? 'border-zinc-800' : 'border-gray-200'}`}>
+      <div className="mt-10 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           {valuations.map((val, index) => {
             const vsCurrentPercent = ((val.mid - currentPrice) / currentPrice) * 100;
             const isUpside = vsCurrentPercent > 0;
 
             return (
-              <div key={index} className={`p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
+              <div key={index} className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
                 <div className="flex items-center gap-2 mb-1">
                   <div className={`w-2 h-2 rounded ${val.color}`}></div>
-                  <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{val.method}</div>
+                  <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--ff-mono)', fontSize: '.7rem' }}>{val.method}</div>
                 </div>
-                <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className="font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-display)', fontWeight: 900 }}>
                   {formatPrice(val.mid)}
                 </div>
                 <div className={`text-xs font-medium ${isUpside ? 'text-green-500' : 'text-red-500'}`}>

@@ -52,14 +52,14 @@ export const WorkingCapitalDetail: React.FC<Props> = ({
                 <div className="flex rounded-lg overflow-hidden border border-zinc-700">
                     <button
                         onClick={() => setMode('simple')}
-                        className={`px-3 py-1 text-xs font-medium transition-all ${mode === 'simple' ? 'bg-red-600 text-white' : isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-600'
+                        className={`px-3 py-1 text-xs font-medium transition-all ${mode === 'simple' ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]' : isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-600'
                             }`}
                     >
                         Simple (ΔWC%)
                     </button>
                     <button
                         onClick={() => setMode('detailed')}
-                        className={`px-3 py-1 text-xs font-medium transition-all ${mode === 'detailed' ? 'bg-red-600 text-white' : isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-600'
+                        className={`px-3 py-1 text-xs font-medium transition-all ${mode === 'detailed' ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]' : isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-600'
                             }`}
                     >
                         Detailed (DSO/DIO/DPO)
@@ -69,7 +69,7 @@ export const WorkingCapitalDetail: React.FC<Props> = ({
 
             {mode === 'simple' ? (
                 <div className="space-y-3">
-                    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
+                    <div className={`p-4 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
                         <div className={`text-sm font-medium mb-2 ${textClass}`}>Simple Mode</div>
                         <div className={`text-xs ${textMutedClass}`}>
                             ΔWC = ΔRevenue × WC%. Working capital change is calculated as a percentage of revenue change each projection year.
@@ -97,7 +97,7 @@ export const WorkingCapitalDetail: React.FC<Props> = ({
                             { label: 'DPO', value: dpo, desc: 'Days Payables Outstanding', formula: 'AP/COGS × 365', color: 'text-orange-400' },
                             { label: 'CCC', value: ccc, desc: 'Cash Conversion Cycle', formula: 'DSO+DIO−DPO', color: 'text-green-400' },
                         ].map(item => (
-                            <div key={item.label} className={`p-3 rounded-lg ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'}`}>
+                            <div key={item.label} className={`p-3 rounded-lg ${'bg-[var(--bg-secondary)]'}`}>
                                 <div className={`text-xs ${textMutedClass}`}>{item.desc}</div>
                                 <div className={`text-2xl font-bold ${item.color}`}>{item.value.toFixed(1)}</div>
                                 <div className={`text-xs ${textMutedClass}`}>{item.formula}</div>
@@ -106,10 +106,10 @@ export const WorkingCapitalDetail: React.FC<Props> = ({
                     </div>
 
                     {/* Components table */}
-                    <div className={`overflow-x-auto rounded-lg border ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                    <div className={`overflow-x-auto rounded-lg border ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className={isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'}>
+                                <tr className={'bg-[var(--bg-secondary)]'}>
                                     <th className={`text-left py-2 px-4 ${textMutedClass}`}>Component</th>
                                     <th className={`text-right py-2 px-4 ${textMutedClass}`}>Balance</th>
                                     <th className={`text-right py-2 px-4 ${textMutedClass}`}>Days</th>
@@ -117,19 +117,19 @@ export const WorkingCapitalDetail: React.FC<Props> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr className={`border-t ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                                <tr className={`border-t ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                                     <td className={`py-2 px-4 ${textClass}`}>Accounts Receivable</td>
                                     <td className={`py-2 px-4 text-right font-medium ${textClass}`}>{(ar / 1e6).toFixed(0)}M</td>
                                     <td className={`py-2 px-4 text-right text-blue-400`}>{dso.toFixed(1)}</td>
                                     <td className={`py-2 px-4 text-right ${textMutedClass}`}>{((ar / revenue) * 100).toFixed(1)}%</td>
                                 </tr>
-                                <tr className={`border-t ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                                <tr className={`border-t ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                                     <td className={`py-2 px-4 ${textClass}`}>Inventory</td>
                                     <td className={`py-2 px-4 text-right font-medium ${textClass}`}>{(inventory / 1e6).toFixed(0)}M</td>
                                     <td className={`py-2 px-4 text-right text-purple-400`}>{dio.toFixed(1)}</td>
                                     <td className={`py-2 px-4 text-right ${textMutedClass}`}>{((inventory / revenue) * 100).toFixed(1)}%</td>
                                 </tr>
-                                <tr className={`border-t ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
+                                <tr className={`border-t ${isDarkMode ? 'border-[var(--border)]' : 'border-gray-200'}`}>
                                     <td className={`py-2 px-4 ${textClass}`}>Accounts Payable</td>
                                     <td className={`py-2 px-4 text-right font-medium ${textClass}`}>{(ap / 1e6).toFixed(0)}M</td>
                                     <td className={`py-2 px-4 text-right text-orange-400`}>{dpo.toFixed(1)}</td>
