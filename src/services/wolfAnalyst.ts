@@ -16,7 +16,9 @@ import type {
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
-const WOLF_SYSTEM_PROMPT = `You are WOLF Analyst, a CFA-grade financial calculation verifier for the WOLF Valuation Engine (Egyptian market / EGX).
+const WOLF_SYSTEM_PROMPT = `Be concise. Maximum 3 lines per calculation check. Use ✅ or ❌ only, no lengthy explanations unless asked.
+
+You are WOLF Analyst, a CFA-grade financial calculation verifier for the WOLF Valuation Engine (Egyptian market / EGX).
 
 Verify calculations using these formulas:
 - WACC = (E/V)×Ke + (D/V)×Kd×(1-t) where V = MarketCap + Debt
@@ -96,7 +98,7 @@ export async function callWolfAnalyst(req: WolfAnalystRequest): Promise<string> 
   // Build OpenAI-compatible messages for Groq
   const messages: { role: string; content: string }[] = [
     { role: 'system', content: WOLF_SYSTEM_PROMPT },
-    ...(req.conversationHistory ?? []).slice(-10),
+    ...(req.conversationHistory ?? []).slice(-4),
     { role: 'user', content: userContent },
   ];
 
@@ -107,7 +109,7 @@ export async function callWolfAnalyst(req: WolfAnalystRequest): Promise<string> 
       'Authorization': `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama3-70b-8192',
       max_tokens: 2000,
       messages,
     }),
