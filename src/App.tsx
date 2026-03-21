@@ -14,6 +14,7 @@ import { useFinancialData } from './hooks/useFinancialData';
 import { useValuationCalculations } from './hooks/useValuationCalculations';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { exportToPDF } from './utils/pdfExport';
+import DispatchPDF from './components/dispatch/DispatchPDF';
 
 // Layout components
 import { Header } from './components/layout/Header';
@@ -203,6 +204,22 @@ function App() {
             </ErrorBoundary>
           )}
         </Suspense>
+
+        {/* ═══ DISPATCH PDF ═══ */}
+        <ErrorBoundary name="PDF Export">
+          <DispatchPDF
+            financialData={financialData}
+            assumptions={calc.adjustedAssumptions}
+            comparables={comparables}
+            dcfProjections={calc.dcfProjections}
+            dcfValue={calc.dcfValue}
+            comparableValue={calc.comparableValue}
+            blendedValue={calc.blendedValue}
+            upside={calc.upside}
+            scenario={scenario}
+            marketRegion={marketRegion}
+          />
+        </ErrorBoundary>
       </main>
 
       {/* Section Divider */}
