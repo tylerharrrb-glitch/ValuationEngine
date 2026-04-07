@@ -177,6 +177,7 @@ function App() {
                   marketRegion={marketRegion}
                   historyIndex={historyIndex} historyLength={historyLength} lastSaved={lastSaved}
                   handleLoadValuation={handleLoadValuation}
+                  probabilityWeightedEV={calc.probabilityWeightedEV}
                   {...themeProps}
                 />
               </div>

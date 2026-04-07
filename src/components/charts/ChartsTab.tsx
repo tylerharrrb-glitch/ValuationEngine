@@ -15,6 +15,7 @@ import { IndustryMultiples } from '../../utils/calculations/comparables';
 import { getIndustryForTicker } from '../../utils/industryMapping';
 import { calculateSectorBenchmarks, MonteCarloResult } from '../../utils/advancedAnalysis';
 import { formatPrice, CurrencyCode } from '../../utils/formatters';
+import { HistoricalTrendsChart } from './HistoricalTrendsChart';
 
 interface ChartDataPoint { year: string | number; Revenue?: number; FCF?: number; }
 interface ValuationComparisonPoint { name: string; value: number; fill: string; }
@@ -104,6 +105,16 @@ export const ChartsTab: React.FC<ChartsTabProps> = ({
         isDarkMode={isDarkMode}
         currency={currency}
       />
+
+      {/* Historical Trends (Phase 4, Task #24) */}
+      {financialData.historicalData && financialData.historicalData.length >= 2 && (
+        <HistoricalTrendsChart
+          historicalData={financialData.historicalData}
+          ticker={financialData.ticker}
+          isDarkMode={isDarkMode}
+          currency={currency}
+        />
+      )}
 
       {/* Revenue & FCF Projections */}
       <div className="wolf-card">

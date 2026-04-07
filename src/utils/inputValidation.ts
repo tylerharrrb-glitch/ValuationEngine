@@ -253,6 +253,30 @@ function checkWarnings(
         limit: '> 0',
     });
 
+    // W-10: Cost of Debt ≤ Risk-Free Rate
+    rules.push({
+        id: 'W-10',
+        severity: 'WARNING',
+        field: 'Cost of Debt',
+        message: `Cost of Debt (${assumptions.costOfDebt.toFixed(1)}%) must exceed Risk-Free Rate (${assumptions.riskFreeRate.toFixed(1)}%). Corporate borrowers always pay a credit spread above sovereign yield. Suggested Kd = ${(assumptions.riskFreeRate + 2.5).toFixed(1)}% (Rf + 250 bps).`,
+        triggered: assumptions.costOfDebt > 0 && assumptions.costOfDebt <= assumptions.riskFreeRate,
+        currentValue: `Kd=${assumptions.costOfDebt.toFixed(1)}%, Rf=${assumptions.riskFreeRate.toFixed(1)}%`,
+        limit: `> ${assumptions.riskFreeRate.toFixed(1)}%`,
+    });
+
+    // W-11: Thin capitalization — Law 30/2023
+    const totalDebtW = bs.shortTermDebt + bs.longTermDebt;
+    const deRatio = bs.totalEquity > 0 ? totalDebtW / bs.totalEquity : 0;
+    rules.push({
+        id: 'W-11',
+        severity: 'WARNING',
+        field: 'D/E Ratio',
+        message: `Thin capitalization warning (Law 30/2023): D/E ratio (${deRatio.toFixed(2)}x) exceeds 3:1. Interest deductions above this threshold may be disallowed for Egyptian tax purposes, increasing the effective tax burden.`,
+        triggered: deRatio > 3.0,
+        currentValue: `${deRatio.toFixed(2)}x`,
+        limit: '≤ 3.0x',
+    });
+
     return rules;
 }
 

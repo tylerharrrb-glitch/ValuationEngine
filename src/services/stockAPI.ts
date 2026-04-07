@@ -2,7 +2,7 @@
 // Uses Financial Modeling Prep NEW Stable API (2026 format)
 // Endpoints: https://financialmodelingprep.com/stable/
 
-import { FinancialData } from '../types/financial';
+import { FinancialData, HistoricalYear } from '../types/financial';
 
 const BASE_URL = 'https://financialmodelingprep.com/stable';
 
@@ -245,6 +245,62 @@ export interface ExtendedFinancialData extends FinancialData {
 }
 
 // ============================================
+// FETCH: Historical Statements (5 years) — Phase 4, Task #24
+// ============================================
+
+async function fetchHistoricalStatements(
+  ticker: string,
+  apiKey: string
+): Promise<HistoricalYear[]> {
+  console.log(`[WOLF API] 📅 Fetching 5-year historical data...`);
+
+  try {
+    const [isData, bsData, cfData] = await Promise.all([
+      fetchEndpoint<FMPIncomeStatement[]>('income-statement', ticker, apiKey, '&period=annual&limit=5'),
+      fetchEndpoint<FMPBalanceSheet[]>('balance-sheet-statement', ticker, apiKey, '&period=annual&limit=5'),
+      fetchEndpoint<FMPCashFlow[]>('cash-flow-statement', ticker, apiKey, '&period=annual&limit=5'),
+    ]);
+
+    if (!isData || !Array.isArray(isData) || isData.length < 2) {
+      console.log('[WOLF API] ⚠ Insufficient historical data (need ≥2 years)');
+      return [];
+    }
+
+    // Map each year — FMP returns most recent first
+    const years: HistoricalYear[] = isData.map((is, idx) => {
+      const bs = bsData && Array.isArray(bsData) ? bsData[idx] : null;
+      const cf = cfData && Array.isArray(cfData) ? cfData[idx] : null;
+      const fiscalYear = parseInt(is.date?.substring(0, 4) || '0', 10);
+      const totalAssets = bs?.totalAssets || 0;
+      const currentRatio = bs && (bs.totalCurrentAssets || 0) > 0 && (bs.totalCurrentLiabilities || 0) > 0
+        ? (bs.totalCurrentAssets / bs.totalCurrentLiabilities)
+        : 0;
+      const grossMargin = is.revenue > 0 ? ((is.grossProfit || 0) / is.revenue) * 100 : 0;
+
+      return {
+        year: fiscalYear,
+        revenue: is.revenue || 0,
+        netIncome: is.netIncome || 0,
+        totalAssets,
+        totalEquity: bs?.totalStockholdersEquity || bs?.totalEquity || 0,
+        operatingCashFlow: cf?.operatingCashFlow || 0,
+        capex: Math.abs(cf?.capitalExpenditure || 0),
+        grossMargin,
+        longTermDebt: bs?.longTermDebt || 0,
+        currentRatio,
+        sharesOutstanding: 0, // not available per-year from these endpoints
+      };
+    });
+
+    console.log(`[WOLF API] ✅ Loaded ${years.length} years of historical data (${years[years.length - 1]?.year}–${years[0]?.year})`);
+    return years;
+  } catch (error) {
+    console.warn('[WOLF API] ⚠ Historical data fetch failed (non-critical):', error);
+    return [];
+  }
+}
+
+// ============================================
 // MAIN: Fetch All Stock Data
 // ============================================
 
@@ -259,12 +315,13 @@ export async function fetchFromAPI(
   console.log(`${'='.repeat(50)}\n`);
 
   try {
-    // Fetch all data in parallel for speed
-    const [profile, incomeStatement, balanceSheet, cashFlow] = await Promise.all([
+    // Fetch all data in parallel for speed (including 5Y historical)
+    const [profile, incomeStatement, balanceSheet, cashFlow, historicalYears] = await Promise.all([
       fetchProfile(ticker, apiKey),
       fetchIncomeStatement(ticker, apiKey),
       fetchBalanceSheet(ticker, apiKey),
       fetchCashFlow(ticker, apiKey),
+      fetchHistoricalStatements(ticker, apiKey),
     ]);
 
     // Validate we got at least profile data
@@ -446,6 +503,12 @@ export async function fetchFromAPI(
     console.log(`  • Total Debt: $${((financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) / 1e9).toFixed(2)}B`);
     console.log(`${'='.repeat(50)}\n`);
 
+    // Attach historical data (Phase 4, Task #24)
+    if (historicalYears && historicalYears.length >= 2) {
+      financialData.historicalData = historicalYears;
+      console.log(`[WOLF API] 📅 Historical data attached: ${historicalYears.length} years`);
+    }
+
     return { success: true, data: financialData };
 
   } catch (error) {
@@ -548,21 +611,38 @@ export const INDUSTRY_PEERS: Record<string, string[]> = {
   DEFAULT: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META'],
 };
 
-// Egyptian industry peer groups
+// Egyptian industry peer groups (expanded Phase 3 — 30+ stocks)
 export const EGYPTIAN_INDUSTRY_PEERS: Record<string, string[]> = {
   // Egyptian Banks
-  'COMI.CA': ['QNBA.CA', 'ADIB.CA', 'FAISAL.CA', 'SAIB.CA'],
+  'COMI.CA': ['QNBA.CA', 'ADIB.CA', 'FAISAL.CA', 'SAIB.CA', 'AIBC.CA'],
   'CIB.CA': ['QNBA.CA', 'ADIB.CA', 'FAISAL.CA', 'SAIB.CA'],
-  'QNBA.CA': ['COMI.CA', 'ADIB.CA', 'FAISAL.CA'],
+  'QNBA.CA': ['COMI.CA', 'ADIB.CA', 'FAISAL.CA', 'AIBC.CA'],
+  // Egyptian Financial Services
+  'HRHO.CA': ['CCAP.CA', 'EFIH.CA'],
+  'CCAP.CA': ['HRHO.CA', 'EFIH.CA'],
   // Egyptian Telecom
   'ETEL.CA': ['VODAFONE.CA', 'ORANGE.CA'],
   'TELECOM EGYPT': ['VODAFONE.CA', 'ORANGE.CA'],
   // Egyptian Food & Consumer
-  'EFID.CA': ['JUFO.CA', 'DOMTY.CA', 'ISPH.CA'],
-  'EAST.CA': ['EFID.CA', 'JUFO.CA', 'DOMTY.CA'],
+  'EFID.CA': ['JUFO.CA', 'DOMTY.CA', 'ISPH.CA', 'CLHO.CA'],
+  'EAST.CA': ['EFID.CA', 'JUFO.CA', 'DOMTY.CA', 'ARMC.CA'],
+  'JUFO.CA': ['EFID.CA', 'EAST.CA', 'DOMTY.CA', 'CLHO.CA'],
   // Egyptian Real Estate
-  'TMGH.CA': ['PHDC.CA', 'EMFD.CA', 'MNHD.CA'],
-  'PHDC.CA': ['TMGH.CA', 'EMFD.CA', 'MNHD.CA'],
+  'TMGH.CA': ['PHDC.CA', 'EMFD.CA', 'MNHD.CA', 'MDEV.CA', 'OCDI.CA'],
+  'PHDC.CA': ['TMGH.CA', 'EMFD.CA', 'MNHD.CA', 'MDEV.CA'],
+  'HELI.CA': ['TMGH.CA', 'MNHD.CA', 'PHDC.CA'],
+  // Egyptian Industrial
+  'SWDY.CA': ['ORWE.CA', 'ALCN.CA', 'ESRS.CA', 'IRON.CA'],
+  'ESRS.CA': ['IRON.CA', 'ALCN.CA', 'SWDY.CA'],
+  'ORWE.CA': ['SWDY.CA', 'ALCN.CA'],
+  // Egyptian Construction Materials
+  'SVCE.CA': ['ARCC.CA'],
+  // Egyptian Energy / Oil & Gas
+  'AMOC.CA': ['SKPC.CA'],
+  'SKPC.CA': ['AMOC.CA'],
+  // Egyptian Healthcare / Pharma
+  'PHAR.CA': ['EPHA.CA', 'ISPH.CA'],
+  'EPHA.CA': ['PHAR.CA', 'ISPH.CA'],
   // Default Egyptian peers (major EGX companies)
   'DEFAULT_EG': ['COMI.CA', 'ETEL.CA', 'EFID.CA', 'EAST.CA', 'TMGH.CA'],
 };

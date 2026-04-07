@@ -33,16 +33,25 @@ export const KeyMetricsGrid: React.FC<Props> = ({
   const nopatForROIC = is.operatingIncome * (1 - 0.225);
   const netDebt = totalDebt - bs.cash;
 
-  // ENH-1: Altman Z-Score
+  // ENH-1: Altman Z-Score — raw ratios and weighted contributions
   const wc = bs.totalCurrentAssets - bs.totalCurrentLiabilities;
   const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
-  const altmanZ = bs.totalAssets > 0
-    ? 1.2 * (wc / bs.totalAssets) +
-    1.4 * (bs.totalEquity / bs.totalAssets) +
-    3.3 * (is.operatingIncome / bs.totalAssets) +
-    0.6 * (marketCap / (bs.totalLiabilities || 1)) +
-    revenue / bs.totalAssets
-    : 0;
+
+  // Raw ratios (display these)
+  const x1Raw = bs.totalAssets > 0 ? wc / bs.totalAssets : 0;
+  const x2Raw = bs.totalAssets > 0 ? bs.totalEquity / bs.totalAssets : 0;
+  const x3Raw = bs.totalAssets > 0 ? is.operatingIncome / bs.totalAssets : 0;
+  const x4Raw = (bs.totalLiabilities || 1) > 0 ? marketCap / (bs.totalLiabilities || 1) : 0;
+  const x5Raw = bs.totalAssets > 0 ? revenue / bs.totalAssets : 0;
+
+  // Weighted contributions (use for Z total)
+  const x1Weighted = x1Raw * 1.2;
+  const x2Weighted = x2Raw * 1.4;
+  const x3Weighted = x3Raw * 3.3;
+  const x4Weighted = x4Raw * 0.6;
+  const x5Weighted = x5Raw * 1.0;
+
+  const altmanZ = x1Weighted + x2Weighted + x3Weighted + x4Weighted + x5Weighted;
   const altmanZone = altmanZ > 2.99 ? 'Safe' : altmanZ > 1.81 ? 'Grey Zone' : 'Distress';
   const altmanColor = altmanZ > 2.99 ? 'text-green-400' : altmanZ > 1.81 ? 'text-yellow-400' : 'text-red-400';
 
@@ -73,6 +82,15 @@ export const KeyMetricsGrid: React.FC<Props> = ({
   const spreadColor = roicWaccSpread > 2 ? 'text-green-400' : roicWaccSpread > 0 ? 'text-yellow-400' : 'text-red-400';
   const spreadLabel = roicWaccSpread > 2 ? '▲ Value Creating' : roicWaccSpread > 0 ? '≈ Neutral' : '▼ Value Destroying';
 
+  // Z-Score component data for expanded display
+  const zScoreComponents = [
+    { name: 'X1', formula: 'WC/TA', raw: x1Raw, coeff: 1.2, weighted: x1Weighted },
+    { name: 'X2', formula: 'RE/TA', raw: x2Raw, coeff: 1.4, weighted: x2Weighted },
+    { name: 'X3', formula: 'EBIT/TA', raw: x3Raw, coeff: 3.3, weighted: x3Weighted },
+    { name: 'X4', formula: 'MCap/TL', raw: x4Raw, coeff: 0.6, weighted: x4Weighted },
+    { name: 'X5', formula: 'Rev/TA', raw: x5Raw, coeff: 1.0, weighted: x5Weighted },
+  ];
+
   return (
     <div className={`p-6 rounded-xl border ${cardClass}`}>
       <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>Key Financial Metrics</h3>
@@ -89,8 +107,10 @@ export const KeyMetricsGrid: React.FC<Props> = ({
           { label: 'ROIC', value: formatPercent(roic), tooltip: 'Return on Invested Capital: NOPAT / (Equity + Debt − Cash). Measures value creation.', colorClass: roic > 15 ? 'text-green-400' : roic > 8 ? 'text-yellow-400' : 'text-red-400' },
           { label: 'ROIC−WACC Spread', value: `${roicWaccSpread > 0 ? '+' : ''}${roicWaccSpread.toFixed(2)}%`, tooltip: `ROIC (${roic.toFixed(2)}%) minus WACC (${waccPct.toFixed(2)}%). Positive = company creates value above its cost of capital. ${spreadLabel}.`, colorClass: spreadColor },
           { label: 'EVA', value: formatCurrencyShort(eva, currency), tooltip: `Economic Value Added = (ROIC−WACC) × Invested Capital = ${roicWaccSpread.toFixed(2)}% × ${formatCurrencyShort(investedCapital, currency)}. ${eva > 0 ? 'Company creates' : 'Company destroys'} shareholder value.`, colorClass: eva > 0 ? 'text-green-400' : 'text-red-400' },
-          { label: 'P/E Ratio', value: formatMultiple(keyMetrics.peRatio), tooltip: 'Price-to-Earnings Ratio: Current Stock Price / Earnings Per Share.' },
-          { label: 'EV/EBITDA', value: formatMultiple(keyMetrics.evEbitda), tooltip: 'Enterprise Value / EBITDA. A valuation multiple independent of capital structure.' },
+          { label: 'P/E Ratio', value: formatMultiple(keyMetrics.peRatio), tooltip: 'Price-to-Earnings Ratio (LTM): Market Cap / Trailing Net Income.' },
+          { label: 'P/E (NTM)', value: keyMetrics.ntmPE > 0 ? formatMultiple(keyMetrics.ntmPE) : 'N/A', tooltip: 'Forward P/E (Next Twelve Months): Market Cap / Year 1 projected NOPAT. Lower than LTM = earnings growth expected.', colorClass: keyMetrics.ntmPE > 0 && keyMetrics.ntmPE < keyMetrics.peRatio ? 'text-green-400' : keyMetrics.ntmPE > keyMetrics.peRatio ? 'text-red-400' : undefined },
+          { label: 'EV/EBITDA', value: formatMultiple(keyMetrics.evEbitda), tooltip: 'Enterprise Value / EBITDA (LTM). A valuation multiple independent of capital structure.' },
+          { label: 'EV/EBITDA (NTM)', value: keyMetrics.ntmEvEbitda > 0 ? formatMultiple(keyMetrics.ntmEvEbitda) : 'N/A', tooltip: 'Forward EV/EBITDA (Next Twelve Months): EV / Year 1 projected EBITDA. Lower = growing into valuation.', colorClass: keyMetrics.ntmEvEbitda > 0 && keyMetrics.ntmEvEbitda < keyMetrics.evEbitda ? 'text-green-400' : keyMetrics.ntmEvEbitda > keyMetrics.evEbitda ? 'text-red-400' : undefined },
           { label: 'Current Ratio', value: formatMultiple(keyMetrics.currentRatio), tooltip: 'Current Assets / Current Liabilities. Measures short-term liquidity.' },
           { label: 'Debt/Equity', value: formatMultiple(keyMetrics.debtToEquity), tooltip: 'Total Debt / Total Equity. Measures financial leverage.' },
           { label: 'Net Debt/EBITDA', value: ebitda > 0 ? `${(netDebt / ebitda).toFixed(1)}x` : 'N/A', tooltip: 'Net Debt / EBITDA. Leverage relative to earnings capacity.' },
@@ -106,7 +126,6 @@ export const KeyMetricsGrid: React.FC<Props> = ({
           }] : []),
           { label: 'Free Cash Flow', value: formatCurrencyShort(cf.freeCashFlow, currency), tooltip: 'Cash generated after accounting for capital expenditures.' },
           { label: 'Total Debt', value: formatCurrencyShort(totalDebt, currency), tooltip: 'Sum of short-term and long-term debt obligations.' },
-          { label: `Altman Z-Score`, value: `${altmanZ.toFixed(2)} (${altmanZone})`, tooltip: 'Bankruptcy risk indicator: >2.99 Safe, 1.81–2.99 Grey Zone, <1.81 Distress.', colorClass: altmanColor },
           { label: 'Cash Conv. Cycle', value: `${ccc.toFixed(0)} days`, tooltip: `Cash Conversion Cycle = DSO (${dso.toFixed(0)}) + DIO (${dio.toFixed(0)}) − DPO (${dpo.toFixed(0)}). Lower is better.`, colorClass: ccc < 30 ? 'text-green-400' : ccc < 90 ? 'text-yellow-400' : 'text-red-400' },
           { label: 'DuPont ROE', value: formatPercent(dupontROE), tooltip: `DuPont: NPM (${(npm * 100).toFixed(1)}%) × Asset Turnover (${assetTurnover.toFixed(2)}x) × Equity Multiplier (${equityMultiplier.toFixed(2)}x) = ROE.` },
           { label: `Eff. Tax Rate${taxFlag ? ' ⚠️' : ''}`, value: formatPercent(effectiveTax), tooltip: `Effective tax: Tax Expense / EBT = ${formatCurrencyShort(is.taxExpense)} / ${formatCurrencyShort(is.netIncome + is.taxExpense)}. ${taxFlag ? `⚠️ Differs from statutory (${statutoryRate}%) by ${taxGap.toFixed(1)}pp.` : `Close to statutory (${statutoryRate}%).`}`, colorClass: taxFlag ? 'text-orange-400' : undefined },
@@ -120,6 +139,48 @@ export const KeyMetricsGrid: React.FC<Props> = ({
             <div className={`text-lg font-bold ${colorClass || textClass}`}>{value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Altman Z-Score Detailed Breakdown */}
+      <div className={`mt-6 p-4 rounded-xl border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-gray-50 border-gray-100'}`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h4 className={`text-sm font-semibold ${textClass}`}>Altman Z-Score Breakdown</h4>
+            <Tooltip term="Altman Z-Score" definition="Bankruptcy risk indicator developed by Edward Altman. Shows both raw ratios and their weighted contributions to the total score." size={12} />
+          </div>
+          <span className={`text-lg font-bold ${altmanColor}`}>{altmanZ.toFixed(2)} — {altmanZone}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className={textMutedClass}>
+                <th className="text-left py-1 pr-3 font-medium">Component</th>
+                <th className="text-left py-1 pr-3 font-medium">Formula</th>
+                <th className="text-right py-1 pr-3 font-medium">Raw Ratio</th>
+                <th className="text-center py-1 pr-3 font-medium">× Coeff</th>
+                <th className="text-right py-1 font-medium">Weighted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {zScoreComponents.map((c) => (
+                <tr key={c.name} className={`border-t ${isDarkMode ? 'border-zinc-700/50' : 'border-gray-200/50'}`}>
+                  <td className={`py-1.5 pr-3 font-medium ${textClass}`}>{c.name}</td>
+                  <td className={`py-1.5 pr-3 ${textMutedClass}`}>{c.formula}</td>
+                  <td className={`py-1.5 pr-3 text-right font-mono ${textClass}`}>{c.raw.toFixed(3)}</td>
+                  <td className={`py-1.5 pr-3 text-center ${textMutedClass}`}>× {c.coeff.toFixed(1)}</td>
+                  <td className={`py-1.5 text-right font-mono font-semibold ${textClass}`}>{c.weighted.toFixed(3)}</td>
+                </tr>
+              ))}
+              <tr className={`border-t-2 ${isDarkMode ? 'border-zinc-600' : 'border-gray-300'}`}>
+                <td colSpan={4} className={`py-1.5 pr-3 font-bold ${textClass}`}>Z-Score Total</td>
+                <td className={`py-1.5 text-right font-mono font-bold ${altmanColor}`}>{altmanZ.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className={`mt-2 text-xs ${textMutedClass}`}>
+          {'> 2.99 = Safe Zone  •  1.81–2.99 = Grey Zone  •  < 1.81 = Distress Zone'}
+        </div>
       </div>
     </div>
   );

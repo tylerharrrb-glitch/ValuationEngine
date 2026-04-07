@@ -17,12 +17,13 @@ interface Props {
   currency: CurrencyCode;
   blendedValue?: number;
   blendedUpside?: number;
+  probabilityWeightedEV?: number;
 }
 
 export const ScenarioAnalysis: React.FC<Props> = ({
   financialData, adjustedAssumptions, scenarioCases, upside,
   isDarkMode, cardClass, textClass, textMutedClass, currency,
-  blendedValue, blendedUpside,
+  blendedValue, blendedUpside, probabilityWeightedEV,
 }) => {
   const bearVsCurrent = ((scenarioCases.bear - financialData.currentStockPrice) / financialData.currentStockPrice * 100);
   const bullVsCurrent = ((scenarioCases.bull - financialData.currentStockPrice) / financialData.currentStockPrice * 100);
@@ -142,6 +143,26 @@ export const ScenarioAnalysis: React.FC<Props> = ({
           )}
         </div>
       </div>
+      {/* Probability-Weighted Expected Value */}
+      {probabilityWeightedEV !== undefined && probabilityWeightedEV > 0 && (
+        <div className={`mt-4 p-4 rounded-xl border-2 ${isDarkMode ? 'border-[var(--accent-gold)]/30 bg-[var(--accent-gold)]/5' : 'border-blue-200 bg-blue-50'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className={`text-xs font-medium ${textMutedClass}`}>Probability-Weighted Expected Value</div>
+              <div className={`text-xs ${textMutedClass} mt-0.5`}>
+                ({adjustedAssumptions.bearProbability || 25}% Bear + {adjustedAssumptions.baseProbability || 50}% Base + {adjustedAssumptions.bullProbability || 25}% Bull)
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold" style={{ color: 'var(--accent-gold, #D4A843)' }}>{formatPrice(probabilityWeightedEV, currency)}</div>
+              {(() => {
+                const pwUpside = ((probabilityWeightedEV - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
+                return <div className={`text-sm font-medium ${pwUpside >= 0 ? 'text-green-400' : 'text-red-400'}`}>{pwUpside >= 0 ? '+' : ''}{pwUpside.toFixed(1)}% vs current</div>;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -58,8 +58,8 @@ export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
     countryRiskPremium: 0,
   },
   Egypt: {
-    riskFreeRate: 22.0,              // BUG FIX: 10-Year Egyptian Government Bond (was 27.25% CBE overnight)
-    marketRiskPremium: 5.5,          // BUG FIX: Mature Market ERP only (was 10% which double-counts CRP)
+    riskFreeRate: 20.0,              // 10-Year Egyptian Government Bond (Apr 2026 avg: ~20.4%)
+    marketRiskPremium: 5.5,          // Mature Market ERP only (Damodaran — NO CRP for Method A)
     terminalGrowthRate: 8.0,
     maxTerminalGrowth: 12.0,
     defaultTaxRate: 22.5,
@@ -68,7 +68,7 @@ export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
     label: '🇪🇬 Egypt',
     description: 'Egypt - Emerging Market (EGX)',
     riskFreeDescription: '10-Year Egyptian Government Bond Yield',
-    countryRiskPremium: 7.5,         // Damodaran for Egypt — used ONLY in Method B
+    countryRiskPremium: 7.5,         // Damodaran for Egypt (Caa1/B-) — used ONLY in Method B
   },
 };
 
@@ -152,7 +152,7 @@ function calculateCostOfEquity(inputs: WACCInputs): { ke: number; keUSD?: number
     // Method B — USD Build-Up
     const rfUS = inputs.rfUS ?? 4.5;
     const crp = inputs.countryRiskPremium ?? 7.5;
-    const egyptInf = (inputs.egyptInflation ?? 28.0) / 100;
+    const egyptInf = (inputs.egyptInflation ?? 12.0) / 100;
     const usInf = (inputs.usInflation ?? 3.0) / 100;
 
     const keUSD = rfUS + effectiveBeta * inputs.marketRiskPremium + crp;
@@ -1058,6 +1058,15 @@ export function validateInputs(
   // Cost of debt 0-50%
   if (assumptions.costOfDebt <= 0 || assumptions.costOfDebt > 50) {
     alerts.push({ type: 'warning', message: 'Cost of debt outside expected Egypt range (0%–50%)', field: 'costOfDebt' });
+  }
+
+  // Cost of Debt ≤ Risk-Free Rate (economically impossible for corporates)
+  if (assumptions.costOfDebt > 0 && assumptions.costOfDebt <= assumptions.riskFreeRate) {
+    alerts.push({
+      type: 'warning',
+      message: `Cost of Debt (${assumptions.costOfDebt.toFixed(1)}%) must exceed Risk-Free Rate (${assumptions.riskFreeRate.toFixed(1)}%). Corporate borrowers always pay a credit spread above sovereign yield. Suggested Kd = ${(assumptions.riskFreeRate + 2.5).toFixed(1)}% (Rf + 250 bps).`,
+      field: 'costOfDebt',
+    });
   }
 
   // CapEx < D&A

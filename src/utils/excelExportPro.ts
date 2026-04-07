@@ -1225,9 +1225,9 @@ export const exportToExcelWithFormulas = (
   ddmWs['A13'] = cell('Two-Stage DDM');
   ddmWs['B13'] = formula('IFERROR(B4*(1+B8)/(1+B6)^1+B4*(1+B8)^2/(1+B6)^2+B4*(1+B8)^3/(1+B6)^3+B4*(1+B8)^4/(1+B6)^4+B4*(1+B8)^5/(1+B6)^5+B4*(1+B8)^5*(1+B7)/(B6-B7)/(1+B6)^5,"N/A")', FMT.currencyDec);
 
-  // H-Model: P = DPS × [(1+g_l) + H × (g_h − g_l)] / (Ke − g_l)
+  // H-Model: P = DPS × (1 + g_l + H × (g_h − g_l)) / (Ke − g_l)
   ddmWs['A14'] = cell('H-Model DDM');
-  ddmWs['B14'] = formula('IFERROR(B4*(B7+(B9/2)*(B8-B7))/(B6-B7),"N/A")', FMT.currencyDec);
+  ddmWs['B14'] = formula('IFERROR(B4*(1+B7+(B9/2)*(B8-B7))/(B6-B7),"N/A")', FMT.currencyDec);
 
   // DDM vs DCF spread
   ddmWs['A15'] = cell('DDM vs DCF Spread');

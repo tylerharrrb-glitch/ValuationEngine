@@ -163,7 +163,13 @@ export interface ValuationAssumptions {
   discountingConvention: DiscountingConvention;
 
   // DDM parameters
-  dps: number;                  // Dividends per share
+  /**
+   * @deprecated — Do NOT set manually. DPS is auto-derived as:
+   * `abs(cashFlowStatement.dividendsPaid) / sharesOutstanding`.
+   * This field is retained for backward compatibility with saved valuations.
+   * If set, it is only used as a fallback when dividendsPaid is missing.
+   */
+  dps?: number;                 // Dividends per share (auto-derived — see above)
   ddmHighGrowth: number;        // High-growth phase dividend growth rate (%)
   ddmStableGrowth: number;      // Stable/terminal dividend growth rate (%)
   ddmHighGrowthYears: number;   // Number of high-growth years

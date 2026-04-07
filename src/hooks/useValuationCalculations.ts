@@ -32,6 +32,7 @@ export interface UseValuationCalculationsReturn {
   recommendation: Recommendation;
   currency: CurrencyCode;
   footballFieldData: { method: string; low: number; mid: number; high: number; color: string }[];
+  probabilityWeightedEV: number;
   revenueProjectionData: { year: string; Revenue: number; FCF: number; EBITDA: number }[];
   valuationComparisonData: { name: string; value: number; fill: string }[];
 }
@@ -133,10 +134,10 @@ export function useValuationCalculations(
   const blendedValue = (dcfValue * (dcfWeight / 100)) + (comparableValue * (compsWeight / 100));
   const upside = ((blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice) * 100;
 
-  // Key metrics
+  // Key metrics (NTM multiples use Year 1 DCF projections)
   const keyMetrics = useMemo(
-    () => calculateKeyMetrics(financialData),
-    [financialData]
+    () => calculateKeyMetrics(financialData, dcfProjections),
+    [financialData, dcfProjections]
   );
 
   // Get recommendation
@@ -167,8 +168,23 @@ export function useValuationCalculations(
       { method: 'DDM', low: ddmLow, mid: ddmMid, high: ddmHigh, color: 'bg-cyan-500' },
     ] : []),
     { method: 'P/B', low: comparableValuations.pbImplied * 0.9, mid: comparableValuations.pbImplied, high: comparableValuations.pbImplied * 1.1, color: 'bg-yellow-500' },
-    { method: 'Blended', low: blendedValue * 0.9, mid: blendedValue, high: blendedValue * 1.1, color: 'bg-red-500' },
+    // Football Field Fix: Blended bounds use weighted calculation, not simplistic ±10%
+    { method: 'Blended',
+      low:  (dcfWeight / 100) * Math.min(dcfLow, dcfValue) + (compsWeight / 100) * (comparableValue * 0.9),
+      mid:  blendedValue,
+      high: (dcfWeight / 100) * Math.max(dcfHigh, dcfValue) + (compsWeight / 100) * (comparableValue * 1.1),
+      color: 'bg-red-500'
+    },
   ];
+
+  // Probability-Weighted Expected Value (institutional standard)
+  const bearProb = adjustedAssumptions.bearProbability || 25;
+  const baseProb = adjustedAssumptions.baseProbability || 50;
+  const bullProb = adjustedAssumptions.bullProbability || 25;
+  const totalProb = bearProb + baseProb + bullProb;
+  const probabilityWeightedEV = totalProb > 0
+    ? (bearProb * scenarioCases.bear + baseProb * scenarioCases.base + bullProb * scenarioCases.bull) / totalProb
+    : dcfValue;
 
   // Chart data
   const revenueProjectionData = dcfProjections.map(p => ({
@@ -202,6 +218,7 @@ export function useValuationCalculations(
     recommendation,
     currency,
     footballFieldData,
+    probabilityWeightedEV,
     revenueProjectionData,
     valuationComparisonData,
   };

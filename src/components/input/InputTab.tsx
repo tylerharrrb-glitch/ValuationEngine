@@ -12,6 +12,8 @@ import { MARKET_DEFAULTS, EGYPTIAN_TAX_CATEGORIES, EGYPTIAN_INDUSTRY_MULTIPLES }
 import { formatPercent, formatNumber } from '../../utils/formatters';
 import { fetchAllPeerData, getSuggestedPeers } from '../../services/stockAPI';
 import { calculateWACC } from '../../utils/valuation';
+import { getEgyptMacroSnapshot } from '../../services/egyptMarketData';
+import { searchEGXStocks, EGX_MAJOR_STOCKS } from '../../utils/industryMapping';
 import { BalanceSheetValidation } from './BalanceSheetValidation';
 import { HistoricalDataPanel } from './HistoricalDataPanel';
 
@@ -45,6 +47,9 @@ export const InputTab: React.FC<InputTabProps> = ({
   const [inputSubTab, setInputSubTab] = useState<InputSubTab>('company');
   const [loadingPeers, setLoadingPeers] = useState(false);
   const [selectedSector, setSelectedSector] = useState<string>('DEFAULT');
+  const [egxSearch, setEgxSearch] = useState<string>('');
+  const [showEgxDropdown, setShowEgxDropdown] = useState(false);
+  const egyptMacro = marketRegion === 'Egypt' ? getEgyptMacroSnapshot() : null;
 
   // B1: Auto-populate sector defaults when sector changes (Egypt only)
   const handleSectorChange = (sector: string) => {
@@ -126,14 +131,14 @@ export const InputTab: React.FC<InputTabProps> = ({
       {/* Sub-tabs for input sections */}
       <div className={`flex flex-wrap gap-2 p-2 rounded-lg ${isDarkMode ? 'bg-[var(--bg-card)]' : 'bg-gray-100'}`}>
         {([
-          { id: 'company', label: 'Company Info' },
-          { id: 'income', label: 'Income Statement' },
-          { id: 'balance', label: 'Balance Sheet' },
-          { id: 'cashflow', label: 'Cash Flow' },
-          { id: 'assumptions', label: 'Assumptions' },
-          { id: 'comparables', label: 'Comparables' },
-          { id: 'historical', label: 'Historical' },
-        ] as { id: InputSubTab; label: string }[]).map(({ id, label }) => (
+          { id: 'company', label: 'Company Info', subtitle: '' },
+          { id: 'income', label: 'Income Statement', subtitle: 'Base Year (Most Recent Fiscal Year)' },
+          { id: 'balance', label: 'Balance Sheet', subtitle: 'Base Year (Most Recent Fiscal Year)' },
+          { id: 'cashflow', label: 'Cash Flow', subtitle: 'Base Year (Most Recent Fiscal Year)' },
+          { id: 'assumptions', label: 'Assumptions', subtitle: '' },
+          { id: 'comparables', label: 'Comparables', subtitle: '' },
+          { id: 'historical', label: 'Historical', subtitle: 'Multi-Period Trends (2021–2025)' },
+        ] as { id: InputSubTab; label: string; subtitle: string }[]).map(({ id, label, subtitle }) => (
           <button
             key={id}
             onClick={() => setInputSubTab(id)}
@@ -145,6 +150,11 @@ export const InputTab: React.FC<InputTabProps> = ({
               }`}
           >
             {label}
+            {subtitle && (
+              <span className={`block text-[10px] font-normal mt-0.5 ${inputSubTab === id ? 'opacity-70' : 'text-gray-500'}`}>
+                {subtitle}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -204,38 +214,60 @@ export const InputTab: React.FC<InputTabProps> = ({
             </div>
           )}
 
-          {/* C8: EGX Quick-Access Tickers (Egypt only) */}
+          {/* C8: EGX Ticker Auto-Complete — Phase 3 (Task #18) */}
           {marketRegion === 'Egypt' && (
             <div className="mt-4">
-              <h4 className={`text-sm font-semibold mb-2 text-red-400 uppercase tracking-wide`}>EGX Quick Access</h4>
-              <div className="space-y-2">
-                {[
-                  { sector: 'Banking', tickers: ['COMI.CA', 'QNBA.CA', 'AIBC.CA', 'FAISAL.CA', 'SAIB.CA'] },
-                  { sector: 'Real Estate', tickers: ['TMGH.CA', 'PHDC.CA', 'MDEV.CA', 'HELI.CA'] },
-                  { sector: 'Telecom & Industrial', tickers: ['ETEL.CA', 'SWDY.CA', 'ESRS.CA', 'AMOC.CA', 'ORWE.CA'] },
-                  { sector: 'Consumer & Healthcare', tickers: ['JUFO.CA', 'EAST.CA', 'EFID.CA', 'CCAP.CA', 'DOMTY.CA'] },
-                  { sector: 'Financial Services', tickers: ['HRHO.CA'] },
-                  { sector: 'Building Materials', tickers: ['SVCE.CA'] },
-                ].map(({ sector, tickers }) => (
-                  <div key={sector}>
-                    <span className={`text-xs font-medium uppercase tracking-wide ${textMutedClass}`}>{sector}</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {tickers.map(t => (
-                        <button
-                          key={t}
-                          onClick={() => updateFinancialData(prev => ({ ...prev, ticker: t }))}
-                          className={`px-2 py-1 text-xs rounded font-mono transition-all ${financialData.ticker === t
-                            ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
-                            : isDarkMode ? 'bg-zinc-800 text-gray-400 hover:bg-[var(--bg-secondary)] hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                          {t.replace('.CA', '')}
-                        </button>
-                      ))}
-                    </div>
+              <h4 className={`text-sm font-semibold mb-2 text-red-400 uppercase tracking-wide`}>EGX Ticker Search ({EGX_MAJOR_STOCKS.length} stocks)</h4>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={egxSearch}
+                  onChange={(e) => { setEgxSearch(e.target.value); setShowEgxDropdown(true); }}
+                  onFocus={() => setShowEgxDropdown(true)}
+                  placeholder="Search by ticker, name, or sector..."
+                  className={`w-full px-3 py-2 rounded-lg border text-sm ${inputClass}`}
+                />
+                {showEgxDropdown && (
+                  <div className={`absolute z-50 w-full mt-1 max-h-64 overflow-y-auto rounded-lg border shadow-xl ${isDarkMode ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'}`}>
+                    {(() => {
+                      const results = searchEGXStocks(egxSearch);
+                      // Group by sector
+                      const grouped = results.reduce<Record<string, typeof results>>((acc, s) => {
+                        const key = s.sector.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        (acc[key] = acc[key] || []).push(s);
+                        return acc;
+                      }, {});
+                      return Object.entries(grouped).map(([sector, stocks]) => (
+                        <div key={sector}>
+                          <div className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'bg-zinc-800 text-zinc-500' : 'bg-gray-100 text-gray-500'}`}>{sector}</div>
+                          {stocks.map(stock => (
+                            <button
+                              key={stock.ticker}
+                              onClick={() => {
+                                updateFinancialData(prev => ({ ...prev, ticker: stock.ticker + '.CA' }));
+                                setEgxSearch('');
+                                setShowEgxDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${isDarkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-50'} ${financialData.ticker === stock.ticker + '.CA' ? 'bg-[var(--accent-gold)]/10' : ''}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono font-bold text-sm ${isDarkMode ? 'text-[var(--accent-gold)]' : 'text-blue-600'}`}>{stock.ticker}</span>
+                                <span className={`text-xs ${textMutedClass} truncate max-w-[200px]`}>{stock.name}</span>
+                              </div>
+                              <span className={`text-[10px] font-mono ${textMutedClass}`}>β {stock.beta.toFixed(2)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                    {searchEGXStocks(egxSearch).length === 0 && (
+                      <div className={`px-3 py-4 text-center text-sm ${textMutedClass}`}>No stocks match "{egxSearch}"</div>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
+              {/* Dismiss dropdown on outside click */}
+              {showEgxDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowEgxDropdown(false)} />}
             </div>
           )}
         </div>
@@ -589,10 +621,36 @@ export const InputTab: React.FC<InputTabProps> = ({
                 <InputField label="Risk-Free Rate" value={assumptions.riskFreeRate}
                   onChange={(val) => updateAssumptions(prev => ({ ...prev, riskFreeRate: val as number }))}
                   suffix="%" tooltip="Risk-Free Rate" step="0.1" {...fieldProps} />
-                {/* C6: CBE Rate Reference Display */}
-                {marketRegion === 'Egypt' && (
-                  <div className={`text-xs mt-1 ${textMutedClass}`}>
-                    CBE Benchmark: 27.25% | 10Y Bond: ~22-24%
+                {/* C6: CBE Rate Reference Display — Phase 3 Live Card */}
+                {marketRegion === 'Egypt' && egyptMacro && (
+                  <div className={`text-xs mt-1.5 p-2.5 rounded-lg ${isDarkMode ? 'bg-zinc-800/70 border border-zinc-700' : 'bg-amber-50 border border-amber-200'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-semibold ${textMutedClass}`}>CBE / Market Rates</span>
+                      {egyptMacro.isStale && <span className="text-xs text-red-400 font-semibold">⚠ STALE DATA</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <span className={textMutedClass}>10Y Gov Bond:</span>
+                      <span className="font-mono font-semibold text-[var(--accent-gold)]">{egyptMacro.bondYields.tenYear}%</span>
+                      <span className={textMutedClass}>CBE Deposit:</span>
+                      <span className="font-mono">{egyptMacro.cbeRates.depositRate}%</span>
+                      <span className={textMutedClass}>CBE Lending:</span>
+                      <span className="font-mono">{egyptMacro.cbeRates.lendingRate}%</span>
+                      <span className={textMutedClass}>Damodaran CRP:</span>
+                      <span className="font-mono">{egyptMacro.damodaranCRP.countryRiskPremium}%</span>
+                      <span className={textMutedClass}>Inflation (CPI):</span>
+                      <span className="font-mono">{egyptMacro.inflation.headlineCPI}%</span>
+                      <span className={textMutedClass}>Rating:</span>
+                      <span className="font-mono">{egyptMacro.damodaranCRP.moodysRating} / {egyptMacro.damodaranCRP.spRating}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-zinc-700/50">
+                      <span className={`text-[10px] ${textMutedClass}`}>Updated: {egyptMacro.lastUpdated}</span>
+                      <button
+                        onClick={() => updateAssumptions(prev => ({ ...prev, riskFreeRate: egyptMacro!.bondYields.tenYear }))}
+                        className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] hover:bg-[var(--accent-gold)]/30 transition-colors"
+                      >
+                        Apply {egyptMacro.bondYields.tenYear}% as Rf
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

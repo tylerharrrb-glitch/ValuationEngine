@@ -2,8 +2,10 @@
  * Market region defaults and industry multiples for USA and Egypt.
  * These constants drive WACC components, tax rates, and comparable valuation defaults.
  *
- * BUG FIX: Egypt Rf changed from 27.25% (CBE overnight) to 22.0% (10Y bond)
- * BUG FIX: Egypt ERP changed from 10.0% to 5.5% (mature ERP only for Method A)
+ * UPDATED April 2026: Egypt Rf = 20.0% (10Y Gov Bond, Mar 2026 avg 20.4%)
+ * CBE overnight deposit = 19.0%, lending = 20.0% (held April 2, 2026)
+ * Inflation = 12.0% (January 2026 actual: 11.9%)
+ * Kd = 22.5% (Rf 20% + 250bp corporate credit spread)
  */
 
 /** Egyptian tax categories per Section 3.4 */
@@ -33,11 +35,12 @@ export const MARKET_DEFAULTS = {
     countryRiskPremium: 0,
   },
   Egypt: {
-    riskFreeRate: 22.0,           // 10-Year Egyptian Government Bond Yield (BUG FIX: was 27.25% CBE overnight)
-    marketRiskPremium: 5.5,       // Mature Market ERP ONLY (BUG FIX: was 10.0% which double-counts country risk)
-    terminalGrowthRate: 8.0,      // Egyptian nominal GDP growth
+    riskFreeRate: 20.0,           // 10-Year Egyptian Government Bond Yield (Apr 2026 avg: ~20.4%)
+    marketRiskPremium: 5.5,       // Mature Market ERP ONLY (Damodaran — NO CRP for Method A)
+    terminalGrowthRate: 8.0,      // Egyptian nominal GDP growth (~5% real + ~8-10% inflation target)
     maxTerminalGrowth: 12.0,      // Sustainable long-term rate (nominal, includes inflation)
-    defaultTaxRate: 22.5,         // Egyptian Corporate Tax Rate
+    defaultTaxRate: 22.5,         // Egyptian Corporate Tax Rate (Law 91/2005)
+    defaultCostOfDebt: 22.5,      // Rf 20% + 250bp corporate credit spread (must be > Rf)
     currency: 'EGP' as const,
     currencySymbol: 'EGP',
     label: '🇪🇬 Egypt',
@@ -48,7 +51,7 @@ export const MARKET_DEFAULTS = {
 
     // B2: Structured CAPM method guidance
     methodA: {
-      riskFreeRate: 22.0,         // 10-year Egyptian Government Bond (EGP)
+      riskFreeRate: 20.0,         // 10-year Egyptian Government Bond (EGP) — Apr 2026
       erp: 5.5,                   // Mature Market ERP (Damodaran)
       countryRiskPremium: 0,      // DO NOT ADD — already embedded in Rf
       rationale: 'Local Rf incorporates Egypt sovereign risk. Use mature ERP only.',
@@ -56,14 +59,26 @@ export const MARKET_DEFAULTS = {
     methodB: {
       riskFreeRate: 4.5,          // 10-year US Treasury
       erp: 5.5,                   // Mature Market ERP
-      countryRiskPremium: 4.5,    // Egypt CRP (Damodaran — check for updates)
+      countryRiskPremium: 7.5,    // Egypt CRP (Damodaran Caa1/B-)
       rationale: 'USD base with explicit country risk premium.',
     },
 
-    // B2: Additional Egypt-specific rates
-    cbeBenchmarkRate: 27.25,      // CBE overnight lending corridor (Jan 2025)
+    // CBE Policy Rates (April 2, 2026 — held unchanged)
+    cbeBenchmarkRate: 19.0,       // CBE overnight deposit rate
+    cbeLendingRate: 20.0,         // CBE overnight lending rate
+
+    // Macro parameters
+    egyptInflation: 12.0,         // January 2026 actual: 11.9% (was 28% — severely outdated)
+    usInflation: 3.0,             // US CPI
+
+    // Egyptian Legal
     dividendWithholdingTax: 10.0, // Article 46 bis Egyptian Tax Law — 10% on distributions
     capitalGainsTax: 10.0,        // On listed securities
+    legalReserveRate: 5.0,        // Law 159/1981
+    employeeProfitShare: 10.0,    // Law 159/1981
+
+    // Metadata
+    lastUpdated: '2026-04-07',    // Last calibration date
   },
 };
 

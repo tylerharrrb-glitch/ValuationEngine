@@ -22,6 +22,7 @@ import { ComparableBreakdown } from './sections/ComparableBreakdown';
 import { BaseYearFCF } from './sections/BaseYearFCF';
 import { DCFProjectionsTable } from './sections/DCFProjectionsTable';
 import { FCFFReconciliation } from './sections/FCFFReconciliation';
+import { FCFESection } from './sections/FCFESection';
 import { KeyMetricsGrid } from './sections/KeyMetricsGrid';
 import { DDMValuation } from './sections/DDMValuation';
 import { ReverseDCFSection } from './sections/ReverseDCFSection';
@@ -34,6 +35,11 @@ import { CalculationAuditTrail } from '../shared/CalculationAuditTrail';
 import { FXSensitivity } from './sections/FXSensitivity';
 import { WorkingCapitalDetail } from './sections/WorkingCapitalDetail';
 import { ConfidenceScore } from './sections/ConfidenceScore';
+import { CreditMetricsPanel } from './sections/CreditMetricsPanel';
+import { LBOPanel } from './sections/LBOPanel';
+import { SOTPPanel } from './sections/SOTPPanel';
+import { PrecedentTransactionsPanel } from './sections/PrecedentTransactionsPanel';
+import { RelativeValuationPanel } from './sections/RelativeValuationPanel';
 import { SaveLoadPanel } from './sections/SaveLoadPanel';
 
 export interface ValuationTabProps {
@@ -67,6 +73,7 @@ export interface ValuationTabProps {
   textClass: string;
   textMutedClass: string;
   currency: CurrencyCode;
+  probabilityWeightedEV?: number;
   handleLoadValuation: (data: { financialData: FinancialData; assumptions: ValuationAssumptions; comparables: ComparableCompany[] }) => void;
 }
 
@@ -77,7 +84,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
     hasValidComparables, industryMultiples, keyMetrics, recommendation,
     scenarioCases, scenario, valuationStyle, setValuationStyle,
     marketRegion, isDarkMode, cardClass, textClass, textMutedClass, currency,
-    historyIndex, historyLength, lastSaved, handleLoadValuation } = props;
+    historyIndex, historyLength, lastSaved, handleLoadValuation, probabilityWeightedEV } = props;
 
   const themeProps = { isDarkMode, cardClass, textClass, textMutedClass, currency };
   const reverseDCF = calculateReverseDCF(financialData, adjustedAssumptions);
@@ -160,6 +167,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         scenarioCases={scenarioCases} upside={upside}
         blendedValue={blendedValue}
         blendedUpside={financialData.currentStockPrice > 0 ? (blendedValue - financialData.currentStockPrice) / financialData.currentStockPrice * 100 : 0}
+        probabilityWeightedEV={probabilityWeightedEV}
         {...themeProps}
       />
       {/* Feature #3: Real Return Calculator (Egypt) */}
@@ -285,9 +293,14 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       />
       <BaseYearFCF financialData={financialData} {...themeProps} />
       <DCFProjectionsTable
-        dcfProjections={dcfProjections} scenario={scenario} {...themeProps}
+        dcfProjections={dcfProjections} scenario={scenario}
+        financialData={financialData} assumptions={adjustedAssumptions}
+        {...themeProps}
       />
       <FCFFReconciliation
+        financialData={financialData} assumptions={adjustedAssumptions} {...themeProps}
+      />
+      <FCFESection
         financialData={financialData} assumptions={adjustedAssumptions} {...themeProps}
       />
       {/* C3: EV-to-Equity Bridge */}
@@ -309,12 +322,17 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
         );
       })()}
       <KeyMetricsGrid financialData={financialData} keyMetrics={keyMetrics} assumptions={adjustedAssumptions} marketRegion={marketRegion} {...themeProps} />
+      <CreditMetricsPanel financialData={financialData} {...themeProps} />
       <WorkingCapitalDetail financialData={financialData} {...themeProps} />
       <DDMValuation financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
       <ReverseDCFSection reverseDCF={reverseDCF} {...themeProps} />
       <QualityScorecard scorecard={scorecard} {...themeProps} />
       <PiotroskiFScore financialData={financialData} {...themeProps} />
       <EASComplianceSection financialData={financialData} assumptions={adjustedAssumptions} {...themeProps} />
+      <LBOPanel financialData={financialData} {...themeProps} />
+      <SOTPPanel financialData={financialData} {...themeProps} />
+      <PrecedentTransactionsPanel financialData={financialData} {...themeProps} />
+      <RelativeValuationPanel financialData={financialData} keyMetrics={keyMetrics} marketRegion={marketRegion} {...themeProps} />
       <AIReport
         financialData={financialData} assumptions={adjustedAssumptions}
         dcfValue={dcfValue} comparableValue={comparableValue}

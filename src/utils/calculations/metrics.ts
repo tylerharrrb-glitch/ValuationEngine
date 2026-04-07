@@ -3,7 +3,7 @@
  * Computes key ratios and generates buy/sell recommendations.
  * REWRITTEN: Uses verdict logic from spec (±10% bands)
  */
-import { FinancialData } from '../../types/financial';
+import { FinancialData, DCFProjection } from '../../types/financial';
 
 /** All computed financial metrics */
 export interface KeyMetrics {
@@ -22,6 +22,10 @@ export interface KeyMetrics {
   interestCoverage: number;
   netDebtEbitda: number;
   dividendYield: number;
+  // NTM (Next Twelve Months) forward multiples — Task #7
+  ntmPE: number;
+  ntmEvEbitda: number;
+  ntmPS: number;
 }
 
 /** Buy/sell recommendation result */
@@ -36,7 +40,7 @@ export interface Recommendation {
 /**
  * Calculate all key financial metrics from financial data.
  */
-export function calculateKeyMetrics(financialData: FinancialData): KeyMetrics {
+export function calculateKeyMetrics(financialData: FinancialData, dcfProjections?: DCFProjection[]): KeyMetrics {
   const { incomeStatement, balanceSheet, cashFlowStatement } = financialData;
   const totalDebt = balanceSheet.shortTermDebt + balanceSheet.longTermDebt;
   const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
@@ -47,6 +51,13 @@ export function calculateKeyMetrics(financialData: FinancialData): KeyMetrics {
   const STATUTORY_TAX_RATE = 0.225;
   const nopat = incomeStatement.operatingIncome * (1 - STATUTORY_TAX_RATE);
   const netDebt = totalDebt - balanceSheet.cash;
+
+  // NTM (Next Twelve Months) forward multiples — Task #7
+  // Use Year 1 DCF projections to compute forward-looking ratios
+  const year1 = dcfProjections && dcfProjections.length > 0 ? dcfProjections[0] : null;
+  const fwdNetIncome = year1 ? year1.nopat : 0; // NOPAT as proxy for forward NI (pre-interest)
+  const fwdEbitda = year1 ? year1.ebitda : 0;
+  const fwdRevenue = year1 ? year1.revenue : 0;
 
   return {
     grossMargin: ((incomeStatement.revenue - incomeStatement.costOfGoodsSold) / incomeStatement.revenue) * 100,
@@ -68,6 +79,10 @@ export function calculateKeyMetrics(financialData: FinancialData): KeyMetrics {
     // C8 Fix: Use abs(dividendsPaid) to handle negative sign convention
     dividendYield: financialData.currentStockPrice > 0 && financialData.sharesOutstanding > 0
       ? (Math.abs(financialData.cashFlowStatement.dividendsPaid) / financialData.sharesOutstanding / financialData.currentStockPrice) * 100 : 0,
+    // NTM forward multiples
+    ntmPE: fwdNetIncome > 0 ? marketCap / fwdNetIncome : 0,
+    ntmEvEbitda: fwdEbitda > 0 ? ev / fwdEbitda : 0,
+    ntmPS: fwdRevenue > 0 ? marketCap / fwdRevenue : 0,
   };
 }
 
