@@ -4,6 +4,7 @@ import { FinancialData, ValuationAssumptions } from '../../../types/financial';
 import { ScenarioType, scenarioMultipliers } from '../../ScenarioToggle';
 import { VALUATION_STYLES, ValuationStyleKey } from '../../../constants/valuationStyles';
 import { formatPrice, CurrencyCode } from '../../../utils/formatters';
+import { calculateWACC } from '../../../utils/valuation';
 
 interface Props {
   financialData: FinancialData;
@@ -94,7 +95,7 @@ export const ValuationStyleSelector: React.FC<Props> = ({
           <tbody>
             {styleEntries.map(([key, style]) => {
               const sRevGrowth = assumptions.revenueGrowthRate * scenarioMultipliers[scenario].revenueGrowth * style.revenueGrowthMult;
-              const sWACC = Math.max(2, assumptions.discountRate * scenarioMultipliers[scenario].wacc + style.waccAdd);
+              const sWACC = Math.max(2, calculateWACC(financialData, assumptions) * scenarioMultipliers[scenario].wacc + style.waccAdd);
               const sTermGrowth = assumptions.terminalGrowthRate * scenarioMultipliers[scenario].terminalGrowth * style.terminalGrowthMult;
               // C3 Fix: Use FCFF buildup (NOPAT + D&A − CapEx − ΔWC) instead of legacy FCF margin
               const sTaxRate = assumptions.taxRate / 100;

@@ -13,6 +13,7 @@ import type {
   FCFFVerification,
   ScenarioAnalysis,
 } from '../types/financial';
+import { calculateKe } from '../utils/valuation';
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ function buildVerifyPrompt(req: WolfAnalystRequest): string {
   const V = marketCap + totalDebt;
   const We = V > 0 ? marketCap / V : 0;
   const Wd = V > 0 ? totalDebt / V : 0;
-  const ke = a.riskFreeRate + a.beta * a.marketRiskPremium;
+  const ke = calculateKe(a);
   const kdAt = a.costOfDebt * (1 - a.taxRate / 100);
   const wacc = We * ke + Wd * kdAt;
 
@@ -262,7 +263,7 @@ export function buildQuickVerifyPrompt(
   const totalDebt = fd.balanceSheet.shortTermDebt + fd.balanceSheet.longTermDebt;
   const marketCap = fd.currentStockPrice * fd.sharesOutstanding;
   const V = marketCap + totalDebt;
-  const ke = a.riskFreeRate + a.beta * a.marketRiskPremium;
+  const ke = calculateKe(a);
   const kdAt = a.costOfDebt * (1 - a.taxRate / 100);
   const We = V > 0 ? marketCap / V : 0;
   const Wd = V > 0 ? totalDebt / V : 0;

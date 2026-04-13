@@ -34,6 +34,34 @@ function setCell(
   }
 }
 
+/** Set a formula cell at the given row/col (IB convention: formulas = black text) */
+function setFormula(
+  ws: XLSX.WorkSheet,
+  row: number,
+  col: number,
+  formula: string,
+  fmt?: string
+) {
+  const addr = XLSX.utils.encode_cell({ r: row, c: col });
+  ws[addr] = { t: 'n', f: formula, z: fmt || '#,##0' };
+}
+
+/** Convert 0-indexed column number to Excel column letter (0→A, 1→B, …) */
+function colLetter(c: number): string {
+  let s = '';
+  let n = c + 1;
+  while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); }
+  return s;
+}
+
+/** Update worksheet !ref to cover all written cells including direct setCell/setFormula calls */
+function updateSheetRange(ws: XLSX.WorkSheet, maxRow: number, maxCol: number) {
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  if (maxRow > range.e.r) range.e.r = maxRow;
+  if (maxCol > range.e.c) range.e.c = maxCol;
+  ws['!ref'] = XLSX.utils.encode_range(range);
+}
+
 /**
  * Write an array of rows into a worksheet. Each cell can be:
  *   - a string → text cell
@@ -219,7 +247,13 @@ export function exportToExcel(data: ExportData): void {
     ['Earnings Per Share (EPS)', incomeStatement.netIncome / financialData.sharesOutstanding],
   ], r, [undefined, FMT_CURRENCY, '0.00%']);
 
-  ws2['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 14 }];
+  // NI reconciliation: implied NI = EBIT - Interest - Tax (column D)
+  // Row positions: EBIT = row 8, Interest = row 14, Tax = row 15, NI = row 16 (0-indexed)
+  setCell(ws2, 2, 3, 'Implied (Recon)');
+  setFormula(ws2, 16, 3, 'B9+B15+B16', FMT_CURRENCY); // EBIT + (-Interest) + (-Tax)
+  updateSheetRange(ws2, 16, 3);
+
+  ws2['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Income Statement');
 
   // ============================================
@@ -324,9 +358,8 @@ export function exportToExcel(data: ExportData): void {
     [],
     ['Assumptions'],
     ['Currency', ccy],
-    ['CAPM Method', assumptions.capmMethod === 'B' ? 'B \u2014 USD Build-Up' : 'A \u2014 Local Currency'],
-    ['Discount Rate (WACC)', assumptions.discountRate / 100],
-    ['Calculated WACC', wacc / 100],
+    ['CAPM Method', assumptions.capmMethod || 'local_rf'],
+    ['WACC (computed)', wacc / 100],
     ['Terminal Growth Rate', assumptions.terminalGrowthRate / 100],
     ['Projection Years', assumptions.projectionYears],
     ['Revenue Growth Rate', assumptions.revenueGrowthRate / 100],
@@ -344,62 +377,173 @@ export function exportToExcel(data: ExportData): void {
     ['Discounting Convention', assumptions.discountingConvention === 'mid_year' ? 'Mid-Year' : 'End of Year'],
   ], r, [undefined, '0.00%']);
 
-  // Override beta cell format
-  setCell(ws5, r - 1, 1, assumptions.beta, FMT_DEC2);
-  // Override projection years
-  setCell(ws5, r - 7, 1, assumptions.projectionYears, FMT_INT);
+  // Override beta cell format (row 16 = Beta) and projection years (row 7)
+  setCell(ws5, 16, 1, assumptions.beta, FMT_DEC2);
+  setCell(ws5, 7, 1, assumptions.projectionYears, FMT_INT);
+
+  // ── FCFF Projections with LIVE Excel formulas (IB convention) ──
+  // Assumption cell references (Excel 1-indexed A1 notation, matching rows above)
+  // Excel refs (1-indexed) — row count shifted after removing stale discountRate row
+  const WACC_REF = '$B$6';       // WACC computed (decimal)
+  const TERM_G_REF = '$B$7';     // assumptions.terminalGrowthRate (decimal)
+  const REV_G_REF = '$B$9';      // assumptions.revenueGrowthRate (decimal)
+  const EBITDA_M_REF = '$B$10';  // assumptions.ebitdaMargin (decimal)
+  const DA_REF = '$B$11';        // assumptions.daPercent (decimal)
+  const CAPEX_REF = '$B$12';     // assumptions.capexPercent (decimal)
+  const DWC_REF = '$B$13';       // assumptions.deltaWCPercent (decimal)
+  const TAX_REF = '$B$14';       // assumptions.taxRate (decimal)
+  const nYears = projections.length;
 
   r = writeRows(ws5, [
     [],
     ['FCFF Projections — NOPAT + D\u0026A − CapEx − ΔWC'],
     [],
+    ['Base Year Revenue', financialData.incomeStatement.revenue],
+  ], r, [undefined, FMT_CURRENCY]);
+  const BASE_REV_REF = `$B$${r}`; // Excel ref to base year revenue (row just written)
+
+  r = writeRows(ws5, [
     ['', ...projections.map(p => `Year ${p.year}`)],
   ], r);
 
-  // Full FCFF build-up rows with proper component breakdown
-  const fcffLabels: [string, (p: DCFProjection) => number][] = [
-    [`Revenue (${ccy})`, p => p.revenue],
-    [`EBITDA (${ccy})`, p => p.ebitda],
-    [`D\u0026A (${ccy})`, p => p.dAndA],
-    [`EBIT (${ccy})`, p => p.ebit],
-    [`NOPAT (${ccy})`, p => p.nopat],
-    [`CapEx (${ccy})`, p => p.capex],
-    [`ΔWC (${ccy})`, p => p.deltaWC],
-    [`FCFF (${ccy})`, p => p.freeCashFlow],
-    ['Discount Factor', p => p.discountFactor],
-    [`PV of FCFF (${ccy})`, p => p.presentValue],
-  ];
+  // FCFF row positions (0-indexed)
+  const fcffStart = r;
+  const ROW_REV = fcffStart;
+  const ROW_EBITDA = fcffStart + 1;
+  const ROW_DA = fcffStart + 2;
+  const ROW_EBIT = fcffStart + 3;
+  const ROW_NOPAT = fcffStart + 4;
+  const ROW_CAPEX = fcffStart + 5;
+  const ROW_DWC = fcffStart + 6;
+  const ROW_FCFF = fcffStart + 7;
+  const ROW_DF = fcffStart + 8;
+  const ROW_PV = fcffStart + 9;
 
-  for (const [label, getter] of fcffLabels) {
-    const fmt = label.includes('Discount Factor') ? FMT_DEC4 : FMT_CURRENCY;
-    r = writeRows(ws5, [
-      [label, ...projections.map(p => getter(p))],
-    ], r, [undefined, ...projections.map(() => fmt)]);
+  // Excel row = 0-indexed + 1
+  const xr = (row0: number) => row0 + 1;
+
+  // Write labels in column A
+  const fcffRowLabels = [
+    `Revenue (${ccy})`, `EBITDA (${ccy})`, `D&A (${ccy})`, `EBIT (${ccy})`,
+    `NOPAT (${ccy})`, `CapEx (${ccy})`, `ΔWC (${ccy})`, `FCFF (${ccy})`,
+    'Discount Factor', `PV of FCFF (${ccy})`,
+  ];
+  for (let i = 0; i < fcffRowLabels.length; i++) {
+    setCell(ws5, fcffStart + i, 0, fcffRowLabels[i]);
   }
 
-  const sumPV = projections.reduce((s: number, p: DCFProjection) => s + p.presentValue, 0);
-  const terminalPV = dcfValue - sumPV + totalDebt - balanceSheet.cash;
+  // Write formulas for each projection year
+  for (let yr = 0; yr < nYears; yr++) {
+    const col = yr + 1; // Column index (B=1, C=2, …)
+    const cL = colLetter(col);
+    const pL = yr > 0 ? colLetter(col - 1) : null;
 
-  r = writeRows(ws5, [
-    [],
-    ['Valuation Results'],
-    [],
-    ['Sum of Present Values', sumPV],
-    ['Terminal Value (PV)', terminalPV],
-    [],
-    ['Enterprise Value', dcfValue + totalDebt - balanceSheet.cash],
-    ['Less: Net Debt', totalDebt - balanceSheet.cash],
-    ['Equity Value', dcfValue],
-    [],
-    ['Shares Outstanding', financialData.sharesOutstanding],
-    ['Intrinsic Value per Share', dcfPerShare],
-    ['Current Stock Price', financialData.currentStockPrice],
-    ['Upside / Downside', dcfUpside / 100],
-  ], r, [undefined, FMT_CURRENCY]);
+    // Revenue: Year 1 = BaseRev × (1+g), Year N = PrevRev × (1+g)
+    setFormula(ws5, ROW_REV, col,
+      yr === 0 ? `${BASE_REV_REF}*(1+${REV_G_REF})` : `${pL}${xr(ROW_REV)}*(1+${REV_G_REF})`,
+      FMT_CURRENCY);
 
-  // Override shares outstanding format and upside format
-  setCell(ws5, r - 4, 1, financialData.sharesOutstanding, FMT_INT);
-  setCell(ws5, r - 1, 1, dcfUpside / 100, '0.00%');
+    // EBITDA = Revenue × EBITDA Margin
+    setFormula(ws5, ROW_EBITDA, col, `${cL}${xr(ROW_REV)}*${EBITDA_M_REF}`, FMT_CURRENCY);
+
+    // D&A = Revenue × D&A%
+    setFormula(ws5, ROW_DA, col, `${cL}${xr(ROW_REV)}*${DA_REF}`, FMT_CURRENCY);
+
+    // EBIT = EBITDA − D&A
+    setFormula(ws5, ROW_EBIT, col, `${cL}${xr(ROW_EBITDA)}-${cL}${xr(ROW_DA)}`, FMT_CURRENCY);
+
+    // NOPAT = EBIT × (1 − Tax Rate)
+    setFormula(ws5, ROW_NOPAT, col, `${cL}${xr(ROW_EBIT)}*(1-${TAX_REF})`, FMT_CURRENCY);
+
+    // CapEx = Revenue × CapEx%
+    setFormula(ws5, ROW_CAPEX, col, `${cL}${xr(ROW_REV)}*${CAPEX_REF}`, FMT_CURRENCY);
+
+    // ΔWC = (Revenue − PrevRevenue) × ΔWC%
+    const prevRevRef = yr === 0 ? BASE_REV_REF : `${pL}${xr(ROW_REV)}`;
+    setFormula(ws5, ROW_DWC, col, `(${cL}${xr(ROW_REV)}-${prevRevRef})*${DWC_REF}`, FMT_CURRENCY);
+
+    // FCFF = NOPAT + D&A − CapEx − ΔWC
+    setFormula(ws5, ROW_FCFF, col,
+      `${cL}${xr(ROW_NOPAT)}+${cL}${xr(ROW_DA)}-${cL}${xr(ROW_CAPEX)}-${cL}${xr(ROW_DWC)}`,
+      FMT_CURRENCY);
+
+    // Discount Factor = (1+WACC)^period
+    const period = assumptions.discountingConvention === 'mid_year' ? yr + 0.5 : yr + 1;
+    setFormula(ws5, ROW_DF, col, `(1+${WACC_REF})^${period}`, FMT_DEC4);
+
+    // PV of FCFF = FCFF / Discount Factor
+    setFormula(ws5, ROW_PV, col, `${cL}${xr(ROW_FCFF)}/${cL}${xr(ROW_DF)}`, FMT_CURRENCY);
+  }
+  r = fcffStart + 10; // Advance past the 10 FCFF rows
+
+  // ── Valuation Results with LIVE formulas ──
+  const firstDataCol = 'B';
+  const lastDataCol = colLetter(nYears);
+
+  r = writeRows(ws5, [[], ['Valuation Results'], []], r);
+
+  // Sum of Present Values = SUM(PV row)
+  const sumPVRow = r;
+  setCell(ws5, sumPVRow, 0, 'Sum of Present Values');
+  setFormula(ws5, sumPVRow, 1, `SUM(${firstDataCol}${xr(ROW_PV)}:${lastDataCol}${xr(ROW_PV)})`, FMT_CURRENCY);
+  r++;
+
+  // Terminal Value (PV) — Gordon Growth: lastFCFF×(1+g)/(WACC−g) discounted back
+  const tvPVRow = r;
+  setCell(ws5, tvPVRow, 0, 'Terminal Value (PV)');
+  const tvFormula = assumptions.terminalMethod === 'exit_multiple'
+    ? `${lastDataCol}${xr(ROW_EBITDA)}*${assumptions.exitMultiple}/(1+${WACC_REF})^${nYears}`
+    : `${lastDataCol}${xr(ROW_FCFF)}*(1+${TERM_G_REF})/(${WACC_REF}-${TERM_G_REF})/(1+${WACC_REF})^${nYears}`;
+  setFormula(ws5, tvPVRow, 1, tvFormula, FMT_CURRENCY);
+  r++;
+
+  r = writeRows(ws5, [[]], r); // blank
+
+  // Enterprise Value = Sum PV + TV PV
+  const evRow = r;
+  setCell(ws5, evRow, 0, 'Enterprise Value');
+  setFormula(ws5, evRow, 1, `B${xr(sumPVRow)}+B${xr(tvPVRow)}`, FMT_CURRENCY);
+  r++;
+
+  // Net Debt (input value — blue in IB convention)
+  const netDebtRow = r;
+  setCell(ws5, netDebtRow, 0, 'Less: Net Debt');
+  setCell(ws5, netDebtRow, 1, totalDebt - balanceSheet.cash, FMT_CURRENCY);
+  r++;
+
+  // Equity Value = EV − Net Debt
+  const eqValRow = r;
+  setCell(ws5, eqValRow, 0, 'Equity Value');
+  setFormula(ws5, eqValRow, 1, `B${xr(evRow)}-B${xr(netDebtRow)}`, FMT_CURRENCY);
+  r++;
+
+  r = writeRows(ws5, [[]], r); // blank
+
+  // Shares Outstanding (input)
+  const sharesRow = r;
+  setCell(ws5, sharesRow, 0, 'Shares Outstanding');
+  setCell(ws5, sharesRow, 1, financialData.sharesOutstanding, FMT_INT);
+  r++;
+
+  // Intrinsic Value per Share = Equity / Shares
+  const ivpsRow = r;
+  setCell(ws5, ivpsRow, 0, 'Intrinsic Value per Share');
+  setFormula(ws5, ivpsRow, 1, `B${xr(eqValRow)}/B${xr(sharesRow)}`, FMT_CURRENCY);
+  r++;
+
+  // Current Stock Price (input)
+  const curPriceRow = r;
+  setCell(ws5, curPriceRow, 0, 'Current Stock Price');
+  setCell(ws5, curPriceRow, 1, financialData.currentStockPrice, FMT_CURRENCY);
+  r++;
+
+  // Upside / Downside = (Intrinsic − Current) / Current
+  setCell(ws5, r, 0, 'Upside / Downside');
+  setFormula(ws5, r, 1, `(B${xr(ivpsRow)}-B${xr(curPriceRow)})/B${xr(curPriceRow)}`, '0.00%');
+  r++;
+
+  // Update sheet range to cover all formula cells
+  updateSheetRange(ws5, r - 1, nYears);
 
   const dcfCols = [{ wch: 22 }];
   for (let i = 0; i < projections.length; i++) dcfCols.push({ wch: 16 });
@@ -534,16 +678,29 @@ export function exportToExcel(data: ExportData): void {
   );
   const afterTaxCostOfDebt = costOfDebt * (1 - assumptions.taxRate / 100);
 
-  // Calculate Ke based on CAPM method
-  let keLocal = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+  // Calculate Ke based on CAPM method — supports A, B, C, local_rf
+  let effectiveBeta = assumptions.beta;
+  if (assumptions.betaType === 'adjusted') {
+    effectiveBeta = (2 / 3) * assumptions.beta + (1 / 3) * 1.0;
+  }
+  const crpVal = assumptions.countryRiskPremium ?? 9.71;
+  const rfClean = assumptions.rfCleanEGP ?? 9.49;
+  let keLocal: number;
   let keUSD: number | undefined;
   if (assumptions.capmMethod === 'B') {
-    const rfUS = assumptions.rfUS || 4.5;
-    const crp = assumptions.countryRiskPremium || 3.5;
-    keUSD = rfUS + assumptions.beta * assumptions.marketRiskPremium + crp;
-    const egInflation = (assumptions.egyptInflation || 12) / 100;
-    const usInflation = (assumptions.usInflation || 2.5) / 100;
+    const rfUS = assumptions.rfUS ?? 4.25;
+    keUSD = rfUS + effectiveBeta * (assumptions.marketRiskPremium + crpVal);
+    const egInflation = (assumptions.egyptInflation ?? 13.5) / 100;
+    const usInflation = (assumptions.usInflation ?? 3.3) / 100;
     keLocal = ((1 + keUSD / 100) * (1 + egInflation) / (1 + usInflation) - 1) * 100;
+  } else if (assumptions.capmMethod === 'C') {
+    const lambda = assumptions.lambda ?? 1.0;
+    keLocal = rfClean + effectiveBeta * assumptions.marketRiskPremium + lambda * crpVal;
+  } else if (assumptions.capmMethod === 'local_rf') {
+    keLocal = assumptions.riskFreeRate + effectiveBeta * assumptions.marketRiskPremium;
+  } else {
+    // Method A (default): Ke = Rf_clean + β×ERP + CRP
+    keLocal = rfClean + effectiveBeta * assumptions.marketRiskPremium + crpVal;
   }
 
   const totalCapital = marketCap + totalDebt;
@@ -555,7 +712,7 @@ export function exportToExcel(data: ExportData): void {
     ['WACC MODEL — Section 3'],
     [],
     ['1. COST OF EQUITY (Ke)'],
-    ['CAPM Method', assumptions.capmMethod === 'B' ? 'B — USD Build-Up' : 'A — Local Currency'],
+    ['CAPM Method', { A: 'A — Rf_clean + β·ERP + CRP', B: 'B — USD Build-Up (Fisher)', C: 'C — Rf + β·ERP + λ·CRP', local_rf: 'local_rf — Rf_local + β·ERP' }[assumptions.capmMethod] || assumptions.capmMethod],
     ['Risk-Free Rate (Rf)', assumptions.riskFreeRate / 100],
     ['Beta (β)', assumptions.beta],
     ['Beta Type', assumptions.betaType || 'Raw'],
@@ -567,16 +724,33 @@ export function exportToExcel(data: ExportData): void {
     r = writeRows(ws8, [
       [],
       ['USD Build-Up Details'],
-      ['Rf (US Treasury)', (assumptions.rfUS || 4.5) / 100],
-      ['Country Risk Premium (CRP)', (assumptions.countryRiskPremium || 3.5) / 100],
+      ['Rf (US Treasury)', (assumptions.rfUS ?? 4.25) / 100],
+      ['Country Risk Premium (CRP)', crpVal / 100],
       ['Ke (USD)', keUSD !== undefined ? keUSD / 100 : 0],
-      ['Egypt Inflation', (assumptions.egyptInflation || 12) / 100],
-      ['US Inflation', (assumptions.usInflation || 2.5) / 100],
+      ['Egypt Inflation', (assumptions.egyptInflation ?? 13.5) / 100],
+      ['US Inflation', (assumptions.usInflation ?? 3.3) / 100],
       ['Ke (EGP, Fisher-adjusted)', keLocal / 100],
+    ], r, [undefined, '0.00%']);
+  } else if (assumptions.capmMethod === 'C') {
+    r = writeRows(ws8, [
+      [],
+      ['Method C — Lambda CRP'],
+      ['Rf (Clean EGP)', rfClean / 100],
+      ['CRP', crpVal / 100],
+      ['Lambda (λ)', assumptions.lambda ?? 1.0],
+      ['Ke = Rf + β×ERP + λ×CRP', keLocal / 100],
+    ], r, [undefined, '0.00%']);
+  } else if (assumptions.capmMethod === 'local_rf') {
+    r = writeRows(ws8, [
+      ['Ke = Rf_local + β × ERP (CRP embedded in Rf)', keLocal / 100],
     ], r, [undefined, '0.00%']);
   } else {
     r = writeRows(ws8, [
-      ['Ke = Rf + β × ERP', keLocal / 100],
+      [],
+      ['Method A — Damodaran Default'],
+      ['Rf (Clean EGP)', rfClean / 100],
+      ['CRP', crpVal / 100],
+      ['Ke = Rf_clean + β×ERP + CRP', keLocal / 100],
     ], r, [undefined, '0.00%']);
   }
 
@@ -934,23 +1108,25 @@ export function exportToExcel(data: ExportData): void {
   // SHEET 9: WACC BUILD-UP
   // ============================================
   const wsWACC = newSheet();
-  const keVal = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
-  const kdAT = assumptions.costOfDebt * (1 - assumptions.taxRate / 100);
+  // Reuse keLocal/effectiveBeta already computed for Sheet 8
+  const kdAT = (assumptions.costOfDebt || costOfDebt) * (1 - assumptions.taxRate / 100);
   const totalDebtWACC = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
   const mkCapWACC = financialData.currentStockPrice * financialData.sharesOutstanding;
   const totalCapWACC = mkCapWACC + totalDebtWACC;
   const weWACC = totalCapWACC > 0 ? mkCapWACC / totalCapWACC : 1;
   const wdWACC = totalCapWACC > 0 ? totalDebtWACC / totalCapWACC : 0;
-  const waccFinal = weWACC * keVal + wdWACC * kdAT;
+  const waccFinal = weWACC * keLocal + wdWACC * kdAT;
 
   let rW = writeRows(wsWACC, [
     ['WACC BUILD-UP'],
     [''],
     ['Cost of Equity (Ke)', null],
-    ['Risk-Free Rate', assumptions.riskFreeRate],
-    ['Beta', assumptions.beta],
+    ['CAPM Method', assumptions.capmMethod || 'A'],
+    ['Risk-Free Rate', assumptions.capmMethod === 'local_rf' ? assumptions.riskFreeRate : rfClean],
+    ['Beta (effective)', effectiveBeta],
     ['Equity Risk Premium', assumptions.marketRiskPremium],
-    ['Ke = Rf + β × ERP', keVal],
+    ...(assumptions.capmMethod !== 'local_rf' ? [['Country Risk Premium', crpVal]] : []),
+    ['Ke', keLocal],
     [''],
     ['Cost of Debt'],
     ['Pre-Tax Kd', assumptions.costOfDebt],
@@ -1069,7 +1245,97 @@ export function exportToExcel(data: ExportData): void {
   XLSX.utils.book_append_sheet(wb, wsEVA, 'EVA Analysis');
 
   // ============================================
-  // SHEET 13: HOW TO BUILD THIS APP
+  // SHEET 13: HISTORICAL DATA
+  // ============================================
+  if (financialData.historicalData && financialData.historicalData.length > 0) {
+    const wsHist = newSheet();
+    let rh = 0;
+    const hist = financialData.historicalData.sort((a, b) => a.year - b.year);
+    const years = hist.map(h => h.year);
+    const numYears = years.length;
+
+    rh = writeRows(wsHist, [
+      ['HISTORICAL FINANCIAL DATA'],
+      [`${financialData.companyName} (${financialData.ticker})`],
+      [],
+      ['Metric', ...years.map(y => `FY${y}`)],
+    ], rh);
+
+    // Metrics rows
+    const metrics: { label: string; key: keyof typeof hist[0]; fmt: string }[] = [
+      { label: 'Revenue', key: 'revenue', fmt: FMT_CURRENCY },
+      { label: 'Net Income', key: 'netIncome', fmt: FMT_CURRENCY },
+      { label: 'Total Assets', key: 'totalAssets', fmt: FMT_CURRENCY },
+      { label: 'Total Equity', key: 'totalEquity', fmt: FMT_CURRENCY },
+      { label: 'Operating Cash Flow', key: 'operatingCashFlow', fmt: FMT_CURRENCY },
+      { label: 'Capital Expenditures', key: 'capex', fmt: FMT_CURRENCY },
+      { label: 'Gross Margin %', key: 'grossMargin', fmt: '0.00%' },
+      { label: 'Long-Term Debt', key: 'longTermDebt', fmt: FMT_CURRENCY },
+      { label: 'Current Ratio', key: 'currentRatio', fmt: FMT_RATIO },
+      { label: 'Shares Outstanding', key: 'sharesOutstanding', fmt: '#,##0' },
+    ];
+
+    for (const m of metrics) {
+      const vals = hist.map(h => {
+        const v = h[m.key];
+        // grossMargin is stored as percentage (e.g. 60), convert to decimal for Excel % format
+        if (m.key === 'grossMargin') return (v as number) / 100;
+        return v as number;
+      });
+      rh = writeRows(wsHist, [[m.label, ...vals]], rh, [undefined, ...vals.map(() => m.fmt)]);
+    }
+
+    // Blank row + CAGR section
+    rh = writeRows(wsHist, [[], ['CAGR Analysis']], rh);
+
+    // CAGR formulas: ((Last/First)^(1/N) - 1)
+    if (numYears >= 2) {
+      const cagrMetrics = ['Revenue', 'Net Income', 'Operating Cash Flow'];
+      const cagrKeys = ['revenue', 'netIncome', 'operatingCashFlow'];
+      for (let i = 0; i < cagrMetrics.length; i++) {
+        const firstVal = hist[0][cagrKeys[i] as keyof typeof hist[0]] as number;
+        const lastVal = hist[numYears - 1][cagrKeys[i] as keyof typeof hist[0]] as number;
+        const n = numYears - 1;
+        const cagr = firstVal > 0 && lastVal > 0
+          ? Math.pow(lastVal / firstVal, 1 / n) - 1
+          : 0;
+        rh = writeRows(wsHist, [[`${cagrMetrics[i]} CAGR (${n}Y)`, cagr]], rh, [undefined, '0.00%']);
+      }
+    }
+
+    // Piotroski F-Score (simple version from available data)
+    rh = writeRows(wsHist, [[], ['Piotroski F-Score (Latest Year)']], rh);
+    if (numYears >= 2) {
+      const curr = hist[numYears - 1];
+      const prev = hist[numYears - 2];
+      let fScore = 0;
+      const checks: [string, boolean][] = [
+        ['Net Income > 0', curr.netIncome > 0],
+        ['Operating CF > 0', curr.operatingCashFlow > 0],
+        ['ROA improving (NI/TA)', curr.totalAssets > 0 && prev.totalAssets > 0 && (curr.netIncome / curr.totalAssets) > (prev.netIncome / prev.totalAssets)],
+        ['OCF > NI (accrual quality)', curr.operatingCashFlow > curr.netIncome],
+        ['Leverage decreasing', curr.totalAssets > 0 && prev.totalAssets > 0 && (curr.longTermDebt / curr.totalAssets) < (prev.longTermDebt / prev.totalAssets)],
+        ['Current Ratio improving', curr.currentRatio > prev.currentRatio],
+        ['No dilution', curr.sharesOutstanding <= prev.sharesOutstanding],
+        ['Gross Margin improving', curr.grossMargin > prev.grossMargin],
+        ['Asset Turnover improving', curr.totalAssets > 0 && prev.totalAssets > 0 && (curr.revenue / curr.totalAssets) > (prev.revenue / prev.totalAssets)],
+      ];
+      for (const [label, passed] of checks) {
+        fScore += passed ? 1 : 0;
+        rh = writeRows(wsHist, [[label, passed ? 1 : 0]], rh, [undefined, FMT_INT]);
+      }
+      rh = writeRows(wsHist, [['Total F-Score', fScore]], rh, [undefined, FMT_INT]);
+      const verdict = fScore >= 7 ? 'Strong' : fScore >= 4 ? 'Moderate' : 'Weak';
+      rh = writeRows(wsHist, [['Assessment', verdict]], rh);
+    }
+
+    wsHist['!cols'] = [{ wch: 30 }, ...years.map(() => ({ wch: 16 }))];
+    updateSheetRange(wsHist, rh - 1, numYears);
+    XLSX.utils.book_append_sheet(wb, wsHist, 'Historical');
+  }
+
+  // ============================================
+  // SHEET 14: HOW TO BUILD THIS APP
   // ============================================
   const guideRows: string[][] = [
     ['HOW TO BUILD WOLF VALUATION ENGINE'],

@@ -100,8 +100,15 @@ export interface FinancialData {
 // CAPM METHOD & TAX CATEGORIES
 // ============================================
 
-/** Method A = Local Currency CAPM (default for EGP), Method B = USD Build-Up */
-export type CAPMMethod = 'A' | 'B';
+/**
+ * CAPM Method selection:
+ * - 'A': Damodaran Method A — Ke = Rf + β×ERP + CRP (use with clean Rf only)
+ * - 'B': Damodaran Method B — Ke = Rf + β×(ERP + CRP) (CRP loaded into beta)
+ * - 'C': Damodaran Method C — Ke = Rf + β×ERP + λ×CRP (lambda-adjusted)
+ * - 'local_rf': Simplified — Ke = local_bond_Rf + β×ERP_mature (NO separate CRP)
+ *              Valid because local bond yield already embeds country risk (~6.37% for Caa1)
+ */
+export type CAPMMethod = 'A' | 'B' | 'C' | 'local_rf';
 
 /** Egyptian tax categories per Section 3.4 */
 export type EgyptTaxCategory = 'standard' | 'oil_gas' | 'suez_canal' | 'free_zone' | 'custom';
@@ -121,7 +128,8 @@ export type TerminalValueMethod = 'gordon_growth' | 'exit_multiple';
 
 export interface ValuationAssumptions {
   // Core DCF parameters
-  discountRate: number;         // WACC (calculated, not hard-coded)
+  /** @derived — ALWAYS overridden by live calculateWACC(). Never persist or edit directly. */
+  discountRate: number;         // WACC — derived output, not user input
   terminalGrowthRate: number;   // Terminal growth rate (%)
   projectionYears: number;      // 3, 5, 7, or 10
   revenueGrowthRate: number;    // Revenue growth rate (%)
@@ -139,8 +147,16 @@ export interface ValuationAssumptions {
   // Method B (USD Build-Up) specific fields
   rfUS: number;                 // US 10Y Treasury yield (%)
   countryRiskPremium: number;   // CRP for Egypt (%)
-  egyptInflation: number;       // Egypt CPI inflation (%)
-  usInflation: number;          // US CPI inflation (%)
+  egyptInflation: number;       // Egypt current CPI inflation (%)
+  usInflation: number;          // US current CPI inflation (%)
+
+  // Damodaran clean risk-free rates
+  rfCleanUSD?: number;          // US Rf net of default spread (%)
+  rfCleanEGP?: number;          // Damodaran Fisher-adjusted EGP Rf (%)
+  egyptExpectedInflation?: number; // IMF medium-term forecast (%)
+
+  // Method C specific
+  lambda?: number;              // Country risk exposure factor (default 1.0)
 
   // Cost of Debt
   costOfDebt: number;           // Pre-tax cost of debt (%)

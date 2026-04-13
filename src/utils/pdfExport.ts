@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
 import { formatNumber, formatPercent, formatCurrency, CurrencyCode } from './formatters';
-import { calculateWACC } from './valuation';
+import { calculateWACC, calculateKe } from './valuation';
 import { SCENARIO_PARAMS } from './constants/scenarioParams';
 import { calcScenarioPrice } from './calculations/scenarios';
 import { calculateQualityScorecard, calculateReverseDCF, runMonteCarloSimulation, SECTOR_AVERAGES, getPercentile, getRating } from './advancedAnalysis';
@@ -584,7 +584,7 @@ export const exportToPDF = ({
   const evEbitdaImplied = ((financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization) * (ccy === 'EGP' ? 5.0 : 10.0) - (financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) + financialData.balanceSheet.cash) / financialData.sharesOutstanding;
   const gordonDDM = (() => {
     const dps = financialData.cashFlowStatement.dividendsPaid / financialData.sharesOutstanding;
-    const ke = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) / 100;
+    const ke = calculateKe(assumptions) / 100;
     const g = (assumptions.ddmStableGrowth || assumptions.terminalGrowthRate) / 100;
     return ke > g && dps > 0 ? dps * (1 + g) / (ke - g) : 0;
   })();
@@ -1686,6 +1686,46 @@ export const exportToPDF = ({
       { align: 'center' }
     );
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - 15, 290, { align: 'right' });
+  }
+
+  // ── DISCLAIMER & PROVENANCE PAGE ──────────────────────────────────
+  doc.addPage();
+  yPos = 20;
+
+  doc.setTextColor(...redColor);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DISCLAIMER', 15, yPos);
+  yPos += 8;
+
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const disclaimerFull = 'This valuation report is prepared for analytical purposes only and does not constitute investment advice under FRA regulations. All assumptions, projections, and valuations are based on publicly available information and standard financial modeling practices. Users should independently verify all inputs. Not regulated by the Financial Regulatory Authority (FRA) of Egypt. Past performance is not indicative of future results.';
+  const disclaimerLines = doc.splitTextToSize(disclaimerFull, pageWidth - 30);
+  doc.text(disclaimerLines, 15, yPos);
+  yPos += disclaimerLines.length * 4 + 8;
+
+  doc.setTextColor(...redColor);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DATA PROVENANCE', 15, yPos);
+  yPos += 7;
+
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const provenance = [
+    `CBE policy rates: Effective Feb 12, 2026; held unchanged Apr 2, 2026 (deposit ${ccy === 'EGP' ? '19.00' : 'N/A'}%, lending ${ccy === 'EGP' ? '20.00' : 'N/A'}%).`,
+    'Inflation: CAPMAS nationwide CPI, Mar 2026 (13.5%). US BLS CPI Mar 2026 (3.3%).',
+    'Country risk premium: Damodaran, Jan 5, 2026 update (Moody\'s Caa1 — 9.71%).',
+    'Mature market ERP: Damodaran, Jan 5, 2026 (4.23%).',
+    'Risk-free rate: 10Y Egyptian Government Bond avg Mar 2026 (20.40%). US 10Y Treasury midpoint Jan-Apr 2026 (4.25%).',
+    'Sovereign ratings: Moody\'s Caa1 (positive), S&P B (stable), Fitch B (stable).',
+  ];
+  for (const line of provenance) {
+    doc.text(line, 15, yPos);
+    yPos += 4;
   }
 
   // Save

@@ -1,3 +1,20 @@
+/* Kill spin buttons on all number inputs — institutional finance UI convention */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Prevent horizontal overflow at all viewport sizes */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════

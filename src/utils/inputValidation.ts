@@ -242,6 +242,28 @@ function checkWarnings(
         });
     }
 
+    // W-16: Terminal growth > risk-free rate (Damodaran rule of thumb)
+    rules.push({
+        id: 'W-16',
+        severity: 'WARNING',
+        field: 'Terminal Growth vs Rf',
+        message: `Terminal g (${assumptions.terminalGrowthRate.toFixed(1)}%) > Rf (${assumptions.riskFreeRate.toFixed(1)}%) — firm grows faster than economy implied by risk-free rate`,
+        triggered: assumptions.terminalGrowthRate > assumptions.riskFreeRate,
+        currentValue: `g=${assumptions.terminalGrowthRate.toFixed(1)}%, Rf=${assumptions.riskFreeRate.toFixed(1)}%`,
+    });
+
+    // W-17: Terminal growth > nominal GDP (~11-13% for Egypt)
+    const nominalGDPCap = 13;
+    rules.push({
+        id: 'W-17',
+        severity: 'WARNING',
+        field: 'Terminal Growth vs GDP',
+        message: `Terminal g (${assumptions.terminalGrowthRate.toFixed(1)}%) exceeds Egypt nominal GDP growth (~${nominalGDPCap}%)`,
+        triggered: assumptions.terminalGrowthRate > nominalGDPCap,
+        currentValue: `${assumptions.terminalGrowthRate.toFixed(1)}%`,
+        limit: `≤ ${nominalGDPCap}%`,
+    });
+
     // W-9: Negative equity
     rules.push({
         id: 'W-9',
@@ -276,6 +298,100 @@ function checkWarnings(
         currentValue: `${deRatio.toFixed(2)}x`,
         limit: '≤ 3.0x',
     });
+
+    // W-18: Scenario probabilities don't sum to 100%
+    const totalProb = assumptions.bearProbability + assumptions.baseProbability + assumptions.bullProbability;
+    rules.push({
+        id: 'W-18',
+        severity: 'WARNING',
+        field: 'Scenario Probabilities',
+        message: `Scenario probabilities sum to ${totalProb.toFixed(1)}% instead of 100%. Weighted value may be skewed.`,
+        triggered: Math.abs(totalProb - 100) > 0.01,
+        currentValue: `Bear ${assumptions.bearProbability}% + Base ${assumptions.baseProbability}% + Bull ${assumptions.bullProbability}% = ${totalProb}%`,
+        limit: '= 100%',
+    });
+
+    return rules;
+}
+
+// ============================================
+// SECTION 8.1b — PROJECTION DRIVER WARNINGS
+// Flag when assumptions deviate >5pp from actuals
+// ============================================
+
+function checkProjectionDrivers(
+    financialData: FinancialData,
+    assumptions: ValuationAssumptions,
+): ValidationRule[] {
+    const rules: ValidationRule[] = [];
+    const is = financialData.incomeStatement;
+    const cf = financialData.cashFlowStatement;
+    const rev = is.revenue;
+    if (rev <= 0) return rules;
+
+    const actualEBITDA = is.operatingIncome + is.depreciation + is.amortization;
+    const actualEBITDAMargin = (actualEBITDA / rev) * 100;
+    const actualDAPercent = ((is.depreciation + is.amortization) / rev) * 100;
+    const actualCapExPercent = (cf.capitalExpenditures / rev) * 100;
+
+    // W-12: EBITDA margin deviation
+    const ebitdaGap = Math.abs(actualEBITDAMargin - assumptions.ebitdaMargin);
+    if (ebitdaGap > 5) {
+        rules.push({
+            id: 'W-12',
+            severity: 'WARNING',
+            field: 'EBITDA Margin',
+            message: `EBITDA margin assumption (${assumptions.ebitdaMargin.toFixed(1)}%) deviates from base year actual (${actualEBITDAMargin.toFixed(1)}%) by ${ebitdaGap.toFixed(1)}pp. Verify projection drivers match the company's actual operating profile.`,
+            triggered: true,
+            currentValue: `Assumed: ${assumptions.ebitdaMargin.toFixed(1)}%, Actual: ${actualEBITDAMargin.toFixed(1)}%`,
+            limit: 'Within 5pp of actual',
+        });
+    }
+
+    // W-13: D&A % deviation
+    const daGap = Math.abs(actualDAPercent - assumptions.daPercent);
+    if (daGap > 5) {
+        rules.push({
+            id: 'W-13',
+            severity: 'WARNING',
+            field: 'D&A %',
+            message: `D&A assumption (${assumptions.daPercent.toFixed(1)}%) deviates from base year actual (${actualDAPercent.toFixed(1)}%) by ${daGap.toFixed(1)}pp.`,
+            triggered: true,
+            currentValue: `Assumed: ${assumptions.daPercent.toFixed(1)}%, Actual: ${actualDAPercent.toFixed(1)}%`,
+            limit: 'Within 5pp of actual',
+        });
+    }
+
+    // W-14: CapEx % deviation
+    const capexGap = Math.abs(actualCapExPercent - assumptions.capexPercent);
+    if (capexGap > 5) {
+        rules.push({
+            id: 'W-14',
+            severity: 'WARNING',
+            field: 'CapEx %',
+            message: `CapEx assumption (${assumptions.capexPercent.toFixed(1)}%) deviates from base year actual (${actualCapExPercent.toFixed(1)}%) by ${capexGap.toFixed(1)}pp.`,
+            triggered: true,
+            currentValue: `Assumed: ${assumptions.capexPercent.toFixed(1)}%, Actual: ${actualCapExPercent.toFixed(1)}%`,
+            limit: 'Within 5pp of actual',
+        });
+    }
+
+    // W-15: DPS conflict — dividendsPerShare vs dps field
+    const derivedDPS = financialData.cashFlowStatement.dividendsPaid > 0
+        ? Math.abs(financialData.cashFlowStatement.dividendsPaid) / financialData.sharesOutstanding
+        : 0;
+    const statedDPS = financialData.dividendsPerShare || 0;
+    const assumedDPS = assumptions.dps || 0;
+    if (statedDPS > 0 && assumedDPS > 0 && Math.abs(statedDPS - assumedDPS) > 0.01) {
+        rules.push({
+            id: 'W-15',
+            severity: 'WARNING',
+            field: 'DPS',
+            message: `Dividend conflict: dividendsPerShare (${statedDPS.toFixed(2)}) differs from assumptions.dps (${assumedDPS.toFixed(2)}). Engine uses: dividendsPaid/shares = ${derivedDPS.toFixed(2)}, then dividendsPerShare, then dps.`,
+            triggered: true,
+            currentValue: `dividendsPerShare: ${statedDPS}, dps: ${assumedDPS}, derived: ${derivedDPS.toFixed(2)}`,
+        });
+    }
 
     return rules;
 }
@@ -363,7 +479,11 @@ export function validateInputs(
     dcfResult?: DCFResult,
 ): ValidationResult {
     const hardBlocks = checkHardBlocks(financialData, assumptions).filter(r => r.triggered);
-    const warnings = checkWarnings(financialData, assumptions, dcfResult).filter(r => r.triggered);
+    const projectionWarnings = checkProjectionDrivers(financialData, assumptions);
+    const warnings = [
+        ...checkWarnings(financialData, assumptions, dcfResult).filter(r => r.triggered),
+        ...projectionWarnings,
+    ];
     const edgeCases = checkEdgeCases(financialData, assumptions).filter(r => r.triggered);
 
     return {

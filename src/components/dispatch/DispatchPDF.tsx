@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import type { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../../types/financial';
-import { calculateWACC } from '../../utils/valuation';
+import { calculateWACC, calculateKe } from '../../utils/valuation';
 import { calcScenarioPrice } from '../../utils/calculations/scenarios';
 import { calculateQualityScorecard, calculateReverseDCF, runMonteCarloSimulation } from '../../utils/advancedAnalysis';
 import { calculateDDM } from '../../utils/valuationEngine';
@@ -127,7 +127,7 @@ function generateNativePDF(props:Props){
   const dcfPS=eqVal/shares;
 
   // WACC components
-  const ke=a.riskFreeRate+a.beta*a.marketRiskPremium;
+  const ke=calculateKe(a);
   const kdAT=a.costOfDebt*(1-a.taxRate/100);
   const eqW=mktCap/(mktCap+totalDebt),dW=1-eqW;
 

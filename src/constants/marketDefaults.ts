@@ -2,10 +2,9 @@
  * Market region defaults and industry multiples for USA and Egypt.
  * These constants drive WACC components, tax rates, and comparable valuation defaults.
  *
- * UPDATED April 2026: Egypt Rf = 20.0% (10Y Gov Bond, Mar 2026 avg 20.4%)
- * CBE overnight deposit = 19.0%, lending = 20.0% (held April 2, 2026)
- * Inflation = 12.0% (January 2026 actual: 11.9%)
- * Kd = 22.5% (Rf 20% + 250bp corporate credit spread)
+ * Last verified: April 12, 2026
+ * Sources: CBE (cbe.org.eg), CAPMAS, Damodaran (pages.stern.nyu.edu/~adamodar),
+ * Investing.com, BLS, PwC Egypt Tax Summaries, Moody's, S&P, Fitch
  */
 
 /** Egyptian tax categories per Section 3.4 */
@@ -21,8 +20,8 @@ export const EGYPT_TAX_CATEGORIES = {
 /** Market defaults — Updated for 2025/2026, bugs fixed per WOLF spec */
 export const MARKET_DEFAULTS = {
   USA: {
-    riskFreeRate: 4.5,            // 10-Year US Treasury Yield
-    marketRiskPremium: 5.5,       // Historical US equity risk premium
+    riskFreeRate: 4.25,           // 10-Year US Treasury midpoint Jan-Apr 2026
+    marketRiskPremium: 4.23,      // Mature Market ERP (Damodaran, Jan 5 2026 update)
     terminalGrowthRate: 2.5,      // Long-term GDP growth proxy
     maxTerminalGrowth: 4.0,       // Cap for validation
     defaultTaxRate: 21.0,         // US Federal Corporate Tax Rate
@@ -35,50 +34,93 @@ export const MARKET_DEFAULTS = {
     countryRiskPremium: 0,
   },
   Egypt: {
-    riskFreeRate: 20.0,           // 10-Year Egyptian Government Bond Yield (Apr 2026 avg: ~20.4%)
-    marketRiskPremium: 5.5,       // Mature Market ERP ONLY (Damodaran — NO CRP for Method A)
+    riskFreeRate: 20.40,          // 10-Year Egyptian Government Bond Yield (Mar 2026 avg)
+    marketRiskPremium: 4.23,      // Mature Market ERP (Damodaran, Jan 5 2026 update)
     terminalGrowthRate: 8.0,      // Egyptian nominal GDP growth (~5% real + ~8-10% inflation target)
     maxTerminalGrowth: 12.0,      // Sustainable long-term rate (nominal, includes inflation)
     defaultTaxRate: 22.5,         // Egyptian Corporate Tax Rate (Law 91/2005)
-    defaultCostOfDebt: 22.5,      // Rf 20% + 250bp corporate credit spread (must be > Rf)
+    defaultCostOfDebt: 22.9,      // Rf 20.4% + 250bp corporate credit spread (must be > Rf)
     currency: 'EGP' as const,
     currencySymbol: 'EGP',
     label: '🇪🇬 Egypt',
     description: '10-Year Egyptian Government Bond Yield',
     marketDescription: 'Egypt - Emerging Market (EGX)',
     riskFreeDescription: '10-Year Egyptian Government Bond Yield',
-    countryRiskPremium: 7.5,      // Damodaran for Egypt (Caa1/B-) — used ONLY in Method B
+    countryRiskPremium: 9.71,     // Damodaran for Egypt (Moody's Caa1), Jan 5 2026 update
 
-    // B2: Structured CAPM method guidance
+    // ── Damodaran data — January 5, 2026 update ──
+    totalEquityRiskPremium: 13.94, // = MRP 4.23 + CRP 9.71
+    egyptDefaultSpread: 6.37,      // Sovereign default spread for Caa1
+    equityBondVolatilityScalar: 1.524, // CRP/default spread ratio
+
+    // ── Damodaran clean risk-free rates ──
+    rfCleanUSD: 3.95,              // US T.Bond 4.18% - US default spread 0.23%
+    rfCleanEGP: 9.49,              // Fisher: 3.95 + (7.78 - 2.24), using IMF expected inflation
+
+    // ── CAPM method guidance ──
+    // ⚠️ DOUBLE-COUNTING WARNING (Damodaran, "What is the riskfree rate?"):
+    // If Rf = local government bond yield (e.g., 20.4% for Egypt), it ALREADY
+    // embeds sovereign default risk (~6.37% for Caa1). Adding CRP separately
+    // will DOUBLE-COUNT country risk. Either:
+    // (a) Use clean Rf (Damodaran/Fisher) + CRP  → Methods A/B/C
+    // (b) Use local bond yield Rf + mature market ERP only (no CRP) → local_rf
     methodA: {
-      riskFreeRate: 20.0,         // 10-year Egyptian Government Bond (EGP) — Apr 2026
-      erp: 5.5,                   // Mature Market ERP (Damodaran)
-      countryRiskPremium: 0,      // DO NOT ADD — already embedded in Rf
-      rationale: 'Local Rf incorporates Egypt sovereign risk. Use mature ERP only.',
+      riskFreeRate: 9.49,           // Damodaran clean EGP Rf (Fisher-adjusted)
+      erp: 4.23,                    // Mature Market ERP (Damodaran)
+      countryRiskPremium: 9.71,     // Added explicitly — clean Rf does NOT embed it
+      rationale: 'Damodaran Method A: Clean Rf + β×ERP + CRP. Ke ≈ 9.49 + β×4.23 + 9.71',
     },
     methodB: {
-      riskFreeRate: 4.5,          // 10-year US Treasury
-      erp: 5.5,                   // Mature Market ERP
-      countryRiskPremium: 7.5,    // Egypt CRP (Damodaran Caa1/B-)
-      rationale: 'USD base with explicit country risk premium.',
+      riskFreeRate: 4.25,           // 10-year US Treasury
+      erp: 4.23,                    // Mature Market ERP
+      countryRiskPremium: 9.71,     // Egypt CRP (Damodaran, Moody's Caa1)
+      rationale: 'Damodaran Method B: Ke = Rf + β×(ERP + CRP). CRP loaded into beta.',
+    },
+    methodLocalRf: {
+      riskFreeRate: 20.40,          // Local 10Y EGB — already embeds country risk
+      erp: 4.23,                    // Mature Market ERP ONLY — NO CRP
+      countryRiskPremium: 0,        // DO NOT ADD — already embedded in Rf
+      rationale: 'Local Rf + mature ERP only. Rf already embeds ~6.37% sovereign spread.',
     },
 
-    // CBE Policy Rates (April 2, 2026 — held unchanged)
-    cbeBenchmarkRate: 19.0,       // CBE overnight deposit rate
-    cbeLendingRate: 20.0,         // CBE overnight lending rate
+    // ── CBE Policy Rates (effective Feb 12, 2026; held Apr 2, 2026) ──
+    cbeBenchmarkRate: 19.0,        // CBE overnight deposit rate
+    cbeLendingRate: 20.0,          // CBE overnight lending rate
+    cbeMainOperation: 19.5,        // CBE main operation rate
 
-    // Macro parameters
-    egyptInflation: 12.0,         // January 2026 actual: 11.9% (was 28% — severely outdated)
-    usInflation: 3.0,             // US CPI
+    // ── Inflation ──
+    egyptInflation: 13.5,           // CAPMAS nationwide CPI, March 2026
+    egyptExpectedInflation: 7.78,   // IMF medium-term forecast (used by Damodaran)
+    usInflation: 3.3,               // BLS CPI, March 2026
 
-    // Egyptian Legal
-    dividendWithholdingTax: 10.0, // Article 46 bis Egyptian Tax Law — 10% on distributions
-    capitalGainsTax: 10.0,        // On listed securities
-    legalReserveRate: 5.0,        // Law 159/1981
-    employeeProfitShare: 10.0,    // Law 159/1981
+    // ── Egyptian Legal & Tax ──
+    dividendWHTListed: 5.0,         // 5% for EGX-listed (was 10% for all — split)
+    dividendWHTUnlisted: 10.0,      // 10% for unlisted
+    cgtListedShares: 0,             // ABOLISHED June 2025; replaced by stamp duty
+    stampDutyRate: 0.125,           // 0.125% per transaction (buy and sell)
+    legalReserveRate: 5.0,          // Law 159/1981
+    employeeProfitShare: 10.0,      // Law 159/1981
 
-    // Metadata
-    lastUpdated: '2026-04-07',    // Last calibration date
+    // ── Egypt sovereign ratings (for display/reporting) ──
+    moodysRating: 'Caa1' as const,  // Positive outlook, affirmed Apr 3 2026
+    spRating: 'B' as const,         // Stable, upgraded from B- late 2025
+    fitchRating: 'B' as const,      // Stable
+
+    // ── EGX Market Conventions (Section 15) ──
+    tradingHours: '10:00–14:30 EET (Sun–Thu)',  // Continuous trading session
+    settlementCycle: 'T+2',                      // Misr for Central Clearing (MCDR)
+    priceLimitDaily: 10,                         // ±10% daily limit
+    priceLimitExpanded: 20,                      // Expandable to ±20% if hit
+    circuitBreaker: 5,                           // 5% threshold triggers 30-min halt
+    primaryIndex: 'EGX30',                       // Main benchmark
+    broadIndex: 'EGX70 EWI',                     // Broader equal-weight index
+    depository: 'MCDR',                          // Misr for Central Depository & Registration
+    regulator: 'FRA',                            // Financial Regulatory Authority
+    freeFloatMin: 10,                            // Minimum free float % for listing
+    boardLotSize: 1,                             // No minimum lot; fractional not allowed
+
+    // ── Metadata ──
+    lastUpdated: '2026-04-12',      // Last calibration date
   },
 };
 

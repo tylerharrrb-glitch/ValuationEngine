@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { FinancialData, ValuationAssumptions, ComparableCompany, MarketRegion } from '../types/financial';
 import { MARKET_DEFAULTS } from '../constants/marketDefaults';
 import { useHistory } from './useHistory';
+import { calculateWACC } from '../utils/valuation';
 
 export interface UseFinancialDataReturn {
   financialData: FinancialData;
@@ -107,12 +108,10 @@ export function useFinancialData(
         console.log('[WOLF] ✓ Calculated Tax Rate:', newAssumptions.taxRate + '%');
       }
       
-      // Recalculate WACC with new beta
-      if (data.beta && data.beta > 0) {
-        const costOfEquity = newAssumptions.riskFreeRate + (data.beta * newAssumptions.marketRiskPremium);
-        newAssumptions.discountRate = Math.round(costOfEquity * 10) / 10;
-        console.log('[WOLF] ✓ Auto-calculated WACC:', newAssumptions.discountRate + '%');
-      }
+      // Recalculate WACC from CAPM components (routed through dispatcher)
+      const computedWACC = calculateWACC(data, newAssumptions);
+      newAssumptions.discountRate = Math.round(computedWACC * 100) / 100;
+      console.log('[WOLF] ✓ WACC from CAPM dispatcher:', newAssumptions.discountRate.toFixed(2) + '%');
       
       // Calculate FCF margin
       if (data.incomeStatement.revenue > 0 && data.cashFlowStatement.freeCashFlow > 0) {
@@ -124,12 +123,41 @@ export function useFinancialData(
     });
   };
 
-  // Handle load valuation
-  const handleLoadValuation = (data: { 
-    financialData: FinancialData; 
-    assumptions: ValuationAssumptions; 
-    comparables: ComparableCompany[] 
+  // Handle load valuation — strips stale persisted fields
+  const handleLoadValuation = (data: {
+    financialData: FinancialData;
+    assumptions: ValuationAssumptions;
+    comparables: ComparableCompany[]
   }) => {
+    // Strip stale discountRate — will be recomputed live
+    if (data.assumptions.discountRate > 0) {
+      console.warn('[WOLF] Ignoring persisted discountRate:', data.assumptions.discountRate, '— WACC will be computed live');
+    }
+    // Strip legacy dps field — engine uses financialData.dividendsPerShare
+    if ((data.assumptions as any).dps !== undefined) {
+      console.warn('[WOLF] Ignoring legacy dps field:', (data.assumptions as any).dps);
+      delete (data.assumptions as any).dps;
+    }
+    // Migration: if capmMethod is 'A' but using local bond Rf (>10%), silently remap to local_rf
+    if (data.assumptions.capmMethod === 'A' && data.assumptions.riskFreeRate > 10) {
+      console.warn('[WOLF] Migrating capmMethod A → local_rf (local Rf already embeds CRP)');
+      data.assumptions.capmMethod = 'local_rf';
+    }
+    // Auto-sync DPS from Cash Flow when at default (0)
+    if (
+      (data.financialData.dividendsPerShare === 0 || data.financialData.dividendsPerShare === undefined) &&
+      data.financialData.cashFlowStatement.dividendsPaid > 0 &&
+      data.financialData.sharesOutstanding > 0
+    ) {
+      const derivedDPS = Math.abs(data.financialData.cashFlowStatement.dividendsPaid) / data.financialData.sharesOutstanding;
+      data.financialData.dividendsPerShare = Math.round(derivedDPS * 100) / 100;
+      console.info('[WOLF] Auto-synced DPS from dividendsPaid:', data.financialData.dividendsPerShare);
+    }
+
+    // Recompute WACC from components
+    const computedWACC = calculateWACC(data.financialData, data.assumptions);
+    data.assumptions.discountRate = computedWACC;
+
     setFinancialData(data.financialData);
     setAssumptions(data.assumptions);
     setComparables(data.comparables);

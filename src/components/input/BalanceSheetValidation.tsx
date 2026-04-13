@@ -76,7 +76,7 @@ export const BalanceSheetValidation: React.FC<Props> = ({ financialData, isDarkM
         checks.push({
             label: 'Net Income Reconciliation',
             passed: niDiff <= 0.05,
-            severity: niDiff > 0.05 ? 'warning' : 'info',
+            severity: 'info',
             message: niDiff <= 0.05
                 ? 'EBIT - Interest - Tax ≈ Net Income'
                 : `EBIT - Int - Tax = ${formatCurrencyShort(impliedNI)}, but NI = ${formatCurrencyShort(is.netIncome)}`,

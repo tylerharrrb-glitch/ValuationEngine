@@ -6,6 +6,7 @@ import { FinancialData, ValuationAssumptions } from '../../../types/financial';
 import { calculateDDM } from '../../../utils/valuationEngine';
 import { formatPrice, CurrencyCode } from '../../../utils/formatters';
 import { Tooltip } from '../../Tooltip';
+import { calculateKe } from '../../../utils/valuation';
 
 interface Props {
     financialData: FinancialData;
@@ -20,7 +21,7 @@ interface Props {
 export const DDMValuation: React.FC<Props> = ({
     financialData, assumptions, isDarkMode, cardClass, textClass, textMutedClass, currency,
 }) => {
-    const ke = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+    const ke = calculateKe(assumptions);
 
     const ddm = useMemo(
         () => calculateDDM(financialData, assumptions, ke),

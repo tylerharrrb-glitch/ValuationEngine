@@ -99,7 +99,7 @@ function App() {
   const themeProps = { isDarkMode, cardClass, textClass, textMutedClass, currency: calc.currency };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Header — Fixed Navbar */}
       <Header
         isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode}

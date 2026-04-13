@@ -32,33 +32,36 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
         </span>
       </div>
 
-      {/* ── CAPM Method Toggle ── */}
+      {/* ── CAPM Method Toggle — 4 Methods ── */}
       <div className="mb-4">
         <label className={labelClass}>CAPM Method</label>
-        <div className="flex gap-2">
-          <button
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${assumptions.capmMethod === 'A'
-              ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
-              }`}
-            onClick={() => updateField('capmMethod', 'A')}
-          >
-            A — Local Currency
-          </button>
-          <button
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${assumptions.capmMethod === 'B'
-              ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
-              }`}
-            onClick={() => updateField('capmMethod', 'B')}
-          >
-            B — USD Build-Up
-          </button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {([
+            { id: 'local_rf' as const, label: 'Local Rf' },
+            { id: 'A' as const, label: 'Method A' },
+            { id: 'B' as const, label: 'Method B' },
+            { id: 'C' as const, label: 'Method C' },
+          ]).map(({ id, label }) => (
+            <button
+              key={id}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${assumptions.capmMethod === id
+                ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-[var(--bg-secondary)]'
+                }`}
+              onClick={() => updateField('capmMethod', id)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <p className="text-xs text-zinc-600 mt-1">
-          {assumptions.capmMethod === 'A'
+          {assumptions.capmMethod === 'local_rf'
             ? 'Ke = Rf(Egypt) + β × ERP. CRP embedded in local Rf.'
-            : 'Ke = Rf(US) + β × ERP + CRP, then Fisher adjustment to EGP.'}
+            : assumptions.capmMethod === 'A'
+              ? 'Ke = Rf_clean + β × ERP + CRP.'
+              : assumptions.capmMethod === 'B'
+                ? 'Ke = Rf(US) + β × (ERP + CRP), then Fisher to EGP.'
+                : 'Ke = Rf_clean + β × ERP + λ × CRP.'}
         </p>
       </div>
 
@@ -139,7 +142,35 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
           />
         </div>
 
-        {/* ── Method B: CRP Fields (conditional) ── */}
+        {/* ── CRP (Methods A, B, C) ── */}
+        {assumptions.capmMethod !== 'local_rf' && (
+          <div>
+            <label className={labelClass}>Country Risk Premium %</label>
+            <input
+              type="number"
+              step="0.1"
+              value={assumptions.countryRiskPremium}
+              onChange={(e) => updateField('countryRiskPremium', parseFloat(e.target.value) || 0)}
+              className={inputClass}
+            />
+          </div>
+        )}
+        {/* ── Lambda (Method C only) ── */}
+        {assumptions.capmMethod === 'C' && (
+          <div>
+            <label className={labelClass}>Lambda (λ)</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="1"
+              value={assumptions.lambda ?? 1.0}
+              onChange={(e) => updateField('lambda', parseFloat(e.target.value) || 1.0)}
+              className={inputClass}
+            />
+          </div>
+        )}
+        {/* ── Method B: USD Build-Up extras ── */}
         {assumptions.capmMethod === 'B' && (
           <>
             <div>
@@ -149,16 +180,6 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
                 step="0.1"
                 value={assumptions.rfUS}
                 onChange={(e) => updateField('rfUS', parseFloat(e.target.value) || 0)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Country Risk Premium %</label>
-              <input
-                type="number"
-                step="0.1"
-                value={assumptions.countryRiskPremium}
-                onChange={(e) => updateField('countryRiskPremium', parseFloat(e.target.value) || 0)}
                 className={inputClass}
               />
             </div>
@@ -371,6 +392,7 @@ export function AssumptionsPanel({ assumptions, onChange, calculatedWacc, market
       {/* ── DDM Parameters ── */}
       <div className={sectionClass}>
         <h3 className="text-sm font-semibold text-zinc-400 mb-3">DDM Parameters</h3>
+        <p className="text-xs text-zinc-600 mb-3">DPS is set in the Company Info / DDM section of the Input tab.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className={labelClass}>Stable Growth Rate %</label>

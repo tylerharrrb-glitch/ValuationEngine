@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FinancialData, ValuationAssumptions, ComparableCompany, ValuationResult } from '../types/financial';
-import { calculateDCF, calculateComparableValuation } from '../utils/valuation';
+import { calculateDCF, calculateComparableValuation, calculateWACC } from '../utils/valuation';
 import { formatCurrencyShort, formatPercent, formatPrice } from '../utils/formatters';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Target, Award, TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Gauge } from 'lucide-react';
@@ -45,15 +45,16 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
   }));
 
   // WACC Sensitivity Analysis: compute DCF at different WACC levels
+  const liveWACC = calculateWACC(data, assumptions);
   const sensitivityLevels = [-2, -1, 0, +1, +2];
   const sensitivityData = sensitivityLevels.map(delta => {
-    const adjAssumptions = { ...assumptions, discountRate: Math.max(1, assumptions.discountRate + delta) };
+    const adjAssumptions = { ...assumptions, discountRate: Math.max(1, liveWACC + delta) };
     const { value } = calculateDCF(data, adjAssumptions);
     const perShare = value / data.sharesOutstanding;
     const upside = ((perShare - data.currentStockPrice) / data.currentStockPrice) * 100;
     return {
-      label: delta === 0 ? `${assumptions.discountRate.toFixed(1)}% (Current)` : `${(assumptions.discountRate + delta).toFixed(1)}% (${delta > 0 ? '+' : ''}${delta}%)`,
-      wacc: assumptions.discountRate + delta,
+      label: delta === 0 ? `${liveWACC.toFixed(1)}% (Current)` : `${(liveWACC + delta).toFixed(1)}% (${delta > 0 ? '+' : ''}${delta}%)`,
+      wacc: liveWACC + delta,
       perShare,
       upside,
       isCurrent: delta === 0,
@@ -165,7 +166,7 @@ export function ValuationSummary({ data, assumptions, comparables }: Props) {
             WACC Sensitivity Analysis
           </span>
           <span className="text-xs text-zinc-500 ml-1">
-            ({assumptions.discountRate.toFixed(1)}% base)
+            ({liveWACC.toFixed(1)}% base)
           </span>
           <div className="ml-auto">
             {showSensitivity ? (

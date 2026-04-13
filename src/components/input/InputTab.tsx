@@ -11,7 +11,7 @@ import { Tooltip } from '../Tooltip';
 import { MARKET_DEFAULTS, EGYPTIAN_TAX_CATEGORIES, EGYPTIAN_INDUSTRY_MULTIPLES } from '../../constants/marketDefaults';
 import { formatPercent, formatNumber } from '../../utils/formatters';
 import { fetchAllPeerData, getSuggestedPeers } from '../../services/stockAPI';
-import { calculateWACC } from '../../utils/valuation';
+import { calculateWACC, calculateKe } from '../../utils/valuation';
 import { getEgyptMacroSnapshot } from '../../services/egyptMarketData';
 import { searchEGXStocks, EGX_MAJOR_STOCKS } from '../../utils/industryMapping';
 import { BalanceSheetValidation } from './BalanceSheetValidation';
@@ -96,7 +96,7 @@ export const InputTab: React.FC<InputTabProps> = ({
     const totalCapital = marketCap + totalDebt;
     const We = totalCapital > 0 ? marketCap / totalCapital : 1;
     const Wd = totalCapital > 0 ? totalDebt / totalCapital : 0;
-    const Ke = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+    const Ke = calculateKe(assumptions);
     const costOfDebt = assumptions.costOfDebt || (
       totalDebt > 0 ? (financialData.incomeStatement.interestExpense / totalDebt) * 100 : assumptions.riskFreeRate + 2
     );
@@ -299,6 +299,30 @@ export const InputTab: React.FC<InputTabProps> = ({
                 {...fieldProps} />
             ))}
           </div>
+
+          {/* NI Reconciliation Note */}
+          {(() => {
+            const is = financialData.incomeStatement;
+            if (is.operatingIncome <= 0) return null;
+            const impliedNI = is.operatingIncome - is.interestExpense - is.taxExpense;
+            const niDiff = is.netIncome !== 0 ? Math.abs(impliedNI - is.netIncome) / Math.abs(is.netIncome) : 0;
+            const isClose = niDiff <= 0.05;
+            return (
+              <div className={`mt-3 p-3 rounded-lg border text-xs ${isClose
+                ? isDarkMode ? 'bg-zinc-800/50 border-zinc-700/50' : 'bg-gray-50 border-gray-200'
+                : isDarkMode ? 'bg-yellow-900/20 border-yellow-700/50' : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <span className={isClose ? 'text-green-400' : 'text-yellow-400'}>
+                  {isClose ? '✓' : 'ℹ'} Implied NI = EBIT ({formatNumber(is.operatingIncome)}) − Interest ({formatNumber(is.interestExpense)}) − Tax ({formatNumber(is.taxExpense)}) = {formatNumber(impliedNI)}
+                </span>
+                {!isClose && (
+                  <span className="text-yellow-400/80 ml-1">
+                    — differs from entered NI ({formatNumber(is.netIncome)}) by {(niDiff * 100).toFixed(1)}%. This is normal for consolidated statements with FX gains, equity income, or minority interest.
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -555,57 +579,73 @@ export const InputTab: React.FC<InputTabProps> = ({
             </div>
           </div>
 
-          {/* CAPM Method Toggle */}
+          {/* CAPM Method Toggle — 4 Methods */}
           <div className="mb-6">
             <h4 className={`text-sm font-semibold mb-3 text-purple-400 uppercase tracking-wide`}>
               CAPM Method
             </h4>
-            <div className="flex gap-2 mb-2">
-              <button
-                onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'A' }))}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'A'
-                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
-                  : isDarkMode
-                    ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-              >
-                A — Local Currency CAPM
-              </button>
-              <button
-                onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: 'B' }))}
-                className={`flex-1 px-4 py-3 rounded-lg font-medium text-sm transition-all ${assumptions.capmMethod === 'B'
-                  ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
-                  : isDarkMode
-                    ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-              >
-                B — USD Build-Up
-              </button>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+              {([
+                { id: 'local_rf' as const, label: 'Local Rf', desc: 'Ke = Rf_local + β×ERP' },
+                { id: 'A' as const, label: 'Method A', desc: 'Ke = Rf + β×ERP + CRP' },
+                { id: 'B' as const, label: 'Method B', desc: 'USD Build-Up + Fisher' },
+                { id: 'C' as const, label: 'Method C', desc: 'Ke = Rf + β×ERP + λ×CRP' },
+              ]).map(({ id, label, desc }) => (
+                <button
+                  key={id}
+                  onClick={() => updateAssumptions(prev => ({ ...prev, capmMethod: id }))}
+                  className={`px-3 py-2.5 rounded-lg font-medium text-sm transition-all text-center ${assumptions.capmMethod === id
+                    ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)] shadow-lg'
+                    : isDarkMode
+                      ? 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                  <div>{label}</div>
+                  <div className={`text-[10px] mt-0.5 font-normal ${assumptions.capmMethod === id ? 'opacity-70' : textMutedClass}`}>{desc}</div>
+                </button>
+              ))}
             </div>
             <p className={`text-xs ${textMutedClass}`}>
-              {assumptions.capmMethod === 'A'
-                ? 'Ke = Rf(Egypt 10Y) + β × ERP. Country risk embedded in local risk-free rate.'
-                : 'Ke = Rf(US 10Y) + β × ERP + CRP, then Fisher adjustment to EGP.'}
+              {assumptions.capmMethod === 'local_rf'
+                ? 'Ke = Rf(Egypt 10Y) + β × ERP. Country risk embedded in local risk-free rate. No separate CRP.'
+                : assumptions.capmMethod === 'A'
+                  ? 'Ke = Rf_clean + β × ERP + CRP. Use with clean (default-spread-adjusted) Rf only.'
+                  : assumptions.capmMethod === 'B'
+                    ? 'Ke = Rf(US) + β × (ERP + CRP), then Fisher adjustment to EGP.'
+                    : 'Ke = Rf_clean + β × ERP + λ × CRP. Lambda adjusts country risk exposure (0–1).'}
             </p>
-            {/* M2: Contextual ERP warning */}
+            {/* Double-counting warnings */}
             {marketRegion === 'Egypt' && (
               <div className={`mt-2 p-2 rounded-lg text-xs ${isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
-                {assumptions.capmMethod === 'A' ? (
+                {assumptions.capmMethod === 'local_rf' ? (
                   <span className="text-blue-400">
-                    ℹ Using Mature Market ERP ({assumptions.marketRiskPremium}%) with Local CAPM. Country risk is embedded in Rf={assumptions.riskFreeRate}%. Ke = {(assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium).toFixed(2)}%. This is the correct approach for Method A.
+                    ℹ Using local Rf ({assumptions.riskFreeRate}%) which already embeds sovereign risk. Ke = {calculateKe(assumptions).toFixed(2)}%.
                   </span>
-                ) : (
-                  assumptions.marketRiskPremium < 8 ? (
-                    <span className="text-yellow-400">
-                      ⚠ For USD Build-Up (Method B), total ERP should be 8-12% for Egypt. Consider adding Country Risk Premium of 3-6% to the mature market {assumptions.marketRiskPremium}%.
+                ) : assumptions.capmMethod === 'A' ? (
+                  assumptions.riskFreeRate > 10 ? (
+                    <span className="text-red-400">
+                      ⚠ Double-counting risk: Rf ({assumptions.riskFreeRate}%) appears to be a local EGP rate (embeds ~6.4% CRP). Method A adds CRP ({assumptions.countryRiskPremium}%) separately. Use "Local Rf" method instead, or switch to a clean Rf (~{((assumptions.rfCleanEGP ?? 9.49)).toFixed(1)}%).
                     </span>
                   ) : (
                     <span className="text-green-400">
-                      ✓ ERP of {assumptions.marketRiskPremium}% is appropriate for Egypt USD Build-Up method.
+                      ✓ Method A with clean Rf. Ke = {calculateKe(assumptions).toFixed(2)}%.
                     </span>
                   )
+                ) : assumptions.capmMethod === 'B' ? (
+                  assumptions.marketRiskPremium < 8 ? (
+                    <span className="text-yellow-400">
+                      ⚠ For USD Build-Up, total ERP should be 8-12% for Egypt. Current: {assumptions.marketRiskPremium}%.
+                    </span>
+                  ) : (
+                    <span className="text-green-400">
+                      ✓ Method B (USD Build-Up). Ke = {calculateKe(assumptions).toFixed(2)}%.
+                    </span>
+                  )
+                ) : (
+                  <span className="text-blue-400">
+                    ℹ Method C with λ={assumptions.lambda ?? 1.0}. Ke = {calculateKe(assumptions).toFixed(2)}%.
+                  </span>
                 )}
               </div>
             )}
@@ -695,6 +735,18 @@ export const InputTab: React.FC<InputTabProps> = ({
                   </div>
                 );
               })()}
+              {/* CRP — visible for Methods A, B, C (not local_rf) */}
+              {assumptions.capmMethod !== 'local_rf' && (
+                <InputField label="Country Risk Premium" value={assumptions.countryRiskPremium}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, countryRiskPremium: val as number }))}
+                  suffix="%" step="0.1" tooltip="Damodaran CRP for Egypt. Not used in Local Rf method." {...fieldProps} />
+              )}
+              {/* Lambda — visible for Method C only */}
+              {assumptions.capmMethod === 'C' && (
+                <InputField label="Lambda (λ)" value={assumptions.lambda ?? 1.0}
+                  onChange={(val) => updateAssumptions(prev => ({ ...prev, lambda: val as number }))}
+                  step="0.1" min={0} max={1} tooltip="Country risk exposure factor (0–1). 1.0 = full CRP exposure." {...fieldProps} />
+              )}
               {/* Egyptian Tax Category */}
               {marketRegion === 'Egypt' ? (
                 <div>
@@ -721,16 +773,13 @@ export const InputTab: React.FC<InputTabProps> = ({
               )}
             </div>
 
-            {/* Method B: CRP fields (conditional) */}
+            {/* Method B: USD Build-Up extra fields (conditional) */}
             {assumptions.capmMethod === 'B' && (
               <div className={`mt-4 p-4 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700' : 'bg-blue-50 border-blue-200'}`}>
-                <h5 className={`text-xs font-semibold mb-3 text-blue-400 uppercase`}>Method B — USD Build-Up Parameters</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <h5 className={`text-xs font-semibold mb-3 text-blue-400 uppercase`}>Method B — USD Build-Up & Fisher Parameters</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <InputField label="US Risk-Free Rate" value={assumptions.rfUS}
                     onChange={(val) => updateAssumptions(prev => ({ ...prev, rfUS: val as number }))}
-                    suffix="%" step="0.1" {...fieldProps} />
-                  <InputField label="Country Risk Premium" value={assumptions.countryRiskPremium}
-                    onChange={(val) => updateAssumptions(prev => ({ ...prev, countryRiskPremium: val as number }))}
                     suffix="%" step="0.1" {...fieldProps} />
                   <InputField label="Egypt Inflation" value={assumptions.egyptInflation}
                     onChange={(val) => updateAssumptions(prev => ({ ...prev, egyptInflation: val as number }))}
@@ -749,11 +798,11 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <Tooltip term="WACC">Calculated Ke (Cost of Equity)</Tooltip>
                 </span>
                 <span className={`text-lg font-bold ${textClass}`}>
-                  {formatPercent(assumptions.riskFreeRate + (assumptions.beta * assumptions.marketRiskPremium))}
+                  {formatPercent(calculateKe(assumptions))}
                 </span>
               </div>
               <div className={`text-xs ${textMutedClass} mt-1`}>
-                Ke = {assumptions.riskFreeRate}% + ({assumptions.beta} × {assumptions.marketRiskPremium}%) = {formatPercent(assumptions.riskFreeRate + (assumptions.beta * assumptions.marketRiskPremium))}
+                Ke ({assumptions.capmMethod}) = {calculateKe(assumptions).toFixed(2)}%
               </div>
             </div>
           </div>
@@ -994,7 +1043,39 @@ export const InputTab: React.FC<InputTabProps> = ({
             <h4 className={`text-sm font-semibold mb-3 text-orange-400 uppercase tracking-wide`}>
               DDM Parameters
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* DPS Input with Sync button */}
+              <div>
+                <InputField label="Dividends Per Share" value={financialData.dividendsPerShare}
+                  onChange={(val) => updateFinancialData(prev => ({ ...prev, dividendsPerShare: val as number }))}
+                  prefix={currency === 'EGP' ? 'EGP' : '$'} step="0.01" min={0} {...fieldProps} />
+                {(() => {
+                  const divPaid = Math.abs(financialData.cashFlowStatement.dividendsPaid || 0);
+                  const derivedDPS = financialData.sharesOutstanding > 0 ? divPaid / financialData.sharesOutstanding : 0;
+                  const enteredDPS = financialData.dividendsPerShare || 0;
+                  const hasCFData = divPaid > 0;
+                  const isDifferent = hasCFData && Math.abs(enteredDPS - derivedDPS) > 0.01;
+                  return (
+                    <div className="mt-1 flex items-center gap-2">
+                      {hasCFData && (
+                        <button
+                          onClick={() => updateFinancialData(prev => ({ ...prev, dividendsPerShare: Math.round(derivedDPS * 100) / 100 }))}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${isDifferent
+                            ? 'bg-orange-600/20 text-orange-400 hover:bg-orange-600/30'
+                            : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700'}`}
+                        >
+                          Sync from Cash Flow ({derivedDPS.toFixed(2)})
+                        </button>
+                      )}
+                      {isDifferent && (
+                        <span className="text-[10px] text-yellow-400">
+                          CF-derived: {derivedDPS.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
               <InputField label="Stable Growth Rate" value={assumptions.ddmStableGrowth}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, ddmStableGrowth: val as number }))}
                 suffix="%" step="0.1" {...fieldProps} />

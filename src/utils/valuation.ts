@@ -154,8 +154,40 @@ export function calculateComparableValuation(
 }
 
 /**
+ * Calculate Cost of Equity (Ke) using the selected CAPM method.
+ * Routes through Method A / B / C / local_rf dispatcher.
+ * Use this everywhere Ke is needed — never hardcode rf + β×mrp.
+ */
+export function calculateKe(assumptions: ValuationAssumptions): number {
+  const crp = assumptions.countryRiskPremium ?? 9.71;
+  const rfClean = assumptions.rfCleanEGP ?? 9.49;
+
+  let effectiveBeta = assumptions.beta;
+  if (assumptions.betaType === 'adjusted') {
+    effectiveBeta = (2 / 3) * assumptions.beta + (1 / 3) * 1.0;
+  }
+
+  if (assumptions.capmMethod === 'B') {
+    const rfUS = assumptions.rfUS ?? 4.25;
+    const egyptInf = (assumptions.egyptInflation ?? 13.5) / 100;
+    const usInf = (assumptions.usInflation ?? 3.3) / 100;
+    const keUSD = rfUS + effectiveBeta * (assumptions.marketRiskPremium + crp);
+    return ((1 + keUSD / 100) * (1 + egyptInf) / (1 + usInf) - 1) * 100;
+  }
+  if (assumptions.capmMethod === 'C') {
+    const lambda = assumptions.lambda ?? 1.0;
+    return rfClean + effectiveBeta * assumptions.marketRiskPremium + lambda * crp;
+  }
+  if (assumptions.capmMethod === 'local_rf') {
+    return assumptions.riskFreeRate + effectiveBeta * assumptions.marketRiskPremium;
+  }
+  // Method A (default): Ke = Rf_clean + β×ERP + CRP
+  return rfClean + effectiveBeta * assumptions.marketRiskPremium + crp;
+}
+
+/**
  * Calculate WACC using Market Cap for equity weight.
- * BUG FIX: Was not using market cap consistently.
+ * Delegates to calculateKe for the cost of equity component.
  */
 export function calculateWACC(
   data: FinancialData,
@@ -165,8 +197,7 @@ export function calculateWACC(
   const totalDebt = data.balanceSheet.shortTermDebt + data.balanceSheet.longTermDebt;
   const totalCapital = marketCap + totalDebt;
 
-  // Cost of Equity (CAPM Method A by default)
-  const costOfEquity = assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium;
+  const costOfEquity = calculateKe(assumptions);
 
   // After-tax Cost of Debt
   const costOfDebt = assumptions.costOfDebt || (

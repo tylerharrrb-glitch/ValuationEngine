@@ -45,8 +45,8 @@ export interface MarketConfig {
 
 export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
   USA: {
-    riskFreeRate: 4.5,
-    marketRiskPremium: 5.5,
+    riskFreeRate: 4.25,              // 10-Year US Treasury midpoint Jan-Apr 2026
+    marketRiskPremium: 4.23,         // Mature Market ERP (Damodaran, Jan 5 2026)
     terminalGrowthRate: 2.5,
     maxTerminalGrowth: 3.0,
     defaultTaxRate: 21.0,
@@ -58,8 +58,8 @@ export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
     countryRiskPremium: 0,
   },
   Egypt: {
-    riskFreeRate: 20.0,              // 10-Year Egyptian Government Bond (Apr 2026 avg: ~20.4%)
-    marketRiskPremium: 5.5,          // Mature Market ERP only (Damodaran — NO CRP for Method A)
+    riskFreeRate: 20.40,             // 10-Year Egyptian Government Bond (Mar 2026 avg)
+    marketRiskPremium: 4.23,         // Mature Market ERP (Damodaran, Jan 5 2026)
     terminalGrowthRate: 8.0,
     maxTerminalGrowth: 12.0,
     defaultTaxRate: 22.5,
@@ -68,7 +68,7 @@ export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
     label: '🇪🇬 Egypt',
     description: 'Egypt - Emerging Market (EGX)',
     riskFreeDescription: '10-Year Egyptian Government Bond Yield',
-    countryRiskPremium: 7.5,         // Damodaran for Egypt (Caa1/B-) — used ONLY in Method B
+    countryRiskPremium: 9.71,        // Damodaran for Egypt (Moody's Caa1), Jan 5 2026
   },
 };
 
@@ -119,25 +119,43 @@ export interface WACCInputs {
   costOfDebt: number;         // Pre-tax cost of debt (%)
   taxRate: number;
   capmMethod: CAPMMethod;
-  // Method B fields
+  // Method B / Fisher fields
   rfUS?: number;
   countryRiskPremium?: number;
   egyptInflation?: number;
   usInflation?: number;
+  // Damodaran clean Rf fields
+  rfCleanUSD?: number;
+  rfCleanEGP?: number;
+  egyptExpectedInflation?: number;
+  // Method C lambda
+  lambda?: number;
   // Beta type
   betaType?: 'raw' | 'adjusted' | 'relevered';
 }
 
+// ⚠️ DOUBLE-COUNTING WARNING (Damodaran, "What is the riskfree rate?"):
+// If Rf = local government bond yield (e.g., 20.4% for Egypt), it ALREADY
+// embeds sovereign default risk (~6.37% for Caa1). Adding CRP separately
+// will DOUBLE-COUNT country risk. Either:
+// (a) Use clean Rf (Damodaran/Fisher) + CRP  → Methods A/B/C
+// (b) Use local bond yield Rf + mature market ERP only (no CRP) → local_rf
+
 /**
- * Calculate Cost of Equity using dual CAPM methodology (Section 3.2).
+ * Calculate Cost of Equity using Damodaran CAPM methodology.
  *
- * Method A — Local Currency CAPM (DEFAULT for EGP):
- *   Ke = Rf(Egypt) + β × Mature_Market_ERP
- *   NO CRP added (Egyptian Rf already embeds country risk)
+ * Method A — Ke = Rf_clean + β × ERP_mature + CRP
+ *   Default for Egypt: Rf_clean=9.49% (Damodaran Fisher EGP), ERP=4.23%, CRP=9.71%
+ *   → Ke = 9.49 + 1.2×4.23 + 9.71 = 24.28%
  *
- * Method B — USD Build-Up:
- *   Ke(USD) = Rf(US) + β × Mature_ERP + CRP
- *   Ke(EGP) = (1 + Ke_USD) × (1 + Egypt_Inflation) / (1 + US_Inflation) − 1
+ * Method B — Ke = Rf_clean + β × (ERP_mature + CRP) (CRP loaded into beta)
+ *   → Ke(USD) computed, then Fisher-converted to EGP
+ *
+ * Method C — Ke = Rf_clean + β × ERP_mature + λ × CRP (lambda-adjusted)
+ *
+ * local_rf — Ke = Rf_local_bond + β × ERP_mature (NO CRP)
+ *   Uses local Egyptian bond yield (~20.4%) which already embeds country risk.
+ *   → Ke = 20.4 + 1.2×4.23 = 25.48%
  */
 function calculateCostOfEquity(inputs: WACCInputs): { ke: number; keUSD?: number } {
   // Adjust beta based on type (Section 3.3)
@@ -148,23 +166,39 @@ function calculateCostOfEquity(inputs: WACCInputs): { ke: number; keUSD?: number
   }
   // Note: relevered beta uses βL = βU × [1 + (1-t) × (D/E)], handled externally
 
-  if (inputs.capmMethod === 'B') {
-    // Method B — USD Build-Up
-    const rfUS = inputs.rfUS ?? 4.5;
-    const crp = inputs.countryRiskPremium ?? 7.5;
-    const egyptInf = (inputs.egyptInflation ?? 12.0) / 100;
-    const usInf = (inputs.usInflation ?? 3.0) / 100;
+  const crp = inputs.countryRiskPremium ?? 9.71;
 
-    const keUSD = rfUS + effectiveBeta * inputs.marketRiskPremium + crp;
+  if (inputs.capmMethod === 'B') {
+    // Method B — Ke = Rf + β × (ERP + CRP), then Fisher-convert to EGP
+    const rfUS = inputs.rfUS ?? 4.25;
+    const egyptInf = (inputs.egyptInflation ?? 13.5) / 100;
+    const usInf = (inputs.usInflation ?? 3.3) / 100;
+
+    const keUSD = rfUS + effectiveBeta * (inputs.marketRiskPremium + crp);
     // Fisher equation: Ke(EGP) = (1 + Ke_USD) × (1 + Egypt_Inflation) / (1 + US_Inflation) − 1
     const ke = ((1 + keUSD / 100) * (1 + egyptInf) / (1 + usInf) - 1) * 100;
     return { ke, keUSD };
   }
 
-  // Method A — Local Currency CAPM (default)
-  // Ke = Rf(Egypt) + β × Mature_Market_ERP
-  // NO CRP — it's embedded in the local Rf
-  const ke = inputs.riskFreeRate + effectiveBeta * inputs.marketRiskPremium;
+  if (inputs.capmMethod === 'C') {
+    // Method C — Ke = Rf_clean + β × ERP + λ × CRP
+    const rfClean = inputs.rfCleanEGP ?? 9.49;
+    const lambda = inputs.lambda ?? 1.0;
+    const ke = rfClean + effectiveBeta * inputs.marketRiskPremium + lambda * crp;
+    return { ke };
+  }
+
+  if (inputs.capmMethod === 'local_rf') {
+    // local_rf — Ke = local_bond_Rf + β × ERP_mature (NO separate CRP)
+    // Valid because local bond yield already embeds country risk
+    const ke = inputs.riskFreeRate + effectiveBeta * inputs.marketRiskPremium;
+    return { ke };
+  }
+
+  // Method A (DEFAULT) — Ke = Rf_clean + β × ERP_mature + CRP
+  // Uses Damodaran clean EGP Rf (Fisher-adjusted) so CRP is NOT double-counted
+  const rfClean = inputs.rfCleanEGP ?? 9.49;
+  const ke = rfClean + effectiveBeta * inputs.marketRiskPremium + crp;
   return { ke };
 }
 
@@ -974,6 +1008,9 @@ export function calculateAssumptionsFromData(
     marketRiskPremium: marketDefaults.marketRiskPremium,
     costOfDebt, taxRate,
     capmMethod: 'A',
+    countryRiskPremium: marketDefaults.countryRiskPremium,
+    // Method A uses Damodaran clean Rf — pass through for Egypt
+    rfCleanEGP: marketRegion === 'Egypt' ? 9.49 : undefined,
   });
 
   return {

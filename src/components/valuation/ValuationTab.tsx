@@ -32,6 +32,7 @@ import { EASComplianceSection } from './sections/EASComplianceSection';
 import { PiotroskiFScore } from './sections/PiotroskiFScore';
 import { EVBridgeChart } from './sections/EVBridgeChart';
 import { CalculationAuditTrail } from '../shared/CalculationAuditTrail';
+import { calculateWACC, calculateKe } from '../../utils/valuation';
 import { FXSensitivity } from './sections/FXSensitivity';
 import { WorkingCapitalDetail } from './sections/WorkingCapitalDetail';
 import { ConfidenceScore } from './sections/ConfidenceScore';
@@ -93,8 +94,8 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
   // Feature #3: Real Return Calculator state
   const [inflationRate, setInflationRate] = useState(25.0);
 
-  // D1: Confidence Score — compute TV% for scoring
-  const waccDec = (assumptions.riskFreeRate + assumptions.beta * assumptions.marketRiskPremium) * (financialData.currentStockPrice * financialData.sharesOutstanding) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) + (assumptions.costOfDebt * (1 - assumptions.taxRate / 100)) * ((financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt) / ((financialData.currentStockPrice * financialData.sharesOutstanding) + financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt));
+  // D1: Confidence Score — compute TV% for scoring (use live WACC from dispatcher)
+  const waccDec = calculateWACC(financialData, assumptions);
   const waccDecFraction = waccDec / 100;
   const lastFCFF = dcfProjections.length > 0 ? dcfProjections[dcfProjections.length - 1].freeCashFlow : 0;
   const tgDec = adjustedAssumptions.terminalGrowthRate / 100;
@@ -258,7 +259,7 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
               <span className={`text-sm font-semibold ${assessment.color}`}>{assessment.label}</span>
             </div>
             {dcfValue > 0 && dps > 0 && (() => {
-              const gordonKe = (adjustedAssumptions.riskFreeRate + adjustedAssumptions.beta * adjustedAssumptions.marketRiskPremium) / 100;
+              const gordonKe = calculateKe(adjustedAssumptions) / 100;
               const gordonG = adjustedAssumptions.terminalGrowthRate / 100;
               const gordonDDM = gordonKe > gordonG ? (dps * (1 + gordonG)) / (gordonKe - gordonG) : 0;
               const ddmGap = Math.abs(gordonDDM - dcfValue);

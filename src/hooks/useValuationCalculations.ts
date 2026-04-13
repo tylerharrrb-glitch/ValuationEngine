@@ -14,6 +14,7 @@ import { calculateKeyMetrics, getRecommendation, KeyMetrics, Recommendation } fr
 import { calculateScenarioCases, ScenarioCases } from '../utils/calculations/scenarios';
 import { CurrencyCode, getCurrencyFromMarket } from '../utils/formatters';
 import { calculateDDM } from '../utils/valuationEngine';
+import { calculateWACC, calculateKe } from '../utils/valuation';
 
 export interface UseValuationCalculationsReturn {
   adjustedAssumptions: ValuationAssumptions;
@@ -53,14 +54,20 @@ export function useValuationCalculations(
   // Get currency based on market region
   const currency: CurrencyCode = getCurrencyFromMarket(marketRegion).code;
 
+  // LIVE WACC — always computed from CAPM components, never from stale discountRate
+  const liveWACC = useMemo(
+    () => calculateWACC(financialData, assumptions),
+    [financialData, assumptions]
+  );
+
   // Calculate adjusted assumptions based on scenario AND valuation style
   const adjustedAssumptions = useMemo(() => {
     const multipliers = scenarioMultipliers[scenario];
     const style = VALUATION_STYLES[valuationStyle];
 
-    // Apply both scenario AND style adjustments
+    // Apply both scenario AND style adjustments — use liveWACC, not stale assumptions.discountRate
     const baseRevGrowth = assumptions.revenueGrowthRate * multipliers.revenueGrowth;
-    const baseWACC = assumptions.discountRate * multipliers.wacc;
+    const baseWACC = liveWACC * multipliers.wacc;
     const baseTermGrowth = assumptions.terminalGrowthRate * multipliers.terminalGrowth;
     const baseMargin = assumptions.marginImprovement + multipliers.marginChange * 100;
 
@@ -81,7 +88,7 @@ export function useValuationCalculations(
     }
 
     return adjusted;
-  }, [assumptions, scenario, valuationStyle, marketRegion]);
+  }, [assumptions, scenario, valuationStyle, marketRegion, liveWACC]);
 
   // DCF Calculations
   const dcfProjections = useMemo(
@@ -151,8 +158,8 @@ export function useValuationCalculations(
   const dcfLow = useMemo(() => calculateScenarioDCF(financialData, adjustedAssumptions, 1, 4, 1, 0), [financialData, adjustedAssumptions]);
   const dcfHigh = useMemo(() => calculateScenarioDCF(financialData, adjustedAssumptions, 1, -4, 1, 0), [financialData, adjustedAssumptions]);
 
-  // M3: DDM values for football field
-  const ke = adjustedAssumptions.riskFreeRate + adjustedAssumptions.beta * adjustedAssumptions.marketRiskPremium;
+  // M3: DDM values for football field — Ke routed through shared CAPM dispatcher
+  const ke = calculateKe(adjustedAssumptions);
   const ddmResult = useMemo(() => calculateDDM(financialData, adjustedAssumptions, ke), [financialData, adjustedAssumptions, ke]);
   const ddmLow = ddmResult.applicable ? Math.min(ddmResult.gordonGrowth || Infinity, ddmResult.twoStage || Infinity, ddmResult.hModel || Infinity) : 0;
   const ddmHigh = ddmResult.applicable ? Math.max(ddmResult.gordonGrowth || 0, ddmResult.twoStage || 0, ddmResult.hModel || 0) : 0;

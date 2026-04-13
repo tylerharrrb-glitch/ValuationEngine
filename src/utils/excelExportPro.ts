@@ -256,7 +256,16 @@ export const exportToExcelWithFormulas = (
   inputsWs['A21'] = cell('Tax Expense');
   inputsWs['B21'] = cell(financialData.incomeStatement.taxExpense, FMT.number);
   inputsWs['A22'] = cell('Net Income');
-  inputsWs['B22'] = calcFormula('B17-B20-B21', FMT.number);
+  // Net Income — USER INPUT, not derived. Real consolidated statements have FX gains,
+  // equity income, minority interest that EBIT − Interest − Tax cannot capture.
+  inputsWs['B22'] = inputCell(financialData.incomeStatement.netIncome, FMT.number);
+  // Reconciliation formula in C22 (t:'str' for string-result formulas in SheetJS)
+  inputsWs['C22'] = {
+    t: 'str',
+    f: 'IF(ABS(B22-(B17-B20-B21))/MAX(ABS(B22),1)>0.05,"Differs from EBIT-Int-Tax ("&TEXT(B17-B20-B21,"#,##0")&") by "&TEXT((B22-(B17-B20-B21))/B22,"0.0%"),"Ties to EBIT-Int-Tax")',
+    v: '',
+    s: { font: { name: 'Calibri', sz: 9, italic: true, color: { rgb: '008000' } } },
+  };
 
   // Balance Sheet - COMPLETE with all line items
   inputsWs['A24'] = sectionHeaderCell('BALANCE SHEET');
@@ -421,7 +430,7 @@ export const exportToExcelWithFormulas = (
   inputsWs['B61'] = formula('B92', FMT.decimal);
 
   const lastInputRow = Math.max(80 + Math.max(comparables.length, 1), 93);
-  inputsWs['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }];
+  inputsWs['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 55 }, { wch: 12 }, { wch: 12 }];
   inputsWs['!ref'] = `A1:E${lastInputRow}`;
   applyBoldRows(inputsWs, [1, 4, 5, 11, 12, 24, 25, 26, 33, 40, 45, 49, 52, 53, 59, 60, 67, 68, 75, 76, 82]);
   XLSX.utils.book_append_sheet(wb, inputsWs, 'Inputs');
@@ -1244,6 +1253,134 @@ export const exportToExcelWithFormulas = (
   ddmWs['!ref'] = 'A1:C21';
   applyBoldRows(ddmWs, [1, 3, 11, 17]);
   XLSX.utils.book_append_sheet(wb, ddmWs, 'DDM');
+
+  // ============================================
+  // HISTORICAL DATA SHEET
+  // ============================================
+  if (financialData.historicalData && financialData.historicalData.length > 0) {
+    const histWs: XLSX.WorkSheet = {};
+    const hist = [...financialData.historicalData].sort((a, b) => a.year - b.year);
+    const years = hist.map(h => h.year);
+    const nY = years.length;
+
+    // Title row
+    histWs['A1'] = bannerCell('WOLF VALUATION ENGINE — HISTORICAL MULTI-PERIOD');
+    histWs['A2'] = cell(`${financialData.companyName} (${financialData.ticker})`);
+
+    // Year headers (row 4 = Excel row 4, 0-indexed row 3)
+    histWs['A4'] = header('Metric');
+    years.forEach((yr, i) => {
+      const col = String.fromCharCode(66 + i); // B, C, D, ...
+      histWs[`${col}4`] = subHeaderCell(`FY${yr}`);
+    });
+
+    // Metric definitions
+    const metrics: { label: string; key: keyof (typeof hist)[0]; fmt: string; pctDiv?: boolean }[] = [
+      { label: 'Revenue', key: 'revenue', fmt: FMT.number },
+      { label: 'Net Income', key: 'netIncome', fmt: FMT.number },
+      { label: 'Total Assets', key: 'totalAssets', fmt: FMT.number },
+      { label: 'Total Equity', key: 'totalEquity', fmt: FMT.number },
+      { label: 'Operating Cash Flow', key: 'operatingCashFlow', fmt: FMT.number },
+      { label: 'Capital Expenditures', key: 'capex', fmt: FMT.number },
+      { label: 'Gross Margin (%)', key: 'grossMargin', fmt: FMT.percent, pctDiv: true },
+      { label: 'Long-Term Debt', key: 'longTermDebt', fmt: FMT.number },
+      { label: 'Current Ratio', key: 'currentRatio', fmt: FMT.decimal },
+      { label: 'Shares Outstanding', key: 'sharesOutstanding', fmt: FMT.number },
+    ];
+
+    metrics.forEach((m, mIdx) => {
+      const row = 5 + mIdx; // rows 5-14
+      histWs[`A${row}`] = cell(m.label);
+      years.forEach((yr, yIdx) => {
+        const col = String.fromCharCode(66 + yIdx);
+        let val = hist[yIdx][m.key] as number;
+        if (m.pctDiv) val = val / 100; // grossMargin stored as 60 → 0.60 for Excel %
+        histWs[`${col}${row}`] = inputCell(val, m.fmt);
+      });
+    });
+
+    // CAGR section
+    const cagrStartRow = 5 + metrics.length + 1; // blank row, then CAGR
+    histWs[`A${cagrStartRow}`] = sectionHeaderCell('TREND ANALYSIS');
+
+    if (nY >= 2) {
+      const n = nY - 1;
+      const firstCol = String.fromCharCode(66); // B (oldest)
+      const lastCol = String.fromCharCode(66 + nY - 1); // most recent
+
+      const cagrMetrics = [
+        { label: `Revenue CAGR (${n}Y)`, firstRow: 5, lastRow: 5 },
+        { label: `Net Income CAGR (${n}Y)`, firstRow: 6, lastRow: 6 },
+        { label: `Operating CF CAGR (${n}Y)`, firstRow: 9, lastRow: 9 },
+      ];
+
+      cagrMetrics.forEach((cm, i) => {
+        const row = cagrStartRow + 1 + i;
+        histWs[`A${row}`] = cell(cm.label);
+        histWs[`B${row}`] = {
+          t: 'n',
+          f: `IFERROR(POWER(${lastCol}${cm.lastRow}/${firstCol}${cm.firstRow},1/${n})-1,0)`,
+          z: FMT.percent,
+          s: { fill: solidFill(WOLF_COLORS.calcGreen), font: { name: 'Calibri', sz: 10 } },
+        };
+      });
+    }
+
+    // Piotroski F-Score section
+    const pRow = cagrStartRow + (nY >= 2 ? 5 : 2);
+    histWs[`A${pRow}`] = sectionHeaderCell('PIOTROSKI F-SCORE (current vs prior year)');
+
+    if (nY >= 2) {
+      // Most recent = last col, prior = second-to-last col
+      const currCol = String.fromCharCode(66 + nY - 1);
+      const prevCol = String.fromCharCode(66 + nY - 2);
+      // Row map: 5=Revenue, 6=NI, 7=TotalAssets, 8=TotalEquity, 9=OCF, 10=CapEx, 11=GrossMargin, 12=LTDebt, 13=CurrentRatio, 14=Shares
+
+      const tests: [string, string][] = [
+        ['P1: Net Income > 0',            `IF(${currCol}6>0,1,0)`],
+        ['P2: Operating CF > 0',          `IF(${currCol}9>0,1,0)`],
+        ['P3: ROA Improving',             `IF(IFERROR(${currCol}6/${currCol}7,0)>IFERROR(${prevCol}6/${prevCol}7,0),1,0)`],
+        ['P4: OCF > Net Income',          `IF(${currCol}9>${currCol}6,1,0)`],
+        ['L5: LT Debt Declining',         `IF(IFERROR(${currCol}12/${currCol}7,0)<IFERROR(${prevCol}12/${prevCol}7,0),1,0)`],
+        ['L6: Current Ratio Improving',   `IF(${currCol}13>${prevCol}13,1,0)`],
+        ['L7: No Share Dilution',         `IF(${currCol}14<=${prevCol}14,1,0)`],
+        ['E8: Gross Margin Improving',    `IF(${currCol}11>${prevCol}11,1,0)`],
+        ['E9: Asset Turnover Improving',  `IF(IFERROR(${currCol}5/${currCol}7,0)>IFERROR(${prevCol}5/${prevCol}7,0),1,0)`],
+      ];
+
+      tests.forEach(([label, f], i) => {
+        const r = pRow + 1 + i;
+        histWs[`A${r}`] = cell(label);
+        histWs[`B${r}`] = { t: 'n', f, z: '0', s: { alignment: { horizontal: 'center' } } };
+      });
+
+      const totalR = pRow + 1 + tests.length;
+      histWs[`A${totalR}`] = header('TOTAL F-SCORE (out of 9)');
+      histWs[`B${totalR}`] = {
+        t: 'n',
+        f: `SUM(B${pRow + 1}:B${totalR - 1})`,
+        z: '0',
+        s: { font: { name: 'Calibri', sz: 11, bold: true }, alignment: { horizontal: 'center' } },
+      };
+
+      histWs[`A${totalR + 1}`] = cell('Assessment');
+      histWs[`B${totalR + 1}`] = {
+        t: 's',
+        f: `IF(B${totalR}>=8,"STRONG",IF(B${totalR}>=5,"MODERATE","WEAK"))`,
+        s: { alignment: { horizontal: 'center' }, font: { name: 'Calibri', sz: 10, bold: true } },
+      };
+
+      const lastDataRow = totalR + 1;
+      histWs['!ref'] = `A1:${String.fromCharCode(66 + nY - 1)}${lastDataRow}`;
+    } else {
+      histWs[`A${pRow + 1}`] = cell('Requires at least 2 years of data');
+      histWs['!ref'] = `A1:${String.fromCharCode(66 + Math.max(nY - 1, 0))}${pRow + 1}`;
+    }
+
+    histWs['!cols'] = [{ wch: 35 }, ...years.map(() => ({ wch: 16 }))];
+    applyBoldRows(histWs, [1, 4, cagrStartRow, pRow]);
+    XLSX.utils.book_append_sheet(wb, histWs, 'Historical');
+  }
 
   const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
   instructionsWs['!cols'] = [{ wch: 75 }];
