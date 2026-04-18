@@ -8,6 +8,7 @@ interface DebouncedInputProps {
   placeholder?: string;
   className?: string;
   debounceMs?: number;
+  readOnly?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = React.memo(({
   placeholder,
   className,
   debounceMs = 500,
+  readOnly = false,
 }) => {
   // Local state for immediate input feedback
   const [localValue, setLocalValue] = useState<string>(String(value));
@@ -35,11 +37,11 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = React.memo(({
 
   // Update local value when external value changes (but not during typing)
   useEffect(() => {
-    // Only sync external value if input is not focused
-    if (document.activeElement !== inputRef.current) {
+    // Read-only fields always mirror external value; editable fields skip sync while focused
+    if (readOnly || document.activeElement !== inputRef.current) {
       setLocalValue(String(value));
     }
-  }, [value]);
+  }, [value, readOnly]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -107,6 +109,7 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = React.memo(({
       onKeyDown={handleKeyDown}
       placeholder={placeholder}
       className={className}
+      readOnly={readOnly}
     />
   );
 });

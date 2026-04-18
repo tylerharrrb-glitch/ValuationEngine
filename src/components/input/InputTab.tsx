@@ -119,6 +119,43 @@ export const InputTab: React.FC<InputTabProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoWACC, isWACCManualOverride]);
 
+  // Balance Sheet: auto-calc totals from component line items.
+  // TCA = sum current assets, TA = TCA + non-current assets, TCL = sum current liab,
+  // TL = TCL + non-current liab, TE = TA − TL.
+  const bs = financialData.balanceSheet;
+  const autoTCA = (bs.cash || 0) + (bs.marketableSecurities || 0) + (bs.accountsReceivable || 0)
+    + (bs.inventory || 0) + (bs.otherCurrentAssets || 0);
+  const autoNonCA = (bs.propertyPlantEquipment || 0) + (bs.longTermInvestments || 0)
+    + (bs.goodwill || 0) + (bs.intangibleAssets || 0) + (bs.otherNonCurrentAssets || 0);
+  const autoTA = autoTCA + autoNonCA;
+  const autoTCL = (bs.accountsPayable || 0) + (bs.shortTermDebt || 0) + (bs.otherCurrentLiabilities || 0);
+  const autoNonCL = (bs.longTermDebt || 0) + (bs.otherNonCurrentLiabilities || 0);
+  const autoTL = autoTCL + autoNonCL;
+  const autoTE = autoTA - autoTL;
+  useEffect(() => {
+    const eps = 0.005;
+    const needs =
+      Math.abs((bs.totalCurrentAssets || 0) - autoTCA) > eps ||
+      Math.abs((bs.totalAssets || 0) - autoTA) > eps ||
+      Math.abs((bs.totalCurrentLiabilities || 0) - autoTCL) > eps ||
+      Math.abs((bs.totalLiabilities || 0) - autoTL) > eps ||
+      Math.abs((bs.totalEquity || 0) - autoTE) > eps;
+    if (needs) {
+      updateFinancialData(prev => ({
+        ...prev,
+        balanceSheet: {
+          ...prev.balanceSheet,
+          totalCurrentAssets: autoTCA,
+          totalAssets: autoTA,
+          totalCurrentLiabilities: autoTCL,
+          totalLiabilities: autoTL,
+          totalEquity: autoTE,
+        },
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTCA, autoTA, autoTCL, autoTL, autoTE]);
+
   return (
     <div className="space-y-6">
       {/* Stock Search */}
@@ -339,14 +376,16 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'accountsReceivable', label: 'Accounts Receivable' },
               { key: 'inventory', label: 'Inventory' },
               { key: 'otherCurrentAssets', label: 'Other Current Assets' },
-              { key: 'totalCurrentAssets', label: 'Total Current Assets' },
-            ].map(({ key, label }) => (
+              { key: 'totalCurrentAssets', label: 'Total Current Assets', auto: true },
+            ].map(({ key, label, auto }) => (
               <InputField key={key} label={label}
                 value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
                 min={0}
+                readOnly={!!auto}
+                tooltip={auto ? 'Auto-calculated from component line items' : undefined}
                 {...fieldProps} />
             ))}
           </div>
@@ -359,14 +398,16 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'goodwill', label: 'Goodwill' },
               { key: 'intangibleAssets', label: 'Intangible Assets' },
               { key: 'otherNonCurrentAssets', label: 'Other Non-Current Assets' },
-              { key: 'totalAssets', label: 'Total Assets' },
-            ].map(({ key, label }) => (
+              { key: 'totalAssets', label: 'Total Assets', auto: true },
+            ].map(({ key, label, auto }) => (
               <InputField key={key} label={label}
                 value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
                 min={0}
+                readOnly={!!auto}
+                tooltip={auto ? 'Auto-calculated: Current Assets + Non-Current Assets' : undefined}
                 {...fieldProps} />
             ))}
           </div>
@@ -377,14 +418,16 @@ export const InputTab: React.FC<InputTabProps> = ({
               { key: 'accountsPayable', label: 'Accounts Payable' },
               { key: 'shortTermDebt', label: 'Short-Term Debt' },
               { key: 'otherCurrentLiabilities', label: 'Other Current Liabilities' },
-              { key: 'totalCurrentLiabilities', label: 'Total Current Liabilities' },
-            ].map(({ key, label }) => (
+              { key: 'totalCurrentLiabilities', label: 'Total Current Liabilities', auto: true },
+            ].map(({ key, label, auto }) => (
               <InputField key={key} label={label}
                 value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
                 min={0}
+                readOnly={!!auto}
+                tooltip={auto ? 'Auto-calculated from component line items' : undefined}
                 {...fieldProps} />
             ))}
           </div>
@@ -394,14 +437,16 @@ export const InputTab: React.FC<InputTabProps> = ({
             {[
               { key: 'longTermDebt', label: 'Long-Term Debt' },
               { key: 'otherNonCurrentLiabilities', label: 'Other Non-Current Liabilities' },
-              { key: 'totalLiabilities', label: 'Total Liabilities' },
-            ].map(({ key, label }) => (
+              { key: 'totalLiabilities', label: 'Total Liabilities', auto: true },
+            ].map(({ key, label, auto }) => (
               <InputField key={key} label={label}
                 value={(financialData.balanceSheet[key as keyof typeof financialData.balanceSheet] ?? 0) as number}
                 onChange={(val) => updateFinancialData(prev => ({
                   ...prev, balanceSheet: { ...prev.balanceSheet, [key]: val as number }
                 }))}
                 min={0}
+                readOnly={!!auto}
+                tooltip={auto ? 'Auto-calculated: Current Liabilities + Non-Current Liabilities' : undefined}
                 {...fieldProps} />
             ))}
           </div>
@@ -412,6 +457,8 @@ export const InputTab: React.FC<InputTabProps> = ({
               onChange={(val) => updateFinancialData(prev => ({
                 ...prev, balanceSheet: { ...prev.balanceSheet, totalEquity: val as number }
               }))}
+              readOnly
+              tooltip="Auto-calculated: Total Assets − Total Liabilities"
               {...fieldProps} />
             {/* D1: Retained Earnings */}
             <InputField label="Retained Earnings" value={financialData.balanceSheet.retainedEarnings ?? 0}

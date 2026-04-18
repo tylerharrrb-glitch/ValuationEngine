@@ -108,7 +108,7 @@ export const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({
     const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
     const tl = financialData.balanceSheet.totalLiabilities || 1;
     const ta = financialData.balanceSheet.totalAssets || 1;
-    const altZ = 1.2 * (wc / ta) + 1.4 * (financialData.balanceSheet.totalEquity / ta) +
+    const altZ = 1.2 * (wc / ta) + 1.4 * ((financialData.balanceSheet.retainedEarnings ?? financialData.balanceSheet.totalEquity) / ta) +
         3.3 * (financialData.incomeStatement.operatingIncome / ta) + 0.6 * (marketCap / tl) +
         financialData.incomeStatement.revenue / ta;
     if (altZ > 2.99) {

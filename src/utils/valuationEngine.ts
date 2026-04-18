@@ -297,6 +297,14 @@ export function calculateDCFProjections(
   const taxRate = assumptions.taxRate / 100;
   const wacc = assumptions.discountRate / 100;
 
+  // Base Year = last reported fiscal year (fallback: current year − 1).
+  // Projection labels strictly = baseYear + 1 .. baseYear + projectionYears.
+  const baseYear = (() => {
+    const d = financialData.lastReportedDate;
+    if (d) { const p = new Date(d); if (!isNaN(p.getTime())) return p.getFullYear(); }
+    return new Date().getFullYear() - 1;
+  })();
+
   for (let year = 1; year <= assumptions.projectionYears; year++) {
     const prevRevenue = currentRevenue;
 
@@ -337,7 +345,7 @@ export function calculateDCFProjections(
     const presentValue = fcff / discountFactor;
 
     projections.push({
-      year: new Date().getFullYear() + year,
+      year: baseYear + year,
       revenue: currentRevenue,
       ebitda,
       dAndA,
@@ -710,7 +718,7 @@ export function calculateFinancialRatios(
 
   // Altman Z-Score = 1.2×WC/TA + 1.4×RE/TA + 3.3×EBIT/TA + 0.6×MCap/TL + Rev/TA
   const wc = bs.totalCurrentAssets - bs.totalCurrentLiabilities;
-  const retainedEarnings = bs.totalEquity; // Approximation
+  const retainedEarnings = bs.retainedEarnings ?? bs.totalEquity;
   const altmanZ = bs.totalAssets > 0
     ? 1.2 * (wc / bs.totalAssets) +
     1.4 * (retainedEarnings / bs.totalAssets) +

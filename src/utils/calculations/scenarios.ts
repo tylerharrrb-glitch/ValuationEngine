@@ -47,6 +47,12 @@ export function calcScenarioPrice(
     const taxRate = scenarioAssumptions.taxRate / 100;
     const waccDec = wacc / 100;
 
+    const baseYear = (() => {
+      const d = financialData.lastReportedDate;
+      if (d) { const p2 = new Date(d); if (!isNaN(p2.getTime())) return p2.getFullYear(); }
+      return new Date().getFullYear() - 1;
+    })();
+
     for (let i = 1; i <= scenarioAssumptions.projectionYears; i++) {
       const prevRevenue = currentRevenue;
       currentRevenue = currentRevenue * (1 + growth / 100);
@@ -65,7 +71,7 @@ export function calcScenarioPrice(
       const discountFactor = Math.pow(1 + waccDec, period);
 
       projections.push({
-        year: new Date().getFullYear() + i,
+        year: baseYear + i,
         revenue: currentRevenue,
         ebitda,
         dAndA,

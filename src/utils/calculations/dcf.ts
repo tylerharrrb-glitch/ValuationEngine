@@ -18,6 +18,12 @@ export function calculateDCFProjections(
   const taxRate = adjustedAssumptions.taxRate / 100;
   const wacc = adjustedAssumptions.discountRate / 100;
 
+  const baseYear = (() => {
+    const d = financialData.lastReportedDate;
+    if (d) { const p = new Date(d); if (!isNaN(p.getTime())) return p.getFullYear(); }
+    return new Date().getFullYear() - 1;
+  })();
+
   for (let i = 1; i <= adjustedAssumptions.projectionYears; i++) {
     const prevRevenue = currentRevenue;
     currentRevenue = currentRevenue * (1 + adjustedAssumptions.revenueGrowthRate / 100);
@@ -35,7 +41,7 @@ export function calculateDCFProjections(
     const discountFactor = Math.pow(1 + wacc, period);
 
     projections.push({
-      year: new Date().getFullYear() + i,
+      year: baseYear + i,
       revenue: currentRevenue,
       ebitda,
       dAndA,

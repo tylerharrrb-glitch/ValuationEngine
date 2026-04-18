@@ -210,6 +210,13 @@ export const exportToExcelWithFormulas = (
   const marketCap = financialData.currentStockPrice * financialData.sharesOutstanding;
   const enterpriseValue = marketCap + totalDebt - financialData.balanceSheet.cash;
   const currentYear = new Date().getFullYear();
+  // Base Year = last reported fiscal year (fallback: currentYear − 1).
+  // Actual column = baseYear; projection columns = baseYear+1..baseYear+5.
+  const baseYear = (() => {
+    const d = financialData.lastReportedDate;
+    if (d) { const p = new Date(d); if (!isNaN(p.getTime())) return p.getFullYear(); }
+    return currentYear - 1;
+  })();
 
   // ============================================
   // SHEET 1: INPUTS (All editable values)
@@ -326,6 +333,8 @@ export const exportToExcelWithFormulas = (
   inputsWs['A49'] = subSectionCell('EQUITY');
   inputsWs['A50'] = cell('Total Shareholders Equity');
   inputsWs['B50'] = calcFormula('B39-B48', FMT.number);
+  inputsWs['A51'] = cell('Retained Earnings (optional — for Altman Z X2)');
+  inputsWs['B51'] = cell(financialData.balanceSheet.retainedEarnings ?? 0, FMT.number);
 
   // Cash Flow - shifted down to row 52
   inputsWs['A52'] = sectionHeaderCell('CASH FLOW STATEMENT');
@@ -457,8 +466,8 @@ export const exportToExcelWithFormulas = (
 
   dcfWs['A16'] = sectionHeaderCell('FCFF PROJECTIONS');
   const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
-  dcfWs['B17'] = subHeaderCell(`${currentYear} (Actual)`);
-  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}17`] = subHeaderCell(`${currentYear + i} (Proj)`);
+  dcfWs['B17'] = subHeaderCell(`${baseYear} (Actual)`);
+  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}17`] = subHeaderCell(`${baseYear + i} (Proj)`);
 
   // Row 18: Revenue
   dcfWs['A18'] = cell('Revenue');
@@ -495,14 +504,24 @@ export const exportToExcelWithFormulas = (
   dcfWs['B24'] = cell(0, FMT.number);
   for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}24`] = formula(`(${cols[i]}18-${cols[i - 1]}18)*$B$12`, FMT.number);
 
-  // Row 25: FCFF = NOPAT + D&A - CapEx - \u0394WC
+  // Row 25: FCFF
+  // Base year (col B) uses literal historicals: Operating Cash Flow − CapEx (matches Web UI).
+  // Projection years (C..G) use NOPAT + D&A − CapEx − ΔWC.
   dcfWs['A25'] = header('FCFF');
-  for (const c of cols) dcfWs[`${c}25`] = formula(`${c}22+${c}20-${c}23-${c}24`, FMT.number);
+  dcfWs['B25'] = formula('Inputs!B54-Inputs!B55', FMT.number);
+  for (let i = 1; i <= 5; i++) {
+    const c = cols[i];
+    dcfWs[`${c}25`] = formula(`${c}22+${c}20-${c}23-${c}24`, FMT.number);
+  }
 
-  // Row 26: Discount Factor
-  dcfWs['A26'] = cell('Discount Factor');
+  // Row 26: Discount Factor (honors mid-year convention)
+  const midYear = assumptions.discountingConvention === 'mid_year';
+  dcfWs['A26'] = cell(`Discount Factor${midYear ? ' (Mid-Year)' : ''}`);
   dcfWs['B26'] = formula('1/POWER(1+$B$13,0)', FMT.decimal);
-  for (let i = 1; i <= 5; i++) dcfWs[`${cols[i]}26`] = formula(`1/POWER(1+$B$13,${i})`, FMT.decimal);
+  for (let i = 1; i <= 5; i++) {
+    const exp = midYear ? `${i}-0.5` : `${i}`;
+    dcfWs[`${cols[i]}26`] = formula(`1/POWER(1+$B$13,${exp})`, FMT.decimal);
+  }
 
   // Row 27: PV of FCFF
   dcfWs['A27'] = cell('PV of FCFF');
@@ -514,7 +533,7 @@ export const exportToExcelWithFormulas = (
   dcfWs['A30'] = subHeaderCell('Item'); dcfWs['B30'] = subHeaderCell('Value');
   dcfWs['A31'] = cell('Sum PV(FCFF)'); dcfWs['B31'] = formula('SUM(C27:G27)', FMT.number);
   dcfWs['A32'] = cell('Terminal Value'); dcfWs['B32'] = formula('IFERROR(G25*(1+$B$14)/($B$13-$B$14),0)', FMT.number);
-  dcfWs['A33'] = cell('PV(Terminal Value)'); dcfWs['B33'] = formula('IFERROR(B32*G26,0)', FMT.number);
+  dcfWs['A33'] = cell('PV(Terminal Value)'); dcfWs['B33'] = formula('IFERROR(B32/POWER(1+$B$13,5),0)', FMT.number);
   dcfWs['A34'] = cell('Enterprise Value'); dcfWs['B34'] = formula('B31+B33', FMT.number);
   dcfWs['A35'] = cell('Plus: Cash'); dcfWs['B35'] = formula('Inputs!B27', FMT.number);
   dcfWs['A36'] = cell('Less: Total Debt'); dcfWs['B36'] = formula('Inputs!B70', FMT.number);
@@ -1091,10 +1110,10 @@ export const exportToExcelWithFormulas = (
   zScoreWs['C4'] = formula('IFERROR((Inputs!B32-Inputs!B44)/Inputs!B39,0)', FMT.decimal);
   zScoreWs['D4'] = formula('C4*1.2', FMT.decimal);
 
-  // X2: Retained Earnings / Total Assets (weight = 1.4)   — uses Equity as proxy
+  // X2: Retained Earnings / Total Assets (weight = 1.4) — uses B51 if provided, else B50 (Equity) proxy
   zScoreWs['A5'] = cell('X2: Retained Earnings / Total Assets');
-  zScoreWs['B5'] = formula('TEXT(Inputs!B50,"#,##0")&" / "&TEXT(Inputs!B39,"#,##0")');
-  zScoreWs['C5'] = formula('IFERROR(Inputs!B50/Inputs!B39,0)', FMT.decimal);
+  zScoreWs['B5'] = formula('TEXT(IF(Inputs!B51>0,Inputs!B51,Inputs!B50),"#,##0")&" / "&TEXT(Inputs!B39,"#,##0")');
+  zScoreWs['C5'] = formula('IFERROR(IF(Inputs!B51>0,Inputs!B51,Inputs!B50)/Inputs!B39,0)', FMT.decimal);
   zScoreWs['D5'] = formula('C5*1.4', FMT.decimal);
 
   // X3: EBIT / Total Assets (weight = 3.3)

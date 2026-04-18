@@ -39,7 +39,7 @@ export const KeyMetricsGrid: React.FC<Props> = ({
 
   // Raw ratios (display these)
   const x1Raw = bs.totalAssets > 0 ? wc / bs.totalAssets : 0;
-  const x2Raw = bs.totalAssets > 0 ? bs.totalEquity / bs.totalAssets : 0;
+  const x2Raw = bs.totalAssets > 0 ? (bs.retainedEarnings ?? bs.totalEquity) / bs.totalAssets : 0;
   const x3Raw = bs.totalAssets > 0 ? is.operatingIncome / bs.totalAssets : 0;
   const x4Raw = (bs.totalLiabilities || 1) > 0 ? marketCap / (bs.totalLiabilities || 1) : 0;
   const x5Raw = bs.totalAssets > 0 ? revenue / bs.totalAssets : 0;

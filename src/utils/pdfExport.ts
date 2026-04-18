@@ -160,7 +160,7 @@ export const exportToPDF = ({
         const csMCap = financialData.currentStockPrice * financialData.sharesOutstanding;
         const csTL = financialData.balanceSheet.totalLiabilities || 1;
         const csTA = financialData.balanceSheet.totalAssets || 1;
-        const csAltZ = 1.2 * (csWC / csTA) + 1.4 * (financialData.balanceSheet.totalEquity / csTA) +
+        const csAltZ = 1.2 * (csWC / csTA) + 1.4 * ((financialData.balanceSheet.retainedEarnings ?? financialData.balanceSheet.totalEquity) / csTA) +
           3.3 * (financialData.incomeStatement.operatingIncome / csTA) + 0.6 * (csMCap / csTL) +
           financialData.incomeStatement.revenue / csTA;
         if (csAltZ > 2.99) cs += 5;
@@ -208,7 +208,7 @@ export const exportToPDF = ({
     const tblMCap = financialData.currentStockPrice * financialData.sharesOutstanding;
     const tblTL = financialData.balanceSheet.totalLiabilities || 1;
     const tblTA = financialData.balanceSheet.totalAssets || 1;
-    const tblAltZ = 1.2 * (tblWC / tblTA) + 1.4 * (financialData.balanceSheet.totalEquity / tblTA) +
+    const tblAltZ = 1.2 * (tblWC / tblTA) + 1.4 * ((financialData.balanceSheet.retainedEarnings ?? financialData.balanceSheet.totalEquity) / tblTA) +
       3.3 * (financialData.incomeStatement.operatingIncome / tblTA) + 0.6 * (tblMCap / tblTL) +
       financialData.incomeStatement.revenue / tblTA;
     const tblEbitda = financialData.incomeStatement.operatingIncome + financialData.incomeStatement.depreciation + financialData.incomeStatement.amortization;

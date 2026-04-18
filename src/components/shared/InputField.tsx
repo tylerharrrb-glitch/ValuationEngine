@@ -24,6 +24,7 @@ interface InputFieldProps {
   textMutedClass: string;
   inputClass: string;
   currency: CurrencyCode;
+  readOnly?: boolean;
 }
 
 /**
@@ -34,7 +35,7 @@ export const InputField: React.FC<InputFieldProps> = ({
   label, value, onChange, tooltip, prefix, suffix,
   type = 'number', step = 'any', showAsShares = false,
   min, max, validate,
-  textMutedClass, inputClass, currency,
+  textMutedClass, inputClass, currency, readOnly = false,
 }) => {
   const [error, setError] = React.useState<string | null>(null);
 
@@ -75,7 +76,8 @@ export const InputField: React.FC<InputFieldProps> = ({
           step={step}
           value={value}
           onChange={handleChange}
-          className={`w-full px-3 py-2 rounded-lg border focus:ring-2 ${error ? 'border-[var(--accent-gold)] focus:ring-red-500 bg-red-50 dark:bg-red-900/10' : inputClass}`}
+          readOnly={readOnly}
+          className={`w-full px-3 py-2 rounded-lg border focus:ring-2 ${error ? 'border-[var(--accent-gold)] focus:ring-red-500 bg-red-50 dark:bg-red-900/10' : inputClass} ${readOnly ? 'opacity-70 cursor-not-allowed bg-black/20' : ''}`}
         />
         {suffix && <span className={`ml-2 ${textMutedClass}`}>{suffix}</span>}
       </div>
