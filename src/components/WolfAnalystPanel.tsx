@@ -259,7 +259,7 @@ export const WolfAnalystPanel: React.FC<WolfAnalystPanelProps> = (props) => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
         <div className="flex items-center gap-2">
-          <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: '1.2rem', color: 'var(--accent-gold)' }}>W</span>
+          <span style={{ fontFamily: "var(--ff-display), 'Spectral', serif", fontWeight: 700, fontSize: '1.2rem', color: 'var(--gold)' }}>W</span>
           <div>
             <h3 style={{ fontFamily: 'var(--ff-mono)', fontSize: '.85rem', fontWeight: 700, color: 'var(--accent-gold)' }}>WOLF Analyst</h3>
             <p style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>CFA-grade AI Verifier · Groq Llama 3.1</p>

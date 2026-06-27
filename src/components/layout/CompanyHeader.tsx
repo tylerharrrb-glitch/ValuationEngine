@@ -103,7 +103,7 @@ export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
       {/* Radial glow */}
       <div className="hero-glow" />
 
-      <div className="max-w-[1100px] mx-auto px-6">
+      <div className="max-w-[1180px] mx-auto px-6">
         {/* Mono label */}
         <span className="section-label">EQUITY VALUATION · INSTITUTIONAL GRADE</span>
 

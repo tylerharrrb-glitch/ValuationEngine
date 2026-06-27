@@ -128,7 +128,7 @@ function App() {
       <div className="section-divider" />
 
       {/* Main Content */}
-      <main className="max-w-[1100px] mx-auto px-6" style={{ padding: '0 24px' }}>
+      <main className="max-w-[1180px] mx-auto px-6" style={{ padding: '0 24px' }}>
         {/* Tab Navigation */}
         <div style={{ paddingTop: '40px' }}>
           <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} isDarkMode={isDarkMode} />
@@ -235,14 +235,14 @@ function App() {
         className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-200 hover:scale-110"
         style={{
           background: showWolfAnalyst
-            ? 'var(--bg-card)'
-            : 'linear-gradient(135deg, var(--accent-gold), #d4b35a)',
-          color: showWolfAnalyst ? 'var(--text-secondary)' : 'var(--bg-primary)',
-          border: `1px solid ${showWolfAnalyst ? 'var(--border)' : 'var(--accent-gold)'}`,
+            ? 'var(--panel)'
+            : 'linear-gradient(135deg, var(--gold), #d4b35a)',
+          color: showWolfAnalyst ? 'var(--text2)' : '#16120a',
+          border: `1px solid ${showWolfAnalyst ? 'var(--border)' : 'var(--gold)'}`,
         }}
         title={showWolfAnalyst ? 'Close WOLF Analyst' : 'Open WOLF Analyst'}
       >
-        <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: '1.4rem' }}>W</span>
+        <span style={{ fontFamily: "var(--ff-display), 'Spectral', serif", fontWeight: 700, fontSize: '1.4rem' }}>W</span>
       </button>
 
       {/* WOLF Analyst Panel */}

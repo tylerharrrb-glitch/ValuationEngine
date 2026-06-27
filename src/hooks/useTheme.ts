@@ -1,10 +1,10 @@
 /**
- * Theme hook — locked to WOLF dark terminal aesthetic.
- * Provides CSS class strings for consistent theming across components.
- * The isDarkMode flag + toggleDarkMode are kept for API compatibility,
- * but the theme always returns dark-mode classes.
+ * Theme hook — WOLF design system, dark default with a light "cream paper" mode.
+ * Sets `data-theme` on <html> and persists the choice to localStorage.
+ * Components consume CSS variables (--bg, --panel, --gold, …), so the class
+ * strings returned here stay theme-agnostic and re-skin automatically.
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ThemeClasses } from '../types/financial';
 
 export interface UseThemeReturn extends ThemeClasses {
@@ -12,23 +12,43 @@ export interface UseThemeReturn extends ThemeClasses {
   toggleDarkMode: () => void;
 }
 
-/**
- * Always returns WOLF dark terminal theme classes.
- */
+const STORAGE_KEY = 'wolf-theme';
+
+function getInitialDark(): boolean {
+  if (typeof document === 'undefined') return true;
+  // index.html sets data-theme="light" pre-paint when persisted; trust it.
+  return document.documentElement.getAttribute('data-theme') !== 'light';
+}
+
 export function useTheme(): UseThemeReturn {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(getInitialDark);
 
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+  // Keep <html data-theme> and localStorage in sync with state.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', 'light');
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, isDarkMode ? 'dark' : 'light');
+    } catch {
+      /* localStorage unavailable — non-fatal */
+    }
+  }, [isDarkMode]);
 
-  // WOLF Design System — always dark
-  const bgClass = 'bg-[var(--bg-primary)]';
-  const cardClass = 'bg-[var(--bg-card)] border-[var(--border)]';
-  const textClass = 'text-[var(--text-primary)]';
-  const textMutedClass = 'text-[var(--text-secondary)]';
+  const toggleDarkMode = useCallback(() => setIsDarkMode(prev => !prev), []);
+
+  // WOLF Design System — class strings reference CSS variables (theme-aware)
+  const bgClass = 'bg-[var(--bg)]';
+  const cardClass = 'bg-[var(--panel)] border-[var(--border)]';
+  const textClass = 'text-[var(--text)]';
+  const textMutedClass = 'text-[var(--text2)]';
   const inputClass = 'wolf-input';
 
   return {
-    isDarkMode: true,  // Always dark
+    isDarkMode,
     toggleDarkMode,
     bgClass,
     cardClass,

@@ -18,43 +18,122 @@ html, body, #root {
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════
-   WOLF Design System — CSS Custom Properties
+   WOLF Design System — Design Tokens (from approved mockup)
+   Dark is the default (:root); light activates on
+   <html data-theme="light">. Every color is a variable.
    ═══════════════════════════════════════════════════ */
 :root {
-  --bg-primary:    #0A0E17;
-  --bg-secondary:  #0F1623;
-  --bg-card:       #141B2D;
-  --accent-gold:   #C9A84C;
-  --accent-blue:   #3B82F6;
-  --accent-glow:   #3B82F620;
-  --text-primary:  #F0F4FF;
-  --text-secondary:#8892A4;
-  --text-muted:    #4A5568;
-  --border:        #1E2D45;
-  --gold-glow:     #C9A84C15;
+  /* Brand accent (brass gold) */
+  --gold: #c9a961;
+
+  /* Surfaces */
+  --bg:     #080b11;  /* page background          */
+  --panel:  #0e121b;  /* cards / panels           */
+  --field:  #0a0d15;  /* inputs / inset fields    */
+  --inset:  #0b0f17;  /* secondary inset boxes    */
+
+  /* Lines */
+  --border: #1b2230;  /* card & input borders     */
+  --bord2:  #232c3c;  /* lighter / hover borders  */
+  --hair:   #181e2a;  /* hairline dividers        */
+
+  /* Text */
+  --text:   #e9ebef;  /* primary                  */
+  --text2:  #9aa3b2;  /* secondary                */
+  --text3:  #6b7484;  /* tertiary / mono labels   */
+  --label:  #c9b07f;  /* gold-tinted eyebrow text */
+
+  /* Chrome */
+  --nav:    rgba(8,11,17,0.86);  /* sticky nav bg (translucent) */
+  --glow:   radial-gradient(1100px 460px at 86% -10%, rgba(42,64,108,0.34), transparent 62%);
+
+  /* Semantic — use ONLY for up/down/validation, never decoration */
+  --pos:    #5cb88a;  /* positive / undervalued   */
+  --neg:    #d9745f;  /* negative / overvalued    */
+  --info:   #9fb8df;  /* informational notes      */
+  --warn:   #d8b878;  /* warnings                 */
+  --mark:   #f0e6c8;  /* chart mid-value marker   */
+
+  /* Type stacks */
+  --font-display: 'Spectral', Georgia, serif;              /* headlines / display figures */
+  --font-ui:      'IBM Plex Sans', system-ui, sans-serif;  /* UI / body                   */
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;/* data, labels, eyebrows      */
+
+  /* ── Legacy aliases ──────────────────────────────────────────
+     The app refers to colors/fonts by these older names in 300+
+     places. Pointing them at the new tokens re-skins everything
+     at once and keeps light/dark switching automatic (var() is
+     resolved per-element, so light overrides below cascade in). */
+  --bg-primary:     var(--bg);
+  --bg-secondary:   var(--inset);
+  --bg-card:        var(--panel);
+  --accent-gold:    var(--gold);
+  --accent-blue:    var(--info);
+  --accent-glow:    rgba(159,184,223,0.12);
+  --text-primary:   var(--text);
+  --text-secondary: var(--text2);
+  --text-muted:     var(--text3);
+  --gold-glow:      rgba(201,169,97,0.14);
+
+  --ff-display: var(--font-display);
+  --ff-mono:    var(--font-mono);
+  --ff-body:    var(--font-ui);
+
   --ease: cubic-bezier(.4, 0, .2, 1);
-  --ff-display: 'Playfair Display', serif;
-  --ff-mono:    'IBM Plex Mono', monospace;
-  --ff-body:    'Sora', sans-serif;
+}
+
+[data-theme="light"] {
+  --gold: #c9a961;
+
+  --bg:     #ece5d6;
+  --panel:  #f7f3ea;
+  --field:  #fbf9f2;
+  --inset:  #f1ebdd;
+
+  --border: #d9d1be;
+  --bord2:  #cabfa6;
+  --hair:   #e6dfce;
+
+  --text:   #1c1d12;
+  --text2:  #5b5d49;
+  --text3:  #8a8b74;
+  --label:  #8a6f2f;
+
+  --nav:    rgba(236,229,214,0.85);
+  --glow:   radial-gradient(1100px 460px at 86% -10%, rgba(189,149,64,0.10), transparent 62%);
+
+  /* semantic colors darkened for contrast on cream */
+  --pos:    #2f8d5e;
+  --neg:    #b34a32;
+  --info:   #3f5f8f;
+  --warn:   #8a6a26;
+  --mark:   #3a3320;
+
+  /* legacy alias overrides that aren't plain var() passthroughs */
+  --accent-glow: rgba(63,95,143,0.10);
+  --gold-glow:   rgba(138,111,47,0.14);
 }
 
 /* ═══ Body ═══ */
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--ff-body);
-  line-height: 1.7;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.65;
   overflow-x: hidden;
+  transition: background .35s var(--ease), color .35s var(--ease);
 }
+/* subtle paper/film grain — kept very faint, flat aesthetic */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: .035;
+  opacity: .03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+[data-theme="light"] body::before { opacity: .02; }
 
 /* ═══ Section Labels & Titles ═══ */
 .section-label {
@@ -69,10 +148,11 @@ body::before {
 
 .section-title {
   font-family: var(--ff-display);
-  font-weight: 900;
+  font-weight: 600;
   font-size: clamp(1.5rem, 3vw, 2rem);
   margin-bottom: 28px;
   line-height: 1.2;
+  letter-spacing: -.01em;
   color: var(--text-primary);
 }
 
@@ -93,24 +173,23 @@ body::before {
 
 /* ═══ Buttons ═══ */
 .btn-gold {
-  background: var(--accent-gold);
-  color: var(--bg-primary);
+  background: var(--gold);
+  color: #16120a;
   font-family: var(--ff-mono);
   font-size: .82rem;
-  font-weight: 500;
+  font-weight: 600;
   padding: 12px 28px;
-  border-radius: 4px;
+  border-radius: 7px;
   border: none;
   cursor: pointer;
-  transition: all .35s var(--ease);
+  transition: filter .25s var(--ease), background .25s var(--ease);
   letter-spacing: .5px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 .btn-gold:hover {
-  background: #d4b35a;
-  box-shadow: 0 0 24px var(--gold-glow);
+  filter: brightness(1.06);
 }
 .btn-gold:disabled {
   opacity: 0.5;
@@ -150,19 +229,19 @@ body::before {
 
 /* ═══ Form Inputs ═══ */
 .wolf-input {
-  background: var(--bg-secondary);
+  background: var(--field);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-primary);
+  border-radius: 5px;
+  color: var(--text);
   font-family: var(--ff-mono);
   font-size: .85rem;
-  padding: 10px 14px;
+  padding: 11px 13px;
   width: 100%;
   transition: border-color .3s var(--ease);
 }
 .wolf-input:focus {
   outline: none;
-  border-color: var(--accent-gold);
+  border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
@@ -179,9 +258,9 @@ body::before {
 /* ═══ Result / Output Numbers ═══ */
 .wolf-stat-value {
   font-family: var(--ff-display);
-  font-weight: 900;
+  font-weight: 600;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
-  color: var(--accent-gold);
+  color: var(--gold);
 }
 .wolf-stat-label {
   font-family: var(--ff-mono);
@@ -227,9 +306,8 @@ body::before {
 /* ═══ Section Divider ═══ */
 .section-divider {
   height: 1px;
-  background: var(--accent-gold);
-  opacity: .3;
-  max-width: 1100px;
+  background: var(--hair);
+  max-width: 1180px;
   margin: 0 auto;
 }
 

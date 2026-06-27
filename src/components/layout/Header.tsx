@@ -2,7 +2,7 @@
  * WOLF Header — Glass morphism navbar with gold branding.
  */
 import React, { useState, useRef } from 'react';
-import { Undo2, Redo2, Save, Upload, ArrowLeft } from 'lucide-react';
+import { Undo2, Redo2, Save, Upload, ArrowLeft, Sun, Moon } from 'lucide-react';
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../../types/financial';
 import { ScenarioType, ScenarioToggle } from '../ScenarioToggle';
 import { APIKeyModal } from '../APIKeyModal';
@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   scenario, onScenarioChange,
   canUndo, canRedo, onUndo, onRedo,
   financialData, assumptions, comparables, onLoadValuation,
-  isDarkMode,
+  isDarkMode, toggleDarkMode,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
@@ -69,13 +69,14 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className="fixed top-0 left-0 w-full z-[1000]"
       style={{
-        background: 'rgba(10,14,23,.72)',
+        background: 'var(--nav)',
         backdropFilter: 'blur(18px)',
-        borderBottom: '1px solid rgba(30,45,69,.5)',
+        WebkitBackdropFilter: 'blur(18px)',
+        borderBottom: '1px solid var(--hair)',
         height: '64px',
       }}
     >
-      <div className="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
+      <div className="max-w-[1180px] mx-auto px-6 h-full flex items-center justify-between">
         {/* Left: Logo */}
         <div className="flex items-center gap-3">
           <h1 style={{ fontFamily: "var(--ff-display)", fontWeight: 700, color: 'var(--accent-gold)', fontSize: '1.3rem', letterSpacing: '1px' }}>
@@ -108,6 +109,19 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleLoad} className="hidden" />
           <div className="w-px h-5 mx-1" style={{ background: 'var(--border)' }} />
+          <button
+            onClick={toggleDarkMode}
+            className="flex items-center justify-center rounded-md transition-colors"
+            style={{
+              width: '34px', height: '34px',
+              border: '1px solid var(--bord2)',
+              color: 'var(--text2)',
+            }}
+            title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+            aria-label="Toggle light / dark theme"
+          >
+            {isDarkMode ? <Moon size={15} /> : <Sun size={15} />}
+          </button>
           <APIKeyModal isDarkMode={isDarkMode} />
           <UserAuth
             financialData={financialData}

@@ -7,30 +7,43 @@
     <meta name="description" content="WOLF Valuation Engine - Institutional-grade equity valuation with DCF, Monte Carlo simulation, and Comparable Company Analysis" />
     <meta name="keywords" content="valuation, DCF, financial analysis, stock valuation, investment, finance, equity research" />
     <meta name="author" content="Ahmed Wael Metwally" />
-    <meta name="theme-color" content="#0A0E17" />
+    <meta name="theme-color" content="#080b11" />
     <title>WOLF | Valuation Engine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Apply persisted theme before paint to avoid a flash of the wrong theme. Default: dark. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('wolf-theme');
+          if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        } catch (e) {}
+      })();
+    </script>
     <style>
       body {
-        background-color: #0A0E17;
+        background-color: #080b11;
         overflow-x: hidden;
       }
+      html[data-theme="light"] body { background-color: #ece5d6; }
       /* Loading state */
       .wolf-loading {
         display: flex;
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background: linear-gradient(135deg, #0A0E17 0%, #0F1623 100%);
+        background: linear-gradient(135deg, #080b11 0%, #0e121b 100%);
+      }
+      html[data-theme="light"] .wolf-loading {
+        background: linear-gradient(135deg, #ece5d6 0%, #f1ebdd 100%);
       }
       .wolf-loading-text {
-        font-family: 'Playfair Display', Georgia, serif;
-        font-weight: 900;
+        font-family: 'Spectral', Georgia, serif;
+        font-weight: 700;
         font-size: 2.5rem;
         letter-spacing: .15em;
-        color: #C9A84C;
+        color: #c9a961;
         animation: wolfPulse 2s ease-in-out infinite;
       }
       @keyframes wolfPulse {

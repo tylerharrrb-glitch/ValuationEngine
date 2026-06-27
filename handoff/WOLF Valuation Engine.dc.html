@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg,#080b11);}
+  input,select,button{outline:none;font-family:'IBM Plex Mono',monospace;}
+  input::placeholder{color:var(--text3,#4d5666);}
+  input:focus,select:focus{border-color:var(--gold,#c9a961)!important;}
+  ::selection{background:rgba(201,169,97,0.25);}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:var(--field,#0a0d14);}
+  ::-webkit-scrollbar-thumb{background:var(--bord2,#222b3a);border-radius:5px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--bord2,#2e3950);}
+</style>
+</helmet>
+<div style="--gold:{{ accentVar }};--display:{{ display }};--bg:{{ tBg }};--panel:{{ tPanel }};--field:{{ tField }};--inset:{{ tInset }};--border:{{ tBorder }};--bord2:{{ tBord2 }};--hair:{{ tHair }};--text:{{ tText }};--text2:{{ tText2 }};--text3:{{ tText3 }};--label:{{ tLabel }};--nav:{{ tNav }};--pos:{{ tPos }};--neg:{{ tNeg }};--info:{{ tInfo }};--warn:{{ tWarn }};--mark:{{ tMark }};--glow:{{ tGlow }};min-height:100vh;background:var(--bg);background-image:var(--glow);font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--text);padding-bottom:90px;transition:background .35s ease,color .35s ease;">
+
+  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;padding:13px 34px;background:var(--nav,rgba(8,11,17,0.86));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--hair,#161c28);">
+    <div style="display:flex;align-items:baseline;gap:9px;">
+      <span style="font:700 22px var(--display,'Spectral');letter-spacing:.03em;color:var(--text,#f0f1f3);">WOLF</span>
+      <span style="font:500 10px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:var(--text3,#697282);">Valuation Engine</span>
+    </div>
+    <div style="display:flex;gap:3px;padding:3px;background:var(--inset,#0c1019);border:1px solid var(--border,#1b2230);border-radius:8px;">
+      <sc-for list="{{ scenarios }}" as="s" hint-placeholder-count="3">
+        <div onClick="{{ s.onClick }}" style="{{ s.style }}">{{ s.label }}</div>
+      </sc-for>
+    </div>
+    <div style="width:1px;height:22px;background:var(--border,#1b2230);"></div>
+    <div style="display:flex;gap:6px;color:var(--text3,#6f7888);">
+      <div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;" style-hover="background:var(--hair,#10141e);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></div>
+      <div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;" style-hover="background:var(--hair,#10141e);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg></div>
+      <div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;" style-hover="background:var(--hair,#10141e);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7"/><rect x="8" y="13" width="8" height="5"/></svg></div>
+      <div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;" style-hover="background:var(--hair,#10141e);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 14v5h14v-5"/></svg></div>
+    </div>
+    <div style="flex:1;"></div>
+    <div onClick="{{ toggleTheme }}" title="Toggle light / dark" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bord2,#232c3c);border-radius:7px;cursor:pointer;color:var(--text2,#b3bbc9);" style-hover="border-color:var(--gold,#c9a961);color:var(--gold,#c9a961);">
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></sc-if>
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></sc-if>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 14px;border:1px solid var(--bord2,#232c3c);border-radius:7px;cursor:pointer;font:500 12px 'IBM Plex Mono';color:var(--text2,#b3bbc9);" style-hover="border-color:var(--bord2,#36425a);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold,#c9a961)" stroke-width="2"><circle cx="8" cy="8" r="5"/><path d="M11.5 11.5L21 21M16 16l2 2M19 13l2 2" stroke-linecap="round"/></svg>API Key</div>
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 16px;border-radius:7px;cursor:pointer;font:600 12px 'IBM Plex Mono';color:#16120a;background:var(--gold,#c9a961);" style-hover="filter:brightness(1.06);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>Sign In</div>
+    <div style="display:flex;align-items:center;gap:7px;font:500 12px 'IBM Plex Mono';color:var(--text3,#838c9b);cursor:pointer;" style-hover="color:var(--text2,#c2cad7);">← Portfolio</div>
+  </div>
+
+  <div style="max-width:1180px;margin:0 auto;padding:46px 34px 0;">
+    <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.24em;text-transform:uppercase;color:var(--gold,#c9a961);margin-bottom:20px;">Equity Valuation&nbsp;&nbsp;·&nbsp;&nbsp;Institutional Grade</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:36px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:340px;">
+        <h1 style="font:600 52px/1.0 var(--display,'Spectral');color:var(--text,#f5f6f8);margin:0 0 13px;letter-spacing:-.012em;">TechCorp Industries</h1>
+        <div style="font:400 13px 'IBM Plex Mono';color:var(--text2,#7e8798);letter-spacing:.01em;">DCF Analysis&nbsp;&nbsp;·&nbsp;&nbsp;Monte Carlo Simulation&nbsp;&nbsp;·&nbsp;&nbsp;Comparable Company Analysis</div>
+        <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;">
+          <span style="padding:7px 14px;border:1px solid var(--bord2,#232c3c);border-radius:20px;font:500 12px 'IBM Plex Sans';color:var(--text2,#aab2c0);">3 Valuation Methods</span>
+          <span style="padding:7px 14px;border:1px solid var(--bord2,#232c3c);border-radius:20px;font:500 12px 'IBM Plex Sans';color:var(--text2,#aab2c0);">Automated PDF / Excel Output</span>
+          <span style="padding:7px 14px;border:1px solid var(--bord2,#232c3c);border-radius:20px;font:500 12px 'IBM Plex Sans';color:var(--text2,#aab2c0);">Institutional-Grade Accuracy</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:16px;">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <div style="text-align:right;">
+            <div style="font:500 10px 'IBM Plex Mono';letter-spacing:.16em;color:var(--text3,#6b7484);margin-bottom:4px;">TECH&nbsp;·&nbsp;CURRENT</div>
+            <div style="font:600 32px var(--display,'Spectral');color:var(--text,#f0f1f3);line-height:1;">45.00<span style="font-size:15px;color:var(--text2,#8a93a3);margin-left:6px;">EGP</span></div>
+            <div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#6b7484);margin-top:6px;">Fair value <span style="color:var(--text2,#aeb6c4);">{{ scenFair }} EGP</span> · blended</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:9px;">
+            <div style="padding:6px 12px;border-radius:6px;background:{{ scenBg }};color:{{ scenColor }};font:600 14px 'IBM Plex Mono';">▲ {{ scenUpside }}</div>
+            <div style="padding:6px 13px;border-radius:6px;background:{{ scenBg }};color:{{ scenColor }};border:1px solid {{ scenColor }};font:700 11px 'IBM Plex Mono';letter-spacing:.1em;">{{ scenStatus }}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;border:1px solid var(--bord2,#232c3c);border-radius:7px;cursor:pointer;font:500 12px 'IBM Plex Mono';color:var(--text2,#b3bbc9);" style-hover="border-color:var(--bord2,#36425a);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--pos,#5cb88a)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13l2 3 2-3M9 13v4M13 13v4"/></svg>Excel</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;border:1px solid var(--bord2,#232c3c);border-radius:7px;cursor:pointer;font:500 12px 'IBM Plex Mono';color:var(--text2,#b3bbc9);" style-hover="border-color:var(--bord2,#36425a);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--neg,#d9745f)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>PDF</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;margin:38px auto 0;padding:0 34px;">
+    <div style="display:flex;gap:34px;border-bottom:1px solid var(--hair,#181e2a);">
+      <sc-for list="{{ mainTabs }}" as="t" hint-placeholder-count="3">
+        <div onClick="{{ t.onClick }}" style="cursor:pointer;">
+          <div style="{{ t.labelStyle }}">{{ t.label }}</div>
+          <div style="{{ t.barStyle }}"></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;margin:0 auto;padding:36px 34px;">
+
+    <sc-if value="{{ isInput }}" hint-placeholder-val="{{ true }}">
+      <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:12px;">01 — Inputs</div>
+      <h2 style="font:600 30px var(--display,'Spectral');color:var(--text,#f2f3f5);margin:0 0 26px;">Valuation Parameters</h2>
+
+      <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:22px 26px;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:11px;margin-bottom:16px;flex-wrap:wrap;">
+          <span style="color:var(--gold,#c9a961);font-size:15px;">⌕</span>
+          <span style="font:600 15px 'IBM Plex Sans';color:var(--text,#e9ebef);">Fetch Stock Data</span>
+          <span style="font:500 10px 'IBM Plex Mono';letter-spacing:.04em;padding:4px 9px;border-radius:5px;background:rgba(201,169,97,0.12);color:var(--label,#d2b87e);">API Key Required — Add key for live data</span>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <input placeholder="Enter ticker (e.g., COMI.CA)" style="flex:1;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:6px;padding:12px 14px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';">
+          <button style="display:flex;align-items:center;gap:8px;padding:0 22px;background:transparent;border:1px solid var(--gold,#c9a961);border-radius:6px;color:var(--gold,#c9a961);font:600 13px 'IBM Plex Mono';cursor:pointer;" style-hover="background:rgba(201,169,97,0.08);">⌕ Fetch</button>
+        </div>
+        <div style="margin-top:15px;font:400 11px 'IBM Plex Mono';color:var(--text3,#6b7484);">EG &nbsp;Egyptian Stocks (API Key Required):</div>
+        <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;">
+          <span style="padding:7px 13px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--text2,#c2cad7);cursor:pointer;">COMI.CA</span>
+          <span style="padding:7px 13px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--text2,#c2cad7);cursor:pointer;">ETEL.CA</span>
+          <span style="padding:7px 13px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--text2,#c2cad7);cursor:pointer;">EAST.CA</span>
+          <span style="padding:7px 13px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--text2,#c2cad7);cursor:pointer;">EFID.CA</span>
+          <span style="padding:7px 13px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--text2,#c2cad7);cursor:pointer;">TMGH.CA</span>
+        </div>
+        <div style="margin-top:14px;padding:11px 14px;background:rgba(92,184,138,0.06);border:1px solid rgba(92,184,138,0.22);border-radius:6px;font:400 12px 'IBM Plex Mono';color:var(--pos,#7fcaa0);">↗ Egyptian market selected. Data via Yahoo Finance. Tickers use .CA suffix (Cairo Stock Exchange, e.g., COMI → COMI.CA).</div>
+      </div>
+
+      <div style="background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:8px;padding:14px;margin-bottom:22px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px;">
+        <sc-for list="{{ subTabs }}" as="t" hint-placeholder-count="7">
+          <div onClick="{{ t.onClick }}" style="{{ t.boxStyle }}">
+            <span style="{{ t.labelStyle }}">{{ t.label }}</span>
+            <span style="{{ t.subStyle }}">{{ t.sub }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ isCompany }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0 0 26px;">Company Information</h3>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px 24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Company Name</label><input defaultValue="TechCorp Industries" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Ticker Symbol</label><input defaultValue="TECH" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Shares Outstanding</label><input defaultValue="100000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">100.00M shares</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Current Stock Price</label><div style="display:flex;align-items:center;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:0 13px;"><span style="font:500 12px 'IBM Plex Mono';color:var(--text3,#6b7484);margin-right:8px;">EGP</span><input defaultValue="45" style="flex:1;background:transparent;border:none;padding:11px 0;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:22px 24px;margin-top:24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Fiscal Year End</label><select style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><option>December 31</option><option>June 30</option><option>March 31</option></select></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">EGX Sector</label><select style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><option>EGX Market Average</option><option>Banks</option><option>Telecom</option><option>Real Estate</option></select></div>
+          </div>
+          <div style="margin-top:24px;">
+            <label style="display:block;font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--gold,#c9a961);margin-bottom:9px;">EGX Ticker Search (36 Stocks)</label>
+            <input placeholder="Search by ticker, name, or sector…" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';">
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isIncome }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0 0 26px;">Income Statement</h3>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Revenue</label><input defaultValue="5000000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">5.00B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Cost of Goods Sold</label><input defaultValue="2000000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">2.00B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Gross Profit</label><input defaultValue="3000000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">3.00B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Operating Expenses</label><input defaultValue="1500000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.50B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Operating Income</label><input defaultValue="1500000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.50B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Interest Expense</label><input defaultValue="100000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">100.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Tax Expense</label><input defaultValue="294000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">294.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Net Income</label><input defaultValue="1106000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.11B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Depreciation</label><input defaultValue="200000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">200.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Amortization</label><input defaultValue="50000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">50.00M EGP</div></div>
+          </div>
+          <div style="margin-top:26px;padding:13px 16px;background:rgba(92,184,138,0.06);border:1px solid rgba(92,184,138,0.22);border-radius:6px;font:500 12px 'IBM Plex Mono';color:var(--pos,#7fcaa0);">✓ Implied NI = EBIT (1,500,000,000) − Interest (100,000,000) − Tax (294,000,000) = 1,106,000,000</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isBalance }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0 0 6px;">Balance Sheet</h3>
+          <div style="display:flex;align-items:center;gap:9px;margin:22px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Current Assets</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Cash &amp; Equivalents</label><input defaultValue="800000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">800.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Marketable Securities</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Accounts Receivable</label><input defaultValue="600000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">600.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Inventory</label><input defaultValue="400000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">400.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Other Current Assets</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Total Current Assets</label><input defaultValue="1800000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--text,#cfd4dd);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.80B EGP</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;margin:28px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Non-Current Assets</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">PP&amp;E (Net)</label><input defaultValue="2000000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">2.00B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Long-term Investments</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Goodwill</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Intangible Assets</label><input defaultValue="500000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">500.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Other Non-Current Assets</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Total Assets</label><input defaultValue="4300000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--text,#cfd4dd);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">4.30B EGP</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;margin:28px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Current Liabilities</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Accounts Payable</label><input defaultValue="300000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">300.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Short-Term Debt</label><input defaultValue="200000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">200.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Other Current Liabilities</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Total Current Liabilities</label><input defaultValue="500000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--text,#cfd4dd);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">500.00M EGP</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;margin:28px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Non-Current Liabilities &amp; Equity</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Long-Term Debt</label><input defaultValue="1000000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.00B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Total Liabilities</label><input defaultValue="1500000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--text,#cfd4dd);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.50B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Total Equity</label><input defaultValue="2800000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--text,#cfd4dd);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">2.80B EGP</div></div>
+          </div>
+          <div style="margin-top:26px;padding:15px 17px;background:rgba(92,184,138,0.06);border:1px solid rgba(92,184,138,0.22);border-radius:6px;">
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--pos,#7fcaa0);margin-bottom:8px;">✓ Balance Sheet Validation</div>
+            <div style="font:400 12px/1.9 'IBM Plex Mono';color:var(--pos,#6fb893);">✓ Balance Sheet Equation: Assets (4.30B) = Liabilities + Equity (4.30B)<br>✓ Cash ≤ Assets · Debt ≤ Assets<br>✓ Net Income Reconciliation: EBIT − Interest − Tax ≈ Net Income</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCashflow }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0 0 26px;">Cash Flow Statement</h3>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px 26px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Operating Cash Flow</label><input defaultValue="1400000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.40B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Capital Expenditures</label><input defaultValue="300000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">300.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Free Cash Flow</label><input defaultValue="1100000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">1.10B EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Dividends Paid</label><input defaultValue="200000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">200.00M EGP</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Net Change in Cash</label><input defaultValue="600000000" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);margin-top:6px;">600.00M EGP</div></div>
+          </div>
+          <div style="margin-top:26px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:7px;padding:20px 22px;">
+            <div style="font:600 13px 'IBM Plex Sans';color:var(--text,#dfe3ea);margin-bottom:14px;">Cash Flow Reconciliation</div>
+            <div style="display:flex;justify-content:space-between;font:500 13px 'IBM Plex Mono';color:var(--text2,#aab2c0);padding:7px 0;border-bottom:1px solid var(--hair,#141a25);"><span>Free Cash Flow</span><span style="color:var(--pos,#7fcaa0);">+1,100,000,000</span></div>
+            <div style="display:flex;justify-content:space-between;font:500 13px 'IBM Plex Mono';color:var(--text2,#aab2c0);padding:7px 0;border-bottom:1px solid var(--hair,#141a25);"><span>Dividends Paid</span><span style="color:var(--neg,#d9745f);">−200,000,000</span></div>
+            <div style="display:flex;justify-content:space-between;font:500 13px 'IBM Plex Mono';color:var(--text2,#aab2c0);padding:7px 0;border-bottom:1px solid var(--hair,#141a25);"><span>Other Financing / Investing</span><span style="color:var(--neg,#d9745f);">−300,000,000</span></div>
+            <div style="display:flex;justify-content:space-between;font:600 13px 'IBM Plex Mono';color:var(--text,#eef0f3);padding:10px 0 0;"><span>Net Change in Cash</span><span style="color:var(--pos,#7fcaa0);">+600,000,000</span></div>
+          </div>
+          <div style="margin-top:14px;padding:13px 16px;background:rgba(94,135,196,0.07);border:1px solid rgba(94,135,196,0.26);border-radius:6px;font:400 12px/1.7 'IBM Plex Mono';color:var(--info,#9fb8df);">ⓘ Cash flow gap of 300,000,000 detected. FCF less Dividends (900,000,000) ≠ Net Change in Cash (600,000,000). This represents other financing or investing activities (e.g., debt repayment, equity issuance).</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAssumptions }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0 0 22px;">Valuation Assumptions</h3>
+          <div style="display:flex;gap:18px;align-items:stretch;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:8px;padding:18px 20px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;gap:8px;"><span style="font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);">Market Region</span><div style="display:flex;gap:7px;"><div style="padding:10px 16px;border-radius:6px;border:1px solid var(--bord2,#232c3c);background:var(--field,#0a0d15);font:600 12px 'IBM Plex Mono';color:var(--text3,#838c9b);cursor:pointer;text-align:center;">US<br>USA</div><div style="padding:10px 16px;border-radius:6px;border:1px solid var(--gold,#c9a961);background:rgba(201,169,97,0.1);font:600 12px 'IBM Plex Mono';color:var(--gold,#c9a961);cursor:pointer;text-align:center;">EG<br>Egypt</div></div></div>
+            <div style="flex:1;min-width:280px;font:400 12px/1.85 'IBM Plex Mono';color:var(--text2,#aab2c0);"><span style="color:var(--gold,#c9a961);">● Egypt — Emerging Market (EGX)</span><br>Source: 10-Year Egyptian Government Bond Yield<br>Risk-Free: <span style="color:var(--text,#e6e8ec);">20.4%</span> &nbsp; MRP: <span style="color:var(--text,#e6e8ec);">4.23%</span> &nbsp; Tax: <span style="color:var(--text,#e6e8ec);">22.5%</span><br>Currency: <span style="color:var(--pos,#7fcaa0);">EGP (Egyptian Pound)</span></div>
+          </div>
+          <div style="margin-top:14px;padding:12px 15px;background:rgba(212,162,74,0.08);border:1px solid rgba(212,162,74,0.3);border-radius:6px;font:400 12px 'IBM Plex Mono';color:var(--warn,#d8b878);">⚠ Egyptian market has high interest rates (~27%) and currency volatility. WACC will be significantly higher than US stocks.</div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 14px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">CAPM Method</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+            <div style="padding:12px 14px;border-radius:6px;border:1px solid var(--gold,#c9a961);background:rgba(201,169,97,0.1);"><div style="font:600 13px 'IBM Plex Sans';color:var(--gold,#c9a961);margin-bottom:3px;">Local Rf</div><div style="font:400 10px 'IBM Plex Mono';color:var(--text3,#838c9b);">Ke = Rf_local + β·ERP</div></div>
+            <div style="padding:12px 14px;border-radius:6px;border:1px solid var(--bord2,#232c3c);background:var(--field,#0a0d15);"><div style="font:600 13px 'IBM Plex Sans';color:var(--text2,#aab2c0);margin-bottom:3px;">Method A</div><div style="font:400 10px 'IBM Plex Mono';color:var(--text3,#586375);">Ke = Rf + β·ERP + CRP</div></div>
+            <div style="padding:12px 14px;border-radius:6px;border:1px solid var(--bord2,#232c3c);background:var(--field,#0a0d15);"><div style="font:600 13px 'IBM Plex Sans';color:var(--text2,#aab2c0);margin-bottom:3px;">Method B</div><div style="font:400 10px 'IBM Plex Mono';color:var(--text3,#586375);">USD Build-Up + Fisher</div></div>
+            <div style="padding:12px 14px;border-radius:6px;border:1px solid var(--bord2,#232c3c);background:var(--field,#0a0d15);"><div style="font:600 13px 'IBM Plex Sans';color:var(--text2,#aab2c0);margin-bottom:3px;">Method C</div><div style="font:400 10px 'IBM Plex Mono';color:var(--text3,#586375);">Ke = Rf + β·ERP + λ·CRP</div></div>
+          </div>
+          <div style="margin-top:12px;padding:11px 14px;background:rgba(94,135,196,0.07);border:1px solid rgba(94,135,196,0.26);border-radius:6px;font:400 12px 'IBM Plex Mono';color:var(--info,#9fb8df);">ⓘ Using local Rf (20.4%) which already embeds sovereign risk. Ke = 25.48%.</div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">WACC Components</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px 24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Risk-Free Rate %</label><input defaultValue="20.4" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Equity Risk Premium %</label><input defaultValue="4.23" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Beta</label><input defaultValue="1.2" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Beta Type</label><select style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><option>Raw Beta</option><option>Adjusted Beta</option></select></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Cost of Debt (Pre-Tax) %</label><input defaultValue="22.9" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div style="grid-column:span 2;display:flex;align-items:flex-end;"><div style="width:100%;padding:11px 14px;background:rgba(212,162,74,0.08);border:1px solid rgba(212,162,74,0.3);border-radius:6px;font:400 11px/1.6 'IBM Plex Mono';color:var(--warn,#d8b878);">Implied from P&amp;L: <b>8.33%</b> &nbsp;⚠ Entered Kd differs by 14.6pp from implied rate.</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Tax Category</label><select style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><option>Standard Corporate Tax</option></select></div>
+          </div>
+          <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--inset,#0b0f17);border:1px solid var(--bord2,#232c3c);border-radius:7px;"><div><div style="font:600 13px 'IBM Plex Sans';color:var(--text,#dfe3ea);">Calculated Ke (Cost of Equity)</div><div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#6b7484);margin-top:3px;">Ke (local_rf) = 25.48%</div></div><div style="font:600 26px var(--display,'Spectral');color:var(--gold,#c9a961);">25.48%</div></div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">FCFF Projection Drivers</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px 24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Revenue Growth %</label><input defaultValue="15" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">EBITDA Margin %</label><input defaultValue="30" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 10px 'IBM Plex Mono';color:var(--text3,#6b7484);margin-top:6px;">Historical: 35.0% ▼</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">D&amp;A (% of Revenue)</label><input defaultValue="8" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 10px 'IBM Plex Mono';color:var(--pos,#7fcaa0);margin-top:6px;">Historical: 5.0% ▲</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">CapEx (% of Revenue)</label><input defaultValue="10" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><div style="font:400 10px 'IBM Plex Mono';color:var(--pos,#7fcaa0);margin-top:6px;">Historical: 6.0% ▲</div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">ΔWC (% of ΔRevenue)</label><input defaultValue="20" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Margin Improvement %/yr</label><input defaultValue="0" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Terminal Value &amp; DCF Settings</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px 24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Terminal Growth %</label><input defaultValue="8" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Projection Years</label><input defaultValue="5" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Terminal Method</label><select style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"><option>Gordon Growth Model</option><option>Exit Multiple</option></select></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Discount Rate (WACC) %</label><input defaultValue="23.85" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#2c3344);border-radius:5px;padding:11px 13px;color:var(--gold,#c9a961);font:600 14px 'IBM Plex Mono';"></div>
+          </div>
+          <div style="margin-top:14px;font:400 11px/1.7 'IBM Plex Mono';color:var(--text3,#6b7484);">WACC = 78.95% × 25.48% + 21.05% × 17.75% = 23.85%<br>E = EGP 4.50B, D = EGP 1.20B — Auto-calculated from current inputs.</div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Scenario Configuration</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
+            <div style="padding:16px 18px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:7px;"><div style="font:600 13px 'IBM Plex Sans';color:var(--neg,#d9745f);margin-bottom:9px;">Bear Case</div><div style="font:400 12px/1.85 'IBM Plex Mono';color:var(--text2,#9aa3b2);">Growth: 6.0% (base × 0.40)<br>WACC: 26.4% (base + 2.5pp)<br>Margin: −1.5%/yr compression</div></div>
+            <div style="padding:16px 18px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:7px;"><div style="font:600 13px 'IBM Plex Sans';color:var(--pos,#5cb88a);margin-bottom:9px;">Bull Case</div><div style="font:400 12px/1.85 'IBM Plex Mono';color:var(--text2,#9aa3b2);">Growth: 30.0% (base × 2.00)<br>WACC: 21.4% (base − 2.5pp)<br>Margin: +2.5%/yr expansion</div></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin:30px 0 16px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">DDM Parameters</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px 24px;">
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Dividends Per Share</label><div style="display:flex;align-items:center;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:0 13px;"><span style="font:500 12px 'IBM Plex Mono';color:var(--text3,#6b7484);margin-right:8px;">EGP</span><input defaultValue="2" style="flex:1;background:transparent;border:none;padding:11px 0;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">Stable Growth %</label><input defaultValue="8" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">High Growth %</label><input defaultValue="15" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+            <div><label style="display:block;font:500 12px 'IBM Plex Sans';color:var(--text2,#8b94a4);margin-bottom:7px;">High Growth Years</label><input defaultValue="5" style="width:100%;background:var(--field,#0a0d15);border:1px solid var(--bord2,#232c3c);border-radius:5px;padding:11px 13px;color:var(--text,#e6e8ec);font:500 14px 'IBM Plex Mono';"></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isComparables }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:12px;">
+            <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0;">Comparable Companies</h3>
+            <div style="display:flex;gap:10px;">
+              <div style="display:flex;align-items:center;gap:7px;padding:9px 16px;border:1px solid var(--bord2,#36425a);border-radius:6px;cursor:pointer;font:600 12px 'IBM Plex Mono';color:var(--info,#9fb8df);" style-hover="background:rgba(94,135,196,0.08);">⌕ Auto-fetch Peers</div>
+              <div style="display:flex;align-items:center;gap:7px;padding:9px 16px;border:1px solid var(--gold,#c9a961);border-radius:6px;cursor:pointer;font:600 12px 'IBM Plex Mono';color:var(--gold,#c9a961);" style-hover="background:rgba(201,169,97,0.08);">+ Add Company</div>
+            </div>
+          </div>
+          <div style="margin-top:30px;padding:48px 20px;text-align:center;border:1px dashed var(--bord2,#232c3c);border-radius:8px;background:var(--field,#0a0d15);">
+            <div style="font:400 14px 'IBM Plex Mono';color:var(--text3,#6b7484);">No comparable companies added.</div>
+            <div style="font:400 13px 'IBM Plex Mono';color:var(--text3,#525b6b);margin-top:6px;">Click "Auto-fetch Peers" or "+ Add Company" to begin.</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHistorical }}">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:30px 32px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px;">
+            <h3 style="font:600 21px var(--display,'Spectral');color:var(--text,#f1f2f4);margin:0;">Historical Data — Multi-Period</h3>
+            <div style="display:flex;gap:5px;padding:3px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:7px;"><span style="padding:6px 13px;border-radius:5px;font:600 11px 'IBM Plex Mono';color:var(--text3,#838c9b);cursor:pointer;">2Y</span><span style="padding:6px 13px;border-radius:5px;font:600 11px 'IBM Plex Mono';color:var(--text3,#838c9b);cursor:pointer;">3Y</span><span style="padding:6px 13px;border-radius:5px;background:var(--gold,#c9a961);font:600 11px 'IBM Plex Mono';color:#16120a;cursor:pointer;">5Y</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:10px 12px;align-items:center;">
+            <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);">Metric</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text2,#aab2c0);text-align:center;">2025</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text2,#aab2c0);text-align:center;">2024</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text2,#aab2c0);text-align:center;">2023</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text2,#aab2c0);text-align:center;">2022</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text2,#aab2c0);text-align:center;">2021</div>
+            <sc-for list="{{ histRows }}" as="r" hint-placeholder-count="10">
+              <div style="font:500 12px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">{{ r }}</div>
+              <input defaultValue="0" style="background:var(--field,#0a0d15);border:1px solid var(--hair,#1d2532);border-radius:4px;padding:8px;color:#7a8294;font:500 12px 'IBM Plex Mono';text-align:center;">
+              <input defaultValue="0" style="background:var(--field,#0a0d15);border:1px solid var(--hair,#1d2532);border-radius:4px;padding:8px;color:#7a8294;font:500 12px 'IBM Plex Mono';text-align:center;">
+              <input defaultValue="0" style="background:var(--field,#0a0d15);border:1px solid var(--hair,#1d2532);border-radius:4px;padding:8px;color:#7a8294;font:500 12px 'IBM Plex Mono';text-align:center;">
+              <input defaultValue="0" style="background:var(--field,#0a0d15);border:1px solid var(--hair,#1d2532);border-radius:4px;padding:8px;color:#7a8294;font:500 12px 'IBM Plex Mono';text-align:center;">
+              <input defaultValue="0" style="background:var(--field,#0a0d15);border:1px solid var(--hair,#1d2532);border-radius:4px;padding:8px;color:#7a8294;font:500 12px 'IBM Plex Mono';text-align:center;">
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ isValuation }}">
+      <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:12px;">02 — Valuation</div>
+      <h2 style="font:600 30px var(--display,'Spectral');color:var(--text,#f2f3f5);margin:0 0 26px;">Valuation Model</h2>
+
+      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:18px;margin-bottom:18px;">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;">
+          <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:8px;">Blended Fair Value</div>
+          <div style="display:flex;align-items:baseline;gap:12px;"><span style="font:600 56px var(--display,'Spectral');color:var(--text,#f4f5f7);line-height:1;">{{ scenFair }}</span><span style="font:500 16px 'IBM Plex Mono';color:var(--text2,#8a93a3);">EGP</span></div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:18px;">
+            <div style="padding:6px 13px;border-radius:6px;background:{{ scenBg }};color:{{ scenColor }};font:600 14px 'IBM Plex Mono';">▲ {{ scenUpside }} upside</div>
+            <div style="padding:6px 13px;border-radius:6px;border:1px solid {{ scenColor }};color:{{ scenColor }};font:700 11px 'IBM Plex Mono';letter-spacing:.1em;">{{ scenStatus }}</div>
+          </div>
+          <div style="margin-top:22px;font:400 12px/1.8 'IBM Plex Mono';color:var(--text2,#7e8798);">Blended estimate weights DCF, multiples, and dividend models against the current price of 45.00 EGP.</div>
+        </div>
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:24px 28px;display:flex;flex-direction:column;justify-content:center;gap:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--hair,#161c28);padding-bottom:12px;"><span style="font:500 13px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">WACC (Discount Rate)</span><span style="font:600 16px 'IBM Plex Mono';color:var(--text,#e9ebef);">23.85%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--hair,#161c28);padding-bottom:12px;"><span style="font:500 13px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">Cost of Equity (Ke)</span><span style="font:600 16px 'IBM Plex Mono';color:var(--text,#e9ebef);">25.48%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--hair,#161c28);padding-bottom:12px;"><span style="font:500 13px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">Terminal Growth</span><span style="font:600 16px 'IBM Plex Mono';color:var(--text,#e9ebef);">8.00%</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font:500 13px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">Projection Horizon</span><span style="font:600 16px 'IBM Plex Mono';color:var(--text,#e9ebef);">5 Years</span></div>
+        </div>
+      </div>
+
+      <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;"><div style="width:5px;height:5px;border-radius:1px;background:var(--gold,#c9a961);"></div><span style="font:600 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--label,#c9b07f);">Valuation Methods</span><div style="flex:1;height:1px;background:var(--hair,#171d29);"></div></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="6">
+            <div style="background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:7px;padding:18px 20px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div style="{{ r.dotStyle }}"></div><span style="font:600 12px 'IBM Plex Sans';color:var(--text2,#aab2c0);">{{ r.label }}</span></div>
+              <div style="font:600 26px var(--display,'Spectral');color:var(--text,#f0f1f3);">{{ r.val }} <span style="font-size:13px;color:var(--text3,#6b7484);font-family:'IBM Plex Mono';">EGP</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;"><span style="font:400 11px 'IBM Plex Mono';color:var(--text3,#5d6675);">{{ r.lo }} – {{ r.hi }}</span><span style="{{ r.upStyle }}">{{ r.up }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCharts }}">
+      <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:12px;">03 — Charts & Analysis</div>
+      <h2 style="font:600 30px var(--display,'Spectral');color:var(--text,#f2f3f5);margin:0 0 26px;">Visual Analytics</h2>
+
+      <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+          <div><div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);">Football Field Valuation</div><div style="font:600 17px var(--display,'Spectral');color:var(--text,#eef0f3);margin-top:5px;">Valuation Range Comparison</div></div>
+          <div style="display:flex;gap:16px;font:400 11px 'IBM Plex Mono';color:var(--text2,#7e8798);"><span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold,#c9a961);"></span>Current 45.00</span><span style="display:flex;align-items:center;gap:6px;"><span style="width:14px;height:3px;background:var(--mark,#f0e6c8);"></span>Mid Value</span></div>
+        </div>
+        <div style="position:relative;margin-top:26px;padding-left:78px;">
+          <div style="position:absolute;left:78px;right:0;top:0;bottom:24px;">
+            <div style="position:absolute;top:0;bottom:0;left:{{ currentLine }}%;width:1px;background:var(--gold,#c9a961);opacity:.5;"></div>
+          </div>
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;height:40px;">
+              <div style="position:absolute;left:0;width:70px;font:600 11px 'IBM Plex Mono';color:var(--text2,#9aa3b2);text-align:right;">{{ r.label }}</div>
+              <div style="position:relative;flex:1;height:100%;background:var(--field,#0a0d15);border-radius:4px;">
+                <div style="{{ r.barStyle }}"></div>
+                <div style="{{ r.midStyle }}"></div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font:400 10px 'IBM Plex Mono';color:var(--text3,#525b6b);"><span>6 EGP</span><span>45 EGP</span><span>112 EGP</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:26px;">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="6">
+            <div style="background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:6px;padding:12px 13px;">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;"><div style="{{ r.dotStyle }}"></div><span style="font:500 11px 'IBM Plex Sans';color:var(--text2,#9aa3b2);">{{ r.label }}</span></div>
+              <div style="font:600 16px 'IBM Plex Mono';color:var(--text,#eef0f3);">{{ r.val }}</div>
+              <div style="{{ r.upStyle }}">{{ r.up }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;">
+          <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:24px;">Valuation Comparison</div>
+          <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-around;height:210px;border-bottom:1px solid var(--border,#1b2230);">
+            <div style="position:absolute;left:0;right:0;{{ currentBarLine }}border-top:1px dashed var(--bord2,#4a5365);"></div>
+            <sc-for list="{{ valBars }}" as="b" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;width:60px;">
+                <span style="font:600 12px 'IBM Plex Mono';color:var(--text,#cfd4dd);margin-bottom:7px;">{{ b.val }}</span>
+                <div style="{{ b.barStyle }}"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-around;margin-top:11px;">
+            <sc-for list="{{ valBars }}" as="b" hint-placeholder-count="4">
+              <span style="font:500 11px 'IBM Plex Mono';color:var(--text2,#7e8798);width:60px;text-align:center;">{{ b.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;">
+          <div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);margin-bottom:4px;">Sensitivity</div>
+          <div style="font:600 15px var(--display,'Spectral');color:var(--text,#eef0f3);margin-bottom:20px;">DCF Fair Value — WACC × Terminal Growth</div>
+          <div style="display:grid;grid-template-columns:0.9fr repeat(5,1fr);gap:2px;align-items:center;">
+            <div style="font:600 10px 'IBM Plex Mono';color:var(--text3,#6b7484);padding:9px 8px;">WACC \ g</div>
+            <sc-for list="{{ sensCols }}" as="c" hint-placeholder-count="5">
+              <div style="text-align:center;font:600 11px 'IBM Plex Mono';color:var(--text2,#aab2c0);padding:9px 8px;">{{ c }}</div>
+            </sc-for>
+            <sc-for list="{{ sensRows }}" as="row" hint-placeholder-count="5">
+              <div style="{{ row.wStyle }}">{{ row.w }}</div>
+              <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="5">
+                <div style="{{ cell.style }}">{{ cell.val }}</div>
+              </sc-for>
+            </sc-for>
+          </div>
+          <div style="margin-top:16px;font:400 10px 'IBM Plex Mono';color:var(--text3,#525b6b);">★ Base case: WACC 23.85% · Terminal Growth 8.0%</div>
+        </div>
+      </div>
+
+      <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap;gap:12px;">
+          <div><div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);">Monte Carlo Simulation</div><div style="font:600 17px var(--display,'Spectral');color:var(--text,#eef0f3);margin-top:5px;">5,000 Scenarios</div></div>
+          <div style="display:flex;gap:14px;">
+            <div style="text-align:center;padding:10px 18px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:6px;"><div style="font:500 10px 'IBM Plex Mono';color:var(--text3,#6b7484);">MEAN</div><div style="font:600 17px 'IBM Plex Mono';color:var(--text,#eef0f3);margin-top:3px;">51.25</div></div>
+            <div style="text-align:center;padding:10px 18px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:6px;"><div style="font:500 10px 'IBM Plex Mono';color:var(--text3,#6b7484);">MEDIAN</div><div style="font:600 17px 'IBM Plex Mono';color:var(--text,#eef0f3);margin-top:3px;">50.33</div></div>
+            <div style="text-align:center;padding:10px 18px;background:rgba(92,184,138,0.07);border:1px solid rgba(92,184,138,0.24);border-radius:6px;"><div style="font:500 10px 'IBM Plex Mono';color:var(--pos,#6fb893);">P(ABOVE PRICE)</div><div style="font:600 17px 'IBM Plex Mono';color:var(--pos,#5cb88a);margin-top:3px;">73.5%</div></div>
+            <div style="text-align:center;padding:10px 18px;background:var(--inset,#0b0f17);border:1px solid var(--border,#1b2230);border-radius:6px;"><div style="font:500 10px 'IBM Plex Mono';color:var(--text3,#6b7484);">STD DEV</div><div style="font:600 17px 'IBM Plex Mono';color:var(--text,#eef0f3);margin-top:3px;">9.54</div></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:170px;padding:0 2px;border-bottom:1px solid var(--border,#1b2230);">
+          <sc-for list="{{ monteBars }}" as="b" hint-placeholder-count="21">
+            <div style="{{ b.style }}"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:18px;">
+          <sc-for list="{{ mcPct }}" as="p" hint-placeholder-count="5">
+            <div style="text-align:center;"><div style="font:500 10px 'IBM Plex Mono';color:var(--text3,#6b7484);">{{ p.label }}</div><div style="font:600 14px 'IBM Plex Mono';color:var(--text,#cfd4dd);margin-top:4px;">{{ p.val }} EGP</div></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:var(--panel,#0e121b);border:1px solid var(--border,#1b2230);border-radius:8px;padding:28px 30px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div><div style="font:600 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--text3,#6b7484);">Sector Benchmarking</div><div style="font:600 17px var(--display,'Spectral');color:var(--text,#eef0f3);margin-top:5px;">TECH vs EGX Market Average</div></div>
+          <div style="text-align:right;"><span style="font:600 34px var(--display,'Spectral');color:var(--pos,#5cb88a);">83</span><span style="font:500 14px 'IBM Plex Mono';color:var(--text3,#6b7484);">/100</span></div>
+        </div>
+        <div style="padding:13px 16px;background:rgba(92,184,138,0.06);border:1px solid rgba(92,184,138,0.2);border-radius:6px;font:400 12px 'IBM Plex Mono';color:var(--pos,#7fcaa0);margin:12px 0 22px;">Excellent — Quality at Premium. This company outperforms the sector on most metrics.</div>
+        <div style="display:grid;grid-template-columns:1.3fr 0.8fr 0.9fr 1.6fr 0.7fr;gap:10px 16px;align-items:center;">
+          <div style="font:600 10px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);">Metric</div>
+          <div style="font:600 10px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);text-align:right;">TECH</div>
+          <div style="font:600 10px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);text-align:right;">Sector</div>
+          <div style="font:600 10px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);">Percentile</div>
+          <div style="font:600 10px 'IBM Plex Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--text3,#6b7484);text-align:right;">Rating</div>
+          <sc-for list="{{ benchRows }}" as="r" hint-placeholder-count="10">
+            <div style="font:500 12px 'IBM Plex Sans';color:var(--text,#cfd4dd);padding:7px 0;border-top:1px solid var(--hair,#141a25);">{{ r.m }}</div>
+            <div style="font:600 12px 'IBM Plex Mono';color:var(--text,#eef0f3);text-align:right;padding:7px 0;border-top:1px solid var(--hair,#141a25);">{{ r.t }}</div>
+            <div style="font:500 12px 'IBM Plex Mono';color:var(--text2,#7e8798);text-align:right;padding:7px 0;border-top:1px solid var(--hair,#141a25);">{{ r.s }}</div>
+            <div style="padding:7px 0;border-top:1px solid var(--hair,#141a25);"><div style="background:var(--field,#0a0d15);border-radius:3px;"><div style="{{ r.barStyle }}"></div></div></div>
+            <div style="text-align:right;padding:7px 0;border-top:1px solid var(--hair,#141a25);"><span style="{{ r.ratingStyle }}">{{ r.rating }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <div style="max-width:1180px;margin:24px auto 0;padding:0 34px;display:flex;justify-content:center;">
+    <div style="padding:14px 40px;background:var(--gold,#c9a961);border-radius:7px;font:700 13px 'IBM Plex Mono';letter-spacing:.12em;color:#16120a;cursor:pointer;" style-hover="filter:brightness(1.06);">DISPATCH PDF</div>
+  </div>
+
+  <div style="max-width:1180px;margin:60px auto 0;padding:24px 34px 0;border-top:1px solid var(--hair,#141a25);text-align:center;">
+    <div style="font:400 12px 'IBM Plex Mono';color:var(--text3,#697282);">WOLF Valuation Engine &nbsp;·&nbsp; Built by <span style="color:var(--gold,#c9a961);">Ahmed Wael Metwally</span> &nbsp;·&nbsp; Cairo, Egypt</div>
+    <div style="font:400 11px 'IBM Plex Mono';color:var(--text3,#4d5666);margin-top:7px;">Institutional-grade equity analysis &nbsp;·&nbsp; FMVA® Certified</div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;defaultTheme&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Dark&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;Dark&quot;, &quot;Light&quot;], &quot;section&quot;: &quot;Theme&quot;},
+  &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#c9a961&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#c9a961&quot;, &quot;#b8893f&quot;, &quot;#caa86a&quot;, &quot;#7f93ad&quot;], &quot;section&quot;: &quot;Theme&quot;},
+  &quot;headingStyle&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Serif&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;Serif&quot;, &quot;Sans&quot;], &quot;section&quot;: &quot;Theme&quot;}
+}">
+class Component extends DCLogic {
+  state = { mainTab: 'input', subTab: 'company', scenario: 'base', theme: null };
+
+  activeTheme() {
+    return this.state.theme ?? (this.props.defaultTheme === 'Light' ? 'light' : 'dark');
+  }
+
+  componentDidMount() { this.syncBody(); }
+  componentDidUpdate() { this.syncBody(); }
+  syncBody() {
+    const t = this.activeTheme();
+    document.body.style.background = t === 'light' ? '#ece5d6' : '#080b11';
+    document.body.style.transition = 'background .35s ease';
+  }
+
+  renderVals() {
+    const gold = this.props.accent ?? '#c9a961';
+    const display = (this.props.headingStyle === 'Sans')
+      ? "'IBM Plex Sans',system-ui,sans-serif"
+      : "'Spectral',Georgia,serif";
+
+    const theme = this.activeTheme();
+    const isLight = theme === 'light';
+    const tk = isLight ? {
+      bg:'#ece5d6', panel:'#f7f3ea', field:'#fbf9f2', inset:'#f1ebdd',
+      border:'#d9d1be', bord2:'#cabfa6', hair:'#e6dfce',
+      text:'#1c1d12', text2:'#5b5d49', text3:'#8a8b74', label:'#8a6f2f',
+      nav:'rgba(236,229,214,0.85)',
+      pos:'#2f8d5e', neg:'#b34a32', info:'#3f5f8f', warn:'#8a6a26', mark:'#3a3320',
+      glow:'radial-gradient(1100px 460px at 86% -10%, rgba(189,149,64,0.10), transparent 62%)',
+    } : {
+      bg:'#080b11', panel:'#0e121b', field:'#0a0d15', inset:'#0b0f17',
+      border:'#1b2230', bord2:'#232c3c', hair:'#181e2a',
+      text:'#e9ebef', text2:'#9aa3b2', text3:'#6b7484', label:'#c9b07f',
+      nav:'rgba(8,11,17,0.86)',
+      pos:'#5cb88a', neg:'#d9745f', info:'#9fb8df', warn:'#d8b878', mark:'#f0e6c8',
+      glow:'radial-gradient(1100px 460px at 86% -10%, rgba(42,64,108,0.34), transparent 62%)',
+    };
+    const { mainTab, subTab, scenario } = this.state;
+
+    const mainTabs = [
+      { key: 'input', label: 'Input Data' },
+      { key: 'valuation', label: 'Valuation' },
+      { key: 'charts', label: 'Charts & Analysis' },
+    ].map(t => {
+      const a = mainTab === t.key;
+      return {
+        label: t.label,
+        onClick: () => this.setState({ mainTab: t.key }),
+        labelStyle: `font:600 14px 'IBM Plex Mono';letter-spacing:.03em;color:${a ? 'var(--text,#eef0f3)' : 'var(--text3,#6b7484)'};padding-bottom:13px;display:block;`,
+        barStyle: `height:2px;border-radius:2px;background:${a ? 'var(--gold,#c9a961)' : 'transparent'};`,
+      };
+    });
+
+    const subTabs = [
+      { key: 'company', label: 'Company Info', sub: 'Profile & shares' },
+      { key: 'income', label: 'Income Statement', sub: 'Base Year' },
+      { key: 'balance', label: 'Balance Sheet', sub: 'Base Year' },
+      { key: 'cashflow', label: 'Cash Flow', sub: 'Base Year' },
+      { key: 'assumptions', label: 'Assumptions', sub: 'WACC & drivers' },
+      { key: 'comparables', label: 'Comparables', sub: 'Peer set' },
+      { key: 'historical', label: 'Historical', sub: '2021–2025' },
+    ].map(t => {
+      const a = subTab === t.key;
+      return {
+        label: t.label, sub: t.sub,
+        onClick: () => this.setState({ subTab: t.key }),
+        boxStyle: `display:flex;flex-direction:column;gap:3px;padding:12px 15px;border-radius:6px;cursor:pointer;border:1px solid ${a ? 'var(--gold,#c9a961)' : 'var(--hair,#171d29)'};background:${a ? 'rgba(201,169,97,0.09)' : 'var(--field,#0a0d15)'};`,
+        labelStyle: `font:600 13px 'IBM Plex Sans';white-space:nowrap;color:${a ? 'var(--gold,#c9a961)' : 'var(--text2,#aab2c0)'};`,
+        subStyle: `font:400 10px 'IBM Plex Mono';color:var(--text3,#586375);`,
+      };
+    });
+
+    const scenarios = [
+      { key: 'bear', label: 'Bear' },
+      { key: 'base', label: 'Base' },
+      { key: 'bull', label: 'Bull' },
+    ].map(s => {
+      const a = scenario === s.key;
+      return {
+        label: s.label,
+        onClick: () => this.setState({ scenario: s.key }),
+        style: `padding:6px 17px;border-radius:6px;cursor:pointer;font:600 12px 'IBM Plex Mono';letter-spacing:.05em;border:1px solid transparent;background:${a ? 'var(--gold,#c9a961)' : 'transparent'};color:${a ? '#16120a' : 'var(--text3,#76808f)'};`,
+      };
+    });
+
+    const sd = {
+      bear: { fair: '47.40', upside: '+5.3%', status: 'FAIRLY VALUED', sc: '#c9a961', sbg: 'rgba(201,169,97,0.13)' },
+      base: { fair: '59.54', upside: '+32.3%', status: 'UNDERVALUED', sc: 'var(--pos,#5cb88a)', sbg: 'rgba(92,184,138,0.13)' },
+      bull: { fair: '76.20', upside: '+69.3%', status: 'UNDERVALUED', sc: 'var(--pos,#5cb88a)', sbg: 'rgba(92,184,138,0.13)' },
+    }[scenario];
+
+    const histRows = ['Revenue', 'Net Income', 'Total Assets', 'Total Equity', 'Operating CF', 'CapEx', 'Gross Margin %', 'Long-Term Debt', 'Current Ratio', 'Shares Out'];
+
+    // ---- Valuation method results ----
+    const methods = [
+      { key: 'DCF',       label: 'DCF',        val: '50.30', up: '+11.8%', dir: 'up',   color: '#5e87c4', lo: 30.02, hi: 69.69, mid: 50.30 },
+      { key: 'PE',        label: 'P/E',        val: '77.42', up: '+72.0%', dir: 'up',   color: '#9b7fd4', lo: 64.60, hi: 90.16, mid: 77.42 },
+      { key: 'EVEBITDA',  label: 'EV/EBITDA',  val: '83.50', up: '+85.6%', dir: 'up',   color: 'var(--pos,#5cb88a)', lo: 75.15, hi: 91.86, mid: 83.50 },
+      { key: 'DDM',       label: 'DDM',        val: '15.75', up: '-65.0%', dir: 'down', color: '#c9a961', lo: 12.36, hi: 19.75, mid: 15.75 },
+      { key: 'PB',        label: 'P/B',        val: '42.00', up: '-6.7%',  dir: 'down', color: '#7f93ad', lo: 37.80, hi: 46.20, mid: 42.00 },
+      { key: 'Blended',   label: 'Blended',    val: '59.54', up: '+32.3%', dir: 'up',   color: 'var(--neg,#d9745f)', lo: 49.71, hi: 74.60, mid: 59.54 },
+    ];
+    const SMIN = 6, SMAX = 112, SR = SMAX - SMIN;
+    const results = methods.map(m => {
+      const left = ((m.lo - SMIN) / SR) * 100;
+      const width = ((m.hi - m.lo) / SR) * 100;
+      const midp = ((m.mid - SMIN) / SR) * 100;
+      const upColor = m.dir === 'up' ? 'var(--pos,#5cb88a)' : 'var(--neg,#d9745f)';
+      return {
+        label: m.label, val: m.val, up: m.up, lo: m.lo.toFixed(2), hi: m.hi.toFixed(2),
+        dotStyle: `width:8px;height:8px;border-radius:2px;background:${m.color};`,
+        upStyle: `font:600 12px 'IBM Plex Mono';color:${upColor};`,
+        barStyle: `position:absolute;top:50%;transform:translateY(-50%);height:18px;border-radius:3px;left:${left.toFixed(2)}%;width:${width.toFixed(2)}%;background:${m.color};opacity:.85;`,
+        midStyle: `position:absolute;top:50%;transform:translate(-50%,-50%);width:3px;height:26px;border-radius:2px;background:var(--mark,#f0e6c8);left:${midp.toFixed(2)}%;`,
+        rowColor: m.color,
+      };
+    });
+    const currentLine = (((45 - SMIN) / SR) * 100).toFixed(2);
+
+    // ---- Valuation comparison bars ----
+    const VBMAX = 104;
+    const valBars = [
+      { label: 'Current', val: '45.00', v: 45, color: '#7f8696' },
+      { label: 'DCF', val: '50.30', v: 50.30, color: '#5e87c4' },
+      { label: 'Comps', val: '80.46', v: 80.46, color: '#9b7fd4' },
+      { label: 'Blended', val: '59.54', v: 59.54, color: 'var(--neg,#d9745f)' },
+    ].map(b => ({
+      label: b.label, val: b.val,
+      barStyle: `width:100%;height:${((b.v / VBMAX) * 100).toFixed(1)}%;background:${b.color};border-radius:4px 4px 0 0;`,
+    }));
+    const currentBarLine = `bottom:${((45 / VBMAX) * 100).toFixed(1)}%;`;
+
+    // ---- Monte Carlo histogram ----
+    const mcHeights = [3, 5, 9, 15, 24, 38, 55, 72, 87, 97, 100, 93, 80, 64, 48, 34, 22, 14, 8, 5, 3];
+    const monteBars = mcHeights.map(h => ({ style: `flex:1;height:${h}%;background:var(--gold,#c9a961);opacity:.82;border-radius:2px 2px 0 0;` }));
+    const mcPct = [
+      { label: '5th %ile', val: '37.27' }, { label: '25th %ile', val: '44.64' },
+      { label: 'Median', val: '50.33' }, { label: '75th %ile', val: '56.92' }, { label: '95th %ile', val: '68.57' },
+    ];
+
+    // ---- Sector benchmarking ----
+    const benchRows = [
+      { m: 'Gross Margin', t: '60.0%', s: '45.8%', pct: 88, rating: 'TOP' },
+      { m: 'Operating Margin', t: '30.0%', s: '15.8%', pct: 90, rating: 'TOP' },
+      { m: 'Net Margin', t: '22.1%', s: '18.6%', pct: 72, rating: 'TOP' },
+      { m: 'Return on Equity', t: '39.5%', s: '15.8%', pct: 92, rating: 'TOP' },
+      { m: 'Return on Assets', t: '25.7%', s: '6.8%', pct: 95, rating: 'TOP' },
+      { m: 'FCF Margin', t: '22.0%', s: '12.6%', pct: 84, rating: 'TOP' },
+      { m: 'Debt / Equity', t: '0.43x', s: '0.86x', pct: 60, rating: 'ABOVE' },
+      { m: 'Current Ratio', t: '3.60x', s: '1.86x', pct: 86, rating: 'TOP' },
+      { m: 'P/E Ratio', t: '4.1x', s: '9.6x', pct: 78, rating: 'TOP' },
+      { m: 'EV / EBITDA', t: '2.8x', s: '7.6x', pct: 80, rating: 'TOP' },
+    ].map(r => {
+      const isTop = r.rating === 'TOP';
+      const c = isTop ? 'var(--pos,#5cb88a)' : '#5e87c4';
+      return {
+        m: r.m, t: r.t, s: r.s, rating: r.rating,
+        barStyle: `height:6px;border-radius:3px;width:${r.pct}%;background:${c};`,
+        ratingStyle: `font:700 10px 'IBM Plex Mono';letter-spacing:.08em;padding:3px 9px;border-radius:4px;background:${isTop ? 'rgba(92,184,138,0.14)' : 'rgba(94,135,196,0.14)'};color:${c};`,
+      };
+    });
+
+    // ---- Sensitivity table (WACC x Terminal growth) ----
+    const sensCols = ['5.0%', '6.5%', '8.0%', '9.5%', '11.0%'];
+    const sensData = [
+      { w: '19.85%', base: false, v: ['59.31', '63.98', '69.69', '77.86', '87.86'] },
+      { w: '21.85%', base: false, v: ['51.26', '54.56', '58.56', '63.54', '69.90'] },
+      { w: '23.85%', base: true,  v: ['44.96', '47.46', '50.30', '54.13', '58.13'] },
+      { w: '25.85%', base: false, v: ['39.89', '41.74', '43.91', '46.47', '49.55'] },
+      { w: '27.85%', base: false, v: ['36.72', '37.16', '38.82', '40.75', '43.02'] },
+    ];
+    const sensRows = sensData.map((row, ri) => ({
+      w: row.w,
+      wStyle: `font:600 12px 'IBM Plex Mono';color:${row.base ? 'var(--gold,#c9a961)' : 'var(--text2,#aab2c0)'};padding:9px 8px;`,
+      cells: row.v.map((val, ci) => {
+        const isBase = row.base && ci === 2;
+        return {
+          val,
+          style: `text-align:center;font:500 12px 'IBM Plex Mono';padding:9px 8px;color:${isBase ? '#16120a' : 'var(--text2,#9aa3b2)'};background:${isBase ? 'var(--gold,#c9a961)' : 'transparent'};border-radius:${isBase ? '4px' : '0'};`,
+        };
+      }),
+    }));
+
+    return {
+      isLight, isDark: !isLight,
+      toggleTheme: () => this.setState({ theme: isLight ? 'dark' : 'light' }),
+      tBg: tk.bg, tPanel: tk.panel, tField: tk.field, tInset: tk.inset,
+      tBorder: tk.border, tBord2: tk.bord2, tHair: tk.hair,
+      tText: tk.text, tText2: tk.text2, tText3: tk.text3, tLabel: tk.label, tNav: tk.nav,
+      tPos: tk.pos, tNeg: tk.neg, tInfo: tk.info, tWarn: tk.warn, tMark: tk.mark, tGlow: tk.glow,
+      results, currentLine, valBars, currentBarLine, monteBars, mcPct, benchRows, sensCols, sensRows,
+      accentVar: gold, display, histRows,
+      mainTabs, subTabs, scenarios,
+      scenFair: sd.fair, scenUpside: sd.upside, scenStatus: sd.status, scenColor: sd.sc, scenBg: sd.sbg,
+      isInput: mainTab === 'input', isValuation: mainTab === 'valuation', isCharts: mainTab === 'charts',
+      isCompany: subTab === 'company', isIncome: subTab === 'income', isBalance: subTab === 'balance',
+      isCashflow: subTab === 'cashflow', isAssumptions: subTab === 'assumptions',
+      isComparables: subTab === 'comparables', isHistorical: subTab === 'historical',
+    };
+  }
+}
+</script>
+</body>
+</html>

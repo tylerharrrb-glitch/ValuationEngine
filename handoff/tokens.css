@@ -1,0 +1,86 @@
+/* ============================================================
+   WOLF Valuation Engine — Design Tokens
+   Drop this into your global stylesheet. Dark is the default
+   (:root); light activates on <html data-theme="light"> (or any
+   ancestor carrying the attribute).
+   ============================================================ */
+
+:root {
+  /* Brand accent (brass gold) */
+  --gold: #c9a961;
+
+  /* Surfaces */
+  --bg:     #080b11;  /* page background          */
+  --panel:  #0e121b;  /* cards / panels           */
+  --field:  #0a0d15;  /* inputs / inset fields    */
+  --inset:  #0b0f17;  /* secondary inset boxes    */
+
+  /* Lines */
+  --border: #1b2230;  /* card & input borders     */
+  --bord2:  #232c3c;  /* lighter / hover borders  */
+  --hair:   #181e2a;  /* hairline dividers        */
+
+  /* Text */
+  --text:   #e9ebef;  /* primary                  */
+  --text2:  #9aa3b2;  /* secondary                */
+  --text3:  #6b7484;  /* tertiary / mono labels   */
+  --label:  #c9b07f;  /* gold-tinted eyebrow text */
+
+  /* Chrome */
+  --nav:    rgba(8,11,17,0.86);  /* sticky nav bg (translucent) */
+  --glow:   radial-gradient(1100px 460px at 86% -10%, rgba(42,64,108,0.34), transparent 62%);
+
+  /* Semantic — use ONLY for up/down/validation, never decoration */
+  --pos:    #5cb88a;  /* positive / undervalued   */
+  --neg:    #d9745f;  /* negative / overvalued    */
+  --info:   #9fb8df;  /* informational notes      */
+  --warn:   #d8b878;  /* warnings                 */
+  --mark:   #f0e6c8;  /* chart mid-value marker   */
+}
+
+[data-theme="light"] {
+  --gold: #c9a961;
+
+  --bg:     #ece5d6;
+  --panel:  #f7f3ea;
+  --field:  #fbf9f2;
+  --inset:  #f1ebdd;
+
+  --border: #d9d1be;
+  --bord2:  #cabfa6;
+  --hair:   #e6dfce;
+
+  --text:   #1c1d12;
+  --text2:  #5b5d49;
+  --text3:  #8a8b74;
+  --label:  #8a6f2f;
+
+  --nav:    rgba(236,229,214,0.85);
+  --glow:   radial-gradient(1100px 460px at 86% -10%, rgba(189,149,64,0.10), transparent 62%);
+
+  /* semantic colors darkened for contrast on cream */
+  --pos:    #2f8d5e;
+  --neg:    #b34a32;
+  --info:   #3f5f8f;
+  --warn:   #8a6a26;
+  --mark:   #3a3320;
+}
+
+/* ---- Type stacks ---- */
+:root {
+  --font-display: 'Spectral', Georgia, serif;       /* headlines / numbers-as-display */
+  --font-ui:      'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace; /* data, labels, eyebrows */
+}
+
+/* Google Fonts import (or self-host):
+   @import url('https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+*/
+
+/* ---- Base wiring ---- */
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  transition: background .35s ease, color .35s ease;
+}
