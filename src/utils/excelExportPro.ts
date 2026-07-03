@@ -1,6 +1,12 @@
 import * as XLSX from 'xlsx-js-style';
+// Runtime interop: works under Vite/esbuild (namespace has utils) AND Node ESM
+// (CJS module.exports lands on .default). `XLSX` stays imported as a namespace so
+// TYPE references (XLSX.WorkSheet / XLSX.WorkBook) still resolve; `XLSXrt` is the
+// runtime value carrying .utils / .writeFile. Without this, XLSXrt.utils is
+// undefined in Node (breaks scripts/verify-mopco.ts).
+const XLSXrt: any = (XLSX as any).default ?? XLSX;
 import { FinancialData, ValuationAssumptions, ComparableCompany } from '../types/financial';
-import { calculateEBITDA, calculateWACC } from './valuation';
+import { calculateEBITDA, resolveEffectiveWACC } from './valuation';
 import { SCENARIO_PARAMS } from './constants/scenarioParams';
 
 // Excel number formats — dynamic based on market region
@@ -43,10 +49,10 @@ const header = (v: string): XLSX.CellObject => {
 
 // Apply bold styling to cells in a worksheet — MERGES with existing font (preserves color, name, sz)
 const applyBoldRows = (ws: XLSX.WorkSheet, rows: number[]): void => {
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  const range = XLSXrt.utils.decode_range(ws['!ref'] || 'A1');
   for (const row of rows) {
     for (let c = range.s.c; c <= range.e.c; c++) {
-      const addr = XLSX.utils.encode_cell({ r: row - 1, c });
+      const addr = XLSXrt.utils.encode_cell({ r: row - 1, c });
       if (ws[addr]) {
         if (!ws[addr].s) ws[addr].s = {};
         ws[addr].s = { ...ws[addr].s, font: { ...(ws[addr].s?.font || {}), bold: true } };
@@ -190,14 +196,15 @@ const baseCell = (f: string, fmt?: string): XLSX.CellObject => ({
 export const exportToExcelWithFormulas = (
   financialData: FinancialData,
   assumptionsRaw: ValuationAssumptions,
-  comparables: ComparableCompany[]
-): void => {
+  comparables: ComparableCompany[],
+  opts?: { returnWorkbook?: boolean }
+): XLSX.WorkBook | void => {
   // ── WACC SYNC FIX ─────────────────────────────────────────────────────
   // Recalculate WACC from CAPM inputs and patch assumptions.discountRate
   // so ALL downstream code uses the same single source of truth.
-  const syncedWACC = calculateWACC(financialData, assumptionsRaw);
+  const syncedWACC = resolveEffectiveWACC(financialData, assumptionsRaw);
   const assumptions = { ...assumptionsRaw, discountRate: syncedWACC };
-  const wb = XLSX.utils.book_new();
+  const wb = XLSXrt.utils.book_new();
 
   // Market region detection
   const isEgypt = (financialData as any).marketRegion === 'Egypt' || assumptions.riskFreeRate > 10;
@@ -438,11 +445,26 @@ export const exportToExcelWithFormulas = (
   // Link B61 to the calculated WACC
   inputsWs['B61'] = formula('B92', FMT.decimal);
 
-  const lastInputRow = Math.max(80 + Math.max(comparables.length, 1), 93);
+  // ── EV BRIDGE ADJUSTMENTS (Non-Operating) — rows 95-98 ──
+  // Appended at the BOTTOM so no existing Inputs!B## reference shifts.
+  // Marketable Securities (B28) and Long-term Investments (B35) already exist
+  // above and are consumed directly by the DCF Model bridge.
+  inputsWs['A95'] = sectionHeaderCell('EV BRIDGE ADJUSTMENTS (Non-Operating)');
+  inputsWs['A96'] = cell('Other Non-Operating Assets');
+  inputsWs['B96'] = inputCell(
+    (financialData.balanceSheet as any).otherNonOpAssets ?? assumptions.otherNonOpAssets ?? 0,
+    FMT.number
+  );
+  inputsWs['A97'] = cell('Minority Interest');
+  inputsWs['B97'] = inputCell(financialData.balanceSheet.minorityInterest ?? 0, FMT.number);
+  inputsWs['A98'] = cell('Preferred Equity');
+  inputsWs['B98'] = inputCell(financialData.balanceSheet.preferredEquity ?? 0, FMT.number);
+
+  const lastInputRow = Math.max(80 + Math.max(comparables.length, 1), 98);
   inputsWs['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 55 }, { wch: 12 }, { wch: 12 }];
   inputsWs['!ref'] = `A1:E${lastInputRow}`;
-  applyBoldRows(inputsWs, [1, 4, 5, 11, 12, 24, 25, 26, 33, 40, 45, 49, 52, 53, 59, 60, 67, 68, 75, 76, 82]);
-  XLSX.utils.book_append_sheet(wb, inputsWs, 'Inputs');
+  applyBoldRows(inputsWs, [1, 4, 5, 11, 12, 24, 25, 26, 33, 40, 45, 49, 52, 53, 59, 60, 67, 68, 75, 76, 82, 95]);
+  XLSXrt.utils.book_append_sheet(wb, inputsWs, 'Inputs');
 
   // ============================================
   // SHEET 2: DCF MODEL — FULL FCFF BUILDUP (Fix C1)
@@ -534,19 +556,28 @@ export const exportToExcelWithFormulas = (
   dcfWs['A31'] = cell('Sum PV(FCFF)'); dcfWs['B31'] = formula('SUM(C27:G27)', FMT.number);
   dcfWs['A32'] = cell('Terminal Value'); dcfWs['B32'] = formula('IFERROR(G25*(1+$B$14)/($B$13-$B$14),0)', FMT.number);
   dcfWs['A33'] = cell('PV(Terminal Value)'); dcfWs['B33'] = formula('IFERROR(B32/POWER(1+$B$13,5),0)', FMT.number);
+  // ── EV → EQUITY BRIDGE (institutional standard) ──
+  // Adds non-operating financial assets (marketable securities + long-term
+  // investments) whose finance income is excluded from unlevered FCFF, then
+  // subtracts debt, minority interest and preferred equity.
   dcfWs['A34'] = cell('Enterprise Value'); dcfWs['B34'] = formula('B31+B33', FMT.number);
-  dcfWs['A35'] = cell('Plus: Cash'); dcfWs['B35'] = formula('Inputs!B27', FMT.number);
-  dcfWs['A36'] = cell('Less: Total Debt'); dcfWs['B36'] = formula('Inputs!B70', FMT.number);
-  dcfWs['A37'] = cell('Equity Value'); dcfWs['B37'] = formula('B34+B35-B36', FMT.number);
-  dcfWs['A38'] = cell('Shares Outstanding'); dcfWs['B38'] = formula('Inputs!B8', FMT.number);
-  dcfWs['A39'] = header('DCF Per Share'); dcfWs['B39'] = keyOutputCell('IFERROR(B37/B38,0)', FMT.currencyDec);
-  dcfWs['A41'] = cell('Current Price'); dcfWs['B41'] = formula('Inputs!B9', FMT.currencyDec);
-  dcfWs['A42'] = header('Upside/(Downside)'); dcfWs['B42'] = formula('IFERROR((B39-B41)/B41,0)', FMT.percent);
+  dcfWs['A35'] = cell('Plus: Cash & Equivalents'); dcfWs['B35'] = formula('Inputs!B27', FMT.number);
+  dcfWs['A36'] = cell('Plus: Marketable Securities'); dcfWs['B36'] = formula('Inputs!B28', FMT.number);
+  dcfWs['A37'] = cell('Plus: Long-term Investments'); dcfWs['B37'] = formula('Inputs!B35', FMT.number);
+  dcfWs['A38'] = cell('Plus: Other Non-Op Assets'); dcfWs['B38'] = formula('Inputs!B96', FMT.number);
+  dcfWs['A39'] = cell('Less: Total Debt'); dcfWs['B39'] = formula('-Inputs!B70', FMT.number);
+  dcfWs['A40'] = cell('Less: Minority Interest'); dcfWs['B40'] = formula('-Inputs!B97', FMT.number);
+  dcfWs['A41'] = cell('Less: Preferred Equity'); dcfWs['B41'] = formula('-Inputs!B98', FMT.number);
+  dcfWs['A42'] = cell('Equity Value'); dcfWs['B42'] = formula('B34+B35+B36+B37+B38+B39+B40+B41', FMT.number);
+  dcfWs['A43'] = cell('Shares Outstanding'); dcfWs['B43'] = formula('Inputs!B8', FMT.number);
+  dcfWs['A44'] = header('DCF Per Share'); dcfWs['B44'] = keyOutputCell('IFERROR(B42/B43,0)', FMT.currencyDec);
+  dcfWs['A45'] = cell('Current Price'); dcfWs['B45'] = formula('Inputs!B9', FMT.currencyDec);
+  dcfWs['A46'] = header('Upside/(Downside)'); dcfWs['B46'] = formula('IFERROR((B44-B45)/B45,0)', FMT.percent);
 
-  dcfWs['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-  dcfWs['!ref'] = 'A1:G42';
-  applyBoldRows(dcfWs, [1, 4, 5, 16, 25, 29, 30, 39, 42]);
-  XLSX.utils.book_append_sheet(wb, dcfWs, 'DCF Model');
+  dcfWs['!cols'] = [{ wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+  dcfWs['!ref'] = 'A1:G46';
+  applyBoldRows(dcfWs, [1, 4, 5, 16, 25, 29, 30, 42, 44, 46]);
+  XLSXrt.utils.book_append_sheet(wb, dcfWs, 'DCF Model');
 
 
 
@@ -660,7 +691,7 @@ export const exportToExcelWithFormulas = (
   (compWs as any)['!print'] = { FitToWidth: 1, FitToHeight: 0 };
   (compWs as any)['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0, scale: 0 };
   applyBoldRows(compWs, [1, 4, 5, avgRow, impliedRow, impliedRow + 1, weightsRow, summaryRow, summaryRow + 1, summaryRow + 3]);
-  XLSX.utils.book_append_sheet(wb, compWs, 'Comparables');
+  XLSXrt.utils.book_append_sheet(wb, compWs, 'Comparables');
 
   // ============================================
   // SHEET 4: FINANCIAL RATIOS
@@ -744,7 +775,7 @@ export const exportToExcelWithFormulas = (
   ratiosWs['!cols'] = [{ wch: 28 }, { wch: 18 }];
   ratiosWs['!ref'] = 'A1:B38';
   applyBoldRows(ratiosWs, [1, 3, 4, 9, 10, 18, 19, 29, 30]);
-  XLSX.utils.book_append_sheet(wb, ratiosWs, 'Ratios');
+  XLSXrt.utils.book_append_sheet(wb, ratiosWs, 'Ratios');
 
   // ============================================
   // SHEET 5: DASHBOARD
@@ -764,7 +795,7 @@ export const exportToExcelWithFormulas = (
   dashWs['D6'] = subHeaderCell('Weighted Value');
 
   dashWs['A7'] = cell('DCF Valuation');
-  dashWs['B7'] = formula("'DCF Model'!B39", FMT.currencyDec);
+  dashWs['B7'] = formula("'DCF Model'!B44", FMT.currencyDec);
   dashWs['C7'] = cell(0.6, FMT.percent);
   dashWs['D7'] = formula('B7*C7', FMT.currencyDec);
 
@@ -810,7 +841,7 @@ export const exportToExcelWithFormulas = (
   dashWs['!cols'] = [{ wch: 26 }, { wch: 18 }, { wch: 12 }, { wch: 18 }];
   dashWs['!ref'] = 'A1:D31';
   applyBoldRows(dashWs, [1, 5, 6, 10, 11, 12, 15, 17, 19, 22, 23]);
-  XLSX.utils.book_append_sheet(wb, dashWs, 'Dashboard');
+  XLSXrt.utils.book_append_sheet(wb, dashWs, 'Dashboard');
 
   // ============================================
   // HIDDEN _CALC SHEET: FCFF Buildup (Excel 2019 compatible)
@@ -947,7 +978,7 @@ export const exportToExcelWithFormulas = (
 
   calcWs['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
   calcWs['!ref'] = 'A1:G66';
-  XLSX.utils.book_append_sheet(wb, calcWs, '_Calc');
+  XLSXrt.utils.book_append_sheet(wb, calcWs, '_Calc');
   // Hide the _Calc sheet
   (wb.Workbook || (wb.Workbook = {}));
   (wb.Workbook.Sheets || (wb.Workbook.Sheets = []));
@@ -997,7 +1028,7 @@ export const exportToExcelWithFormulas = (
 
   // Base cell check: D7 should equal DCF Model B39
   sensWs['A11'] = cell('Base cell check:');
-  sensWs['B11'] = formula("D7-'DCF Model'!B39", FMT.decimal);
+  sensWs['B11'] = formula("D7-'DCF Model'!B44", FMT.decimal);
   sensWs['C11'] = formula('IF(ABS(B11)<0.01,"\u2705 MATCH","\u274C MISMATCH")');
 
   // Scenario Analysis
@@ -1019,7 +1050,7 @@ export const exportToExcelWithFormulas = (
   sensWs['B15'] = baseCell('Inputs!B63', FMT.decimal);
   sensWs['C15'] = baseCell('Inputs!B61', FMT.decimal);
   sensWs['D15'] = baseCell('Inputs!B71', FMT.decimal);
-  sensWs['E15'] = baseCell("'DCF Model'!B39", FMT.currencyDec);
+  sensWs['E15'] = baseCell("'DCF Model'!B44", FMT.currencyDec);
 
   // Bull Case (row 16) — references _Calc rows 60-66
   sensWs['A16'] = cell('BULL CASE');
@@ -1034,7 +1065,7 @@ export const exportToExcelWithFormulas = (
   sensWs['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
   sensWs['!ref'] = 'A1:F18';
   applyBoldRows(sensWs, [1, 4, 12, 13]);
-  XLSX.utils.book_append_sheet(wb, sensWs, 'Sensitivity');
+  XLSXrt.utils.book_append_sheet(wb, sensWs, 'Sensitivity');
 
   // ============================================
   // SHEET 7: INSTRUCTIONS
@@ -1151,7 +1182,7 @@ export const exportToExcelWithFormulas = (
   zScoreWs['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
   zScoreWs['!ref'] = 'A1:D16';
   applyBoldRows(zScoreWs, [1, 3, 10, 11, 13]);
-  XLSX.utils.book_append_sheet(wb, zScoreWs, 'Z-Score');
+  XLSXrt.utils.book_append_sheet(wb, zScoreWs, 'Z-Score');
 
   // ── DuPont Decomposition Sheet ── ALL VALUES AS FORMULAS
   const dupontWs: XLSX.WorkSheet = {};
@@ -1215,7 +1246,7 @@ export const exportToExcelWithFormulas = (
   dupontWs['!cols'] = [{ wch: 25 }, { wch: 45 }, { wch: 20 }];
   dupontWs['!ref'] = 'A1:C17';
   applyBoldRows(dupontWs, [1, 3, 4, 8, 10, 11, 17]);
-  XLSX.utils.book_append_sheet(wb, dupontWs, 'DuPont');
+  XLSXrt.utils.book_append_sheet(wb, dupontWs, 'DuPont');
 
   // ── DDM Sheet ── ALL VALUES AS FORMULAS
   const ddmWs: XLSX.WorkSheet = {};
@@ -1259,7 +1290,7 @@ export const exportToExcelWithFormulas = (
 
   // DDM vs DCF spread
   ddmWs['A15'] = cell('DDM vs DCF Spread');
-  ddmWs['B15'] = formula("IFERROR(B12-'DCF Model'!B39,0)", FMT.currencyDec);
+  ddmWs['B15'] = formula("IFERROR(B12-'DCF Model'!B44,0)", FMT.currencyDec);
 
   // Notes
   ddmWs['A17'] = header('Notes:');
@@ -1271,7 +1302,7 @@ export const exportToExcelWithFormulas = (
   ddmWs['!cols'] = [{ wch: 30 }, { wch: 24 }, { wch: 40 }];
   ddmWs['!ref'] = 'A1:C21';
   applyBoldRows(ddmWs, [1, 3, 11, 17]);
-  XLSX.utils.book_append_sheet(wb, ddmWs, 'DDM');
+  XLSXrt.utils.book_append_sheet(wb, ddmWs, 'DDM');
 
   // ============================================
   // HISTORICAL DATA SHEET
@@ -1398,15 +1429,18 @@ export const exportToExcelWithFormulas = (
 
     histWs['!cols'] = [{ wch: 35 }, ...years.map(() => ({ wch: 16 }))];
     applyBoldRows(histWs, [1, 4, cagrStartRow, pRow]);
-    XLSX.utils.book_append_sheet(wb, histWs, 'Historical');
+    XLSXrt.utils.book_append_sheet(wb, histWs, 'Historical');
   }
 
-  const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
+  const instructionsWs = XLSXrt.utils.aoa_to_sheet(instructionsData);
   instructionsWs['!cols'] = [{ wch: 75 }];
   applyBoldRows(instructionsWs, [1, 3, 5, 10, 16, 21, 25, 30, 37, 43]);
-  XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+  XLSXrt.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+
+  // Verification hook: return the workbook object instead of triggering a download.
+  if (opts?.returnWorkbook) return wb;
 
   // Generate and download
   const fileName = `WOLF_${financialData.ticker}_Valuation_${new Date().toISOString().split('T')[0]}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  XLSXrt.writeFile(wb, fileName);
 };

@@ -2,9 +2,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../types/financial';
 import { formatNumber, formatPercent, formatCurrency, CurrencyCode } from './formatters';
-import { calculateWACC, calculateKe } from './valuation';
+import { calculateWACC, resolveEffectiveWACC, calculateKe } from './valuation';
 import { SCENARIO_PARAMS } from './constants/scenarioParams';
 import { calcScenarioPrice } from './calculations/scenarios';
+import { bridgeEnterpriseToEquity } from './calculations/dcf';
 import { calculateQualityScorecard, calculateReverseDCF, runMonteCarloSimulation, SECTOR_AVERAGES, getPercentile, getRating } from './advancedAnalysis';
 
 interface PDFExportParams {
@@ -34,7 +35,7 @@ export const exportToPDF = ({
   // Recalculate WACC from CAPM inputs and patch assumptions.discountRate
   // so ALL downstream code (DCF bridge, sensitivity, scenarios, display)
   // uses the same single source of truth.
-  const syncedWACC = calculateWACC(financialData, assumptionsRaw);
+  const syncedWACC = resolveEffectiveWACC(financialData, assumptionsRaw);
   const assumptions = { ...assumptionsRaw, discountRate: syncedWACC };
   // ─────────────────────────────────────────────────────────────────────
 
@@ -484,7 +485,10 @@ export const exportToPDF = ({
   }
   const pvTV = tvGordon / Math.pow(1 + waccDec, assumptions.projectionYears);
   const evCalc = sumPV + pvTV;
-  const equityVal = evCalc - totalDebtForBridge + balanceSheet.cash;
+  // Full EV→Equity bridge — includes non-operating financial assets
+  const bridgeMktSec = balanceSheet.marketableSecurities ?? 0;
+  const bridgeLtInv = balanceSheet.longTermInvestments ?? 0;
+  const equityVal = bridgeEnterpriseToEquity(evCalc, financialData, assumptions);
   const dcfPerShareCalc = equityVal / financialData.sharesOutstanding;
 
   autoTable(doc, {
@@ -495,8 +499,10 @@ export const exportToPDF = ({
       [`Terminal Value (Gordon Growth, g=${formatPercent(assumptions.terminalGrowthRate)})`, formatNumber(tvGordon)],
       ['PV of Terminal Value', formatNumber(pvTV)],
       ['Enterprise Value', formatNumber(evCalc)],
-      ['Less: Total Debt', `(${formatNumber(totalDebtForBridge)})`],
       ['Plus: Cash', formatNumber(balanceSheet.cash)],
+      ...(bridgeMktSec > 0 ? [['Plus: Marketable Securities', formatNumber(bridgeMktSec)]] : []),
+      ...(bridgeLtInv > 0 ? [['Plus: Long-term Investments', formatNumber(bridgeLtInv)]] : []),
+      ['Less: Total Debt', `(${formatNumber(totalDebtForBridge)})`],
       [{ content: 'Equity Value', styles: { fontStyle: 'bold' } }, { content: formatNumber(equityVal), styles: { fontStyle: 'bold' } }],
       ['Shares Outstanding', formatNumber(financialData.sharesOutstanding)],
       [{ content: 'DCF Fair Value per Share', styles: { fontStyle: 'bold' } }, { content: fmtCcy(dcfPerShareCalc, 2), styles: { fontStyle: 'bold' } }],
@@ -1127,11 +1133,14 @@ export const exportToPDF = ({
     head: [['Component', 'Amount']],
     body: [
       ['Enterprise Value', fmtCcy(evCalc)],
+      ['Plus: Cash', fmtCcy(balanceSheet.cash)],
+      // Non-operating financial assets (finance income excluded from FCFF)
+      ...(bridgeMktSec > 0 ? [['Plus: Marketable Securities', fmtCcy(bridgeMktSec)]] : []),
+      ...(bridgeLtInv > 0 ? [['Plus: Long-term Investments', fmtCcy(bridgeLtInv)]] : []),
       ['Less: Total Debt', `(${fmtCcy(totalDebtForBridge)})`],
       // IMP6: MI & PrefEq when non-zero
       ...((financialData.balanceSheet.minorityInterest || 0) > 0 ? [['Less: Minority Interest', `(${fmtCcy(financialData.balanceSheet.minorityInterest || 0)})`]] : []),
       ...((financialData.balanceSheet.preferredEquity || 0) > 0 ? [['Less: Preferred Equity', `(${fmtCcy(financialData.balanceSheet.preferredEquity || 0)})`]] : []),
-      ['Plus: Cash', fmtCcy(balanceSheet.cash)],
       ['= Equity Value', fmtCcy(equityVal)],
       [`\u00f7 Shares (${(financialData.sharesOutstanding / 1e6).toFixed(0)}M)`, ''],
       ['= DCF Per Share', `${ccy} ${dcfPerShareCalc.toFixed(2)}`],
@@ -1265,7 +1274,7 @@ export const exportToPDF = ({
         const tv = (lastFCFF * (1 + gDec)) / (wDec - gDec);
         const pvTV = tv / Math.pow(1 + wDec, dcfProjections.length);
         const ev = sumPV + pvTV;
-        const eqVal = ev + financialData.balanceSheet.cash - (financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt);
+        const eqVal = bridgeEnterpriseToEquity(ev, financialData, assumptions);
         const perShare = eqVal / financialData.sharesOutstanding;
         row.push((Math.round(perShare * 100) / 100).toFixed(2));
       }

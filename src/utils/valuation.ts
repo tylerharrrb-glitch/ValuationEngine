@@ -10,6 +10,7 @@ import {
   ValuationResult,
   DCFProjection,
 } from '../types/financial';
+import { bridgeEnterpriseToEquity } from './calculations/dcf';
 
 /** Calculate EBITDA = Operating Income + D&A */
 export function calculateEBITDA(data: FinancialData): number {
@@ -82,9 +83,8 @@ export function calculateDCF(
   const sumOfPV = projections.reduce((sum, p) => sum + p.presentValue, 0);
   const enterpriseValue = sumOfPV + terminalPV;
 
-  // EV to Equity Bridge — NO MAX(0) floor
-  const totalDebt = data.balanceSheet.shortTermDebt + data.balanceSheet.longTermDebt;
-  const equityValue = enterpriseValue - totalDebt + data.balanceSheet.cash;
+  // Full EV→Equity Bridge (adds non-operating financial assets) — NO MAX(0) floor
+  const equityValue = bridgeEnterpriseToEquity(enterpriseValue, data, assumptions);
 
   return { value: equityValue, projections };
 }
@@ -212,6 +212,33 @@ export function calculateWACC(
     : costOfEquity;
 
   return wacc;
+}
+
+/**
+ * Effective WACC used by the model.
+ *
+ * Returns the pure CAPM WACC UNLESS the user has deliberately overridden the
+ * discount rate (i.e. `assumptions.discountRate` is set meaningfully away from
+ * the CAPM value). This keeps the manual "Discount Rate (WACC)" override in the
+ * Assumptions tab actually linked to the live engine, Excel and PDF — otherwise
+ * every consumer recomputes CAPM and silently discards the override.
+ *
+ * `calculateWACC` stays CAPM-only on purpose so the "Auto-calculated" display and
+ * the override-detection in InputTab keep showing the true CAPM value.
+ *
+ * Tolerance 0.02pp comfortably exceeds InputTab's 0.005 rounding of the synced
+ * WACC, so an unedited discountRate is never mistaken for an override.
+ */
+export function resolveEffectiveWACC(
+  data: FinancialData,
+  assumptions: ValuationAssumptions
+): number {
+  const capm = calculateWACC(data, assumptions);
+  const override = assumptions.discountRate;
+  if (typeof override === 'number' && override > 0 && Math.abs(override - capm) > 0.02) {
+    return override;
+  }
+  return capm;
 }
 
 /**

@@ -171,6 +171,14 @@ export interface ValuationAssumptions {
   deltaWCPercent: number;       // ΔWC / ΔRevenue (%)
   useConstantDrivers: boolean;  // true = constant, false = year-by-year
 
+  /**
+   * Other non-operating assets (optional) added to the EV→Equity bridge.
+   * Use for non-op items NOT already captured by cash / marketable securities /
+   * long-term investments (e.g. investment property, non-consolidated stakes).
+   * Default 0. See the EV→Equity bridge in calculations/dcf.ts.
+   */
+  otherNonOpAssets?: number;
+
   // Terminal Value
   terminalMethod: TerminalValueMethod;
   exitMultiple: number;         // Exit EV/EBITDA multiple (for exit multiple method)

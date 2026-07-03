@@ -11,8 +11,12 @@
  * - Damodaran: https://pages.stern.nyu.edu/~adamodar/
  * - CAPMAS: https://www.capmas.gov.eg/ (inflation)
  *
- * Last calibrated: April 7, 2026
+ * Last calibrated: July 3, 2026
+ *
+ * NOTE: Numeric values mirror EGYPT_MACRO in constants/marketDefaults.ts, which
+ * is the single maintained source of truth and drives the staleness badge.
  */
+import { EGYPT_MACRO, isMacroStale } from '../constants/marketDefaults';
 
 // ============================================
 // CBE MONETARY POLICY RATES
@@ -40,15 +44,15 @@ export interface CBEPolicyRates {
 }
 
 export const CBE_POLICY_RATES: CBEPolicyRates = {
-  depositRate: 19.00,           // CBE cut to 19% on Feb 12, 2026 (was 27.25% at peak Mar 2024)
-  lendingRate: 20.00,            // CBE lending now 20% (was 28.25%)
-  mainOperationRate: 19.50,
-  discountRate: 19.50,
-  lastMPCDate: '2026-04-02',
-  nextMPCDate: '2026-05-22',
-  lastDecision: 'Rates on hold — geopolitical uncertainty and upside inflation risks',
-  source: 'Central Bank of Egypt — Monetary Policy Committee',
-  lastUpdated: '2026-04-02',
+  depositRate: EGYPT_MACRO.cbeOvernightDeposit,   // 19% — held since Feb 2026, confirmed 21 May 2026
+  lendingRate: EGYPT_MACRO.cbeOvernightLending,    // 20%
+  mainOperationRate: EGYPT_MACRO.cbeMainOperation, // 19.5%
+  discountRate: EGYPT_MACRO.cbeDiscountRate,       // 19.5%
+  lastMPCDate: '2026-05-21',
+  nextMPCDate: '2026-07-10',
+  lastDecision: 'Rates held at 19%/20% — disinflation on track, upside risks monitored',
+  source: 'Central Bank of Egypt — Monetary Policy Committee (cbe.org.eg)',
+  lastUpdated: EGYPT_MACRO.asOfDate,
 };
 
 // ============================================
@@ -75,14 +79,14 @@ export interface EgyptBondYields {
 }
 
 export const EGYPT_BOND_YIELDS: EgyptBondYields = {
-  tenYear: 20.0,
-  fiveYear: 21.5,
-  threeYear: 22.8,
-  oneYearTBill: 24.5,
-  ninetyOneDay: 25.0,
-  observationPeriod: 'March-April 2026 weighted average',
-  source: 'Bloomberg EGPT benchmark / CBE primary auctions',
-  lastUpdated: '2026-04-07',
+  tenYear: EGYPT_MACRO.egypt10YBondYield, // 20.0% — EGP 10Y proxy (investing.com)
+  fiveYear: 21.0,
+  threeYear: 22.3,
+  oneYearTBill: 24.0,
+  ninetyOneDay: 24.5,
+  observationPeriod: 'May–June 2026 weighted average',
+  source: 'investing.com Egypt 10Y / CBE primary auctions',
+  lastUpdated: EGYPT_MACRO.asOfDate,
 };
 
 // ============================================
@@ -118,14 +122,14 @@ export const DAMODARAN_EGYPT_CRP: DamodaranCRP = {
   country: 'Egypt',
   moodysRating: 'Caa1',
   spRating: 'B-',
-  defaultSpread: 5.66,
-  totalEquityRiskPremium: 13.06,
-  countryRiskPremium: 7.56,
-  matureMarketERP: 5.5,
-  equityVolatilityRatio: 1.33,
-  datasetYear: 'January 2026',
+  defaultSpread: 6.37,
+  totalEquityRiskPremium: EGYPT_MACRO.damodaranCRP + EGYPT_MACRO.matureERP, // 13.94
+  countryRiskPremium: EGYPT_MACRO.damodaranCRP,  // 9.71
+  matureMarketERP: EGYPT_MACRO.matureERP,        // 4.23
+  equityVolatilityRatio: 1.524,
+  datasetYear: 'January 2026 (Damodaran)',
   source: 'Damodaran Online — Country Risk Premiums (pages.stern.nyu.edu/~adamodar/)',
-  lastUpdated: '2026-04-07',
+  lastUpdated: EGYPT_MACRO.asOfDate,
 };
 
 // ============================================
@@ -148,12 +152,12 @@ export interface EgyptInflation {
 }
 
 export const EGYPT_INFLATION: EgyptInflation = {
-  headlineCPI: 12.5,
-  coreCPI: 10.0,
-  cbeTarget: '7% ± 2pp (by Q4 2026)',
-  observationMonth: 'February 2026',
-  source: 'CAPMAS / CBE Inflation Reports',
-  lastUpdated: '2026-04-07',
+  headlineCPI: EGYPT_MACRO.headlineInflation, // 14.0% (~13–15% YoY; Feb 13.4%, Apr 14.9%)
+  coreCPI: 11.5,
+  cbeTarget: `${EGYPT_MACRO.cbeInflationTarget}% ± 2pp (by Q4 2026)`,
+  observationMonth: 'May 2026',
+  source: 'CAPMAS / CBE Inflation Reports (capmas.gov.eg)',
+  lastUpdated: EGYPT_MACRO.asOfDate,
 };
 
 // ============================================
@@ -165,22 +169,21 @@ export interface EgyptMacroSnapshot {
   bondYields: EgyptBondYields;
   damodaranCRP: DamodaranCRP;
   inflation: EgyptInflation;
-  /** Is any data component stale (older than 90 days)? */
+  /** Is the maintained config older than one CBE MPC cycle (>45 days)? */
   isStale: boolean;
-  /** Overall last updated */
+  /** Whole days since the config as-of date. */
+  daysOld: number;
+  /** Config as-of date (EGYPT_MACRO.asOfDate). */
+  asOfDate: string;
+  /** Overall last updated (== asOfDate). */
   lastUpdated: string;
 }
 
 export function getEgyptMacroSnapshot(): EgyptMacroSnapshot {
-  const dates = [
-    CBE_POLICY_RATES.lastUpdated,
-    EGYPT_BOND_YIELDS.lastUpdated,
-    DAMODARAN_EGYPT_CRP.lastUpdated,
-    EGYPT_INFLATION.lastUpdated,
-  ];
-  const oldestDate = dates.sort()[0];
-  const daysSinceUpdate = Math.floor(
-    (Date.now() - new Date(oldestDate).getTime()) / (1000 * 60 * 60 * 24)
+  const asOfDate = EGYPT_MACRO.asOfDate;
+  const daysOld = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(asOfDate).getTime()) / 86400000)
   );
 
   return {
@@ -188,7 +191,9 @@ export function getEgyptMacroSnapshot(): EgyptMacroSnapshot {
     bondYields: EGYPT_BOND_YIELDS,
     damodaranCRP: DAMODARAN_EGYPT_CRP,
     inflation: EGYPT_INFLATION,
-    isStale: daysSinceUpdate > 90,
-    lastUpdated: oldestDate,
+    isStale: isMacroStale(asOfDate),
+    daysOld,
+    asOfDate,
+    lastUpdated: asOfDate,
   };
 }

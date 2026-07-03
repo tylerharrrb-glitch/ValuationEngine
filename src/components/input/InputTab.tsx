@@ -13,6 +13,7 @@ import { formatPercent, formatNumber } from '../../utils/formatters';
 import { fetchAllPeerData, getSuggestedPeers } from '../../services/stockAPI';
 import { calculateWACC, calculateKe } from '../../utils/valuation';
 import { getEgyptMacroSnapshot } from '../../services/egyptMarketData';
+import { useMarketData } from '../../hooks/useMarketData';
 import { searchEGXStocks, EGX_MAJOR_STOCKS } from '../../utils/industryMapping';
 import { BalanceSheetValidation } from './BalanceSheetValidation';
 import { HistoricalDataPanel } from './HistoricalDataPanel';
@@ -50,6 +51,8 @@ export const InputTab: React.FC<InputTabProps> = ({
   const [egxSearch, setEgxSearch] = useState<string>('');
   const [showEgxDropdown, setShowEgxDropdown] = useState(false);
   const egyptMacro = marketRegion === 'Egypt' ? getEgyptMacroSnapshot() : null;
+  // Live hybrid market data (auto: USD/EGP + US Treasury; config: CBE/EGP 10Y/CPI)
+  const marketData = useMarketData();
 
   // B1: Auto-populate sector defaults when sector changes (Egypt only)
   const handleSectorChange = (sector: string) => {
@@ -565,6 +568,10 @@ export const InputTab: React.FC<InputTabProps> = ({
                         riskFreeRate: MARKET_DEFAULTS.USA.riskFreeRate,
                         marketRiskPremium: MARKET_DEFAULTS.USA.marketRiskPremium,
                         terminalGrowthRate: MARKET_DEFAULTS.USA.terminalGrowthRate,
+                        // Reset tax & cost of debt too, else Egypt's 22.5%/22.9% inflate US WACC
+                        taxRate: MARKET_DEFAULTS.USA.defaultTaxRate,
+                        costOfDebt: MARKET_DEFAULTS.USA.defaultCostOfDebt,
+                        countryRiskPremium: MARKET_DEFAULTS.USA.countryRiskPremium,
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'USA'
@@ -585,6 +592,9 @@ export const InputTab: React.FC<InputTabProps> = ({
                         riskFreeRate: MARKET_DEFAULTS.Egypt.riskFreeRate,
                         marketRiskPremium: MARKET_DEFAULTS.Egypt.marketRiskPremium,
                         terminalGrowthRate: MARKET_DEFAULTS.Egypt.terminalGrowthRate,
+                        taxRate: MARKET_DEFAULTS.Egypt.defaultTaxRate,
+                        costOfDebt: MARKET_DEFAULTS.Egypt.defaultCostOfDebt,
+                        countryRiskPremium: MARKET_DEFAULTS.Egypt.countryRiskPremium,
                       }));
                     }}
                     className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${marketRegion === 'Egypt'
@@ -619,7 +629,33 @@ export const InputTab: React.FC<InputTabProps> = ({
                 </div>
                 {marketRegion === 'Egypt' && (
                   <div className="mt-2 p-2 bg-yellow-500/10 rounded text-yellow-400 text-xs">
-                    ⚠️ Egyptian market has high interest rates (~27%) and currency volatility. WACC will be significantly higher than US stocks.
+                    ⚠️ Egyptian market has high interest rates (~19–20% policy) and currency volatility. WACC will be significantly higher than US stocks.
+                  </div>
+                )}
+                {/* Honesty banner — what is live vs. maintained config */}
+                {marketRegion === 'Egypt' && egyptMacro && (
+                  <div className={`mt-2 p-2 rounded text-xs leading-relaxed ${isDarkMode ? 'bg-zinc-800/60 border border-zinc-700 text-gray-300' : 'bg-gray-100 border border-gray-200 text-gray-700'}`}>
+                    <div>
+                      <span className="font-semibold text-green-400">Live:</span> USD/EGP{' '}
+                      {marketData.live.usdEgp != null ? (
+                        <span className="font-mono text-[var(--accent-gold)]">{marketData.live.usdEgp.toFixed(2)}</span>
+                      ) : (
+                        <span className="opacity-70 font-mono">
+                          {marketData.status === 'loading' ? '…' : `${marketData.config.usdEgpClosing.toFixed(2)} (config)`}
+                        </span>
+                      )}
+                      {' '}+ US Treasury (auto).
+                    </div>
+                    <div className="mt-0.5">
+                      <span className="font-semibold text-[var(--accent-gold)]">Config:</span> Egyptian policy rates, EGP 10Y, CPI are maintained config, last verified {egyptMacro.asOfDate}. No free official CBE API exists —{' '}
+                      <a href="https://www.cbe.org.eg/en/monetary-policy" target="_blank" rel="noreferrer" className="underline hover:text-[var(--accent-gold)]">verify at cbe.org.eg</a>.
+                    </div>
+                    <button
+                      onClick={marketData.refresh}
+                      className="mt-1 px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] hover:bg-[var(--accent-gold)]/30 transition-colors"
+                    >
+                      {marketData.status === 'loading' ? 'Refreshing…' : 'Refresh live data'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -713,7 +749,11 @@ export const InputTab: React.FC<InputTabProps> = ({
                   <div className={`text-xs mt-1.5 p-2.5 rounded-lg ${isDarkMode ? 'bg-zinc-800/70 border border-zinc-700' : 'bg-amber-50 border border-amber-200'}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className={`font-semibold ${textMutedClass}`}>CBE / Market Rates</span>
-                      {egyptMacro.isStale && <span className="text-xs text-red-400 font-semibold">⚠ STALE DATA</span>}
+                      {egyptMacro.isStale ? (
+                        <span className="text-xs text-red-400 font-semibold">⚠ Rates {egyptMacro.daysOld}d old — verify at cbe.org.eg</span>
+                      ) : (
+                        <span className="text-xs text-green-400 font-semibold">✓ Current as of {egyptMacro.asOfDate}</span>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                       <span className={textMutedClass}>10Y Gov Bond:</span>
@@ -755,9 +795,16 @@ export const InputTab: React.FC<InputTabProps> = ({
                   className={`w-full px-3 py-2 rounded-lg border ${inputClass}`}
                 >
                   <option value="raw">Raw Beta</option>
-                  <option value="adjusted">Adjusted (Bloomberg)</option>
+                  <option value="adjusted">Blume/Bloomberg Adjusted — ⅔·raw + ⅓</option>
                   <option value="relevered">Relevered</option>
                 </select>
+                {/* Blume note: a very low raw beta collapses Ke toward Rf */}
+                {assumptions.betaType === 'raw' && assumptions.beta < 0.5 && (
+                  <p className="text-[11px] text-yellow-400/90 mt-1 leading-snug">
+                    Raw β={assumptions.beta.toFixed(2)} gives Ke≈Rf. Blume/bottom-up β
+                    (⅔·raw + ⅓ = {((2 / 3) * assumptions.beta + 1 / 3).toFixed(3)}) raises Ke — test sensitivity.
+                  </p>
+                )}
               </div>
               <InputField label="Cost of Debt (Pre-Tax)" value={assumptions.costOfDebt}
                 onChange={(val) => updateAssumptions(prev => ({ ...prev, costOfDebt: val as number }))}

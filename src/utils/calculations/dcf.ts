@@ -6,6 +6,56 @@
 import { FinancialData, ValuationAssumptions, DCFProjection } from '../../types/financial';
 
 /**
+ * Non-operating assets for the EV→Equity bridge (institutional standard).
+ *
+ * Unlevered FCFF is EBIT-based and therefore EXCLUDES finance income from
+ * bond/T-bill portfolios. To avoid systematically undervaluing companies that
+ * hold large financial-asset portfolios (routine for Egyptian firms earning
+ * ~20% on government paper), the income-generating ASSETS are added back here.
+ * Do NOT also add finance income into FCFF — that would double-count.
+ *
+ *   Non-op assets = Cash + Marketable Securities + Long-term Investments
+ *                   + Other Non-Operating Assets
+ *
+ * Restricted / pledged cash: excluded if a `restrictedCash` field is present.
+ */
+export function calculateNonOperatingAssets(
+  financialData: FinancialData,
+  assumptions?: ValuationAssumptions
+): number {
+  const bs = financialData.balanceSheet as any;
+  const restricted = bs.restrictedCash ?? 0;
+  return (
+    (bs.cash ?? 0) - restricted +
+    (bs.marketableSecurities ?? 0) +
+    (bs.longTermInvestments ?? 0) +
+    (assumptions?.otherNonOpAssets ?? 0)
+  );
+}
+
+/**
+ * Full EV→Equity bridge (institutional standard):
+ *   Equity = EV + Non-Operating Assets − Total Debt − Minority Interest − Preferred
+ * NO MAX(0) floor — equity can be negative for distressed companies.
+ */
+export function bridgeEnterpriseToEquity(
+  enterpriseValue: number,
+  financialData: FinancialData,
+  assumptions?: ValuationAssumptions
+): number {
+  const bs = financialData.balanceSheet;
+  const totalDebt = bs.shortTermDebt + bs.longTermDebt;
+  const nonOperatingAssets = calculateNonOperatingAssets(financialData, assumptions);
+  return (
+    enterpriseValue +
+    nonOperatingAssets -
+    totalDebt -
+    (bs.minorityInterest ?? 0) -
+    (bs.preferredEquity ?? 0)
+  );
+}
+
+/**
  * Calculate DCF projections for each year using proper FCFF methodology.
  * Projects: Revenue → EBITDA → D&A → EBIT → NOPAT → CapEx → ΔWC → FCFF
  */
@@ -82,9 +132,10 @@ export function calculateDCFValue(
   const lastDiscountFactor = Math.pow(1 + wacc, adjustedAssumptions.projectionYears);
   const pvTerminal = terminalValue / lastDiscountFactor;
   const enterpriseValue = sumPV + pvTerminal;
-  const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-  const equityValue = enterpriseValue - totalDebt + financialData.balanceSheet.cash;
-  // BUG FIX: No MAX(0) floor — equity can be negative for distressed companies
+  // Full EV→Equity bridge: adds non-operating financial assets (marketable
+  // securities, long-term investments) so bond/T-bill portfolios are not lost.
+  // BUG FIX: No MAX(0) floor — equity can be negative for distressed companies.
+  const equityValue = bridgeEnterpriseToEquity(enterpriseValue, financialData, adjustedAssumptions);
   return equityValue / financialData.sharesOutstanding;
 }
 

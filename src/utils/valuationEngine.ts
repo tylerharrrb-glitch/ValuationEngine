@@ -23,6 +23,7 @@ import {
   CAPMMethod,
   MarketRegion,
 } from '../types/financial';
+import { bridgeEnterpriseToEquity } from './calculations/dcf';
 
 // ============================================
 // MARKET REGION DEFAULTS (re-exported for compatibility)
@@ -60,7 +61,7 @@ export const MARKET_DEFAULTS: Record<MarketRegion, MarketConfig> = {
   Egypt: {
     riskFreeRate: 20.40,             // 10-Year Egyptian Government Bond (Mar 2026 avg)
     marketRiskPremium: 4.23,         // Mature Market ERP (Damodaran, Jan 5 2026)
-    terminalGrowthRate: 8.0,
+    terminalGrowthRate: 10.0,        // Egypt nominal GDP ~11–13% (user & EFG use ~10%)
     maxTerminalGrowth: 12.0,
     defaultTaxRate: 22.5,
     currency: 'EGP',
@@ -415,12 +416,14 @@ export function calculateDCFValue(
   const enterpriseValue = sumOfPresentValues + presentValueOfTerminal;
 
   // Step 5: EV-to-Equity Bridge (Section 5.4)
-  // Equity Value = EV − Total Debt + Cash & Equivalents
+  // Equity = EV + Non-Operating Assets − Total Debt − Minority − Preferred
+  // Non-op assets (marketable securities, long-term investments) add back the
+  // financial-asset portfolios whose income is excluded from unlevered FCFF.
   // BUG FIX: NO MAX(0) floor — equity can be negative for distressed companies
   const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
   const cash = financialData.balanceSheet.cash;
   const netDebt = totalDebt - cash;
-  const equityValue = enterpriseValue - netDebt;
+  const equityValue = bridgeEnterpriseToEquity(enterpriseValue, financialData, assumptions);
 
   // Step 6: Intrinsic Value per Share
   const sharesOutstanding = financialData.sharesOutstanding || 1;
@@ -834,8 +837,8 @@ export function generateSensitivityMatrix(
       const lastDF = Math.pow(1 + waccDec, projections.length);
       const pvTV = tv / lastDF;
       const ev = sumPV + pvTV;
-      const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-      const equityValue = ev - totalDebt + financialData.balanceSheet.cash;
+      // Full EV→Equity bridge (includes non-operating financial assets)
+      const equityValue = bridgeEnterpriseToEquity(ev, financialData, assumptions);
       const impliedPrice = equityValue / (financialData.sharesOutstanding || 1);
 
       const upside = ((impliedPrice - currentPrice) / currentPrice) * 100;
@@ -1071,11 +1074,25 @@ export function validateInputs(
     });
   }
 
-  // Terminal growth > 10% (soft warning)
-  if (assumptions.terminalGrowthRate > 10) {
+  // Terminal growth > 12% (soft warning) — Egypt nominal GDP typically 11–13%
+  if (assumptions.terminalGrowthRate > 12) {
     alerts.push({
       type: 'warning',
-      message: `Terminal growth exceeds 10%. For Egypt, long-term nominal GDP growth is typically 8-12%.`,
+      message: `Terminal growth exceeds 12%. For Egypt, long-term nominal GDP growth is typically 11-13%.`,
+      field: 'terminalGrowthRate',
+    });
+  }
+
+  // WACC − g spread guardrail: warn when terminal growth is within 3pp of WACC.
+  // A thin spread makes the Gordon terminal value explode and unstable.
+  if (
+    assumptions.discountRate > 0 &&
+    assumptions.terminalGrowthRate >= assumptions.discountRate - 3 &&
+    assumptions.terminalGrowthRate < assumptions.discountRate
+  ) {
+    alerts.push({
+      type: 'warning',
+      message: `Terminal growth (${assumptions.terminalGrowthRate.toFixed(1)}%) is within 3pp of WACC (${assumptions.discountRate.toFixed(1)}%). The WACC−g spread is thin, so terminal value is highly sensitive — verify.`,
       field: 'terminalGrowthRate',
     });
   }

@@ -7,6 +7,50 @@
  * Investing.com, BLS, PwC Egypt Tax Summaries, Moody's, S&P, Fitch
  */
 
+/**
+ * EGYPT_MACRO — single maintained source of truth for Egyptian macro inputs.
+ *
+ * Values that HAVE NO free official API (CBE policy rates, EGP 10Y bond yield,
+ * CAPMAS CPI) live here and are refreshed by an analyst after each event:
+ *   • CBE policy rates → cbe.org.eg  (8 MPC meetings/yr)
+ *   • CAPMAS headline CPI → capmas.gov.eg  (monthly)
+ *   • EGP 10Y bond yield → investing.com Egypt 10Y
+ * Values that DO have free APIs (USD/EGP FX, US Treasury) are auto-fetched by
+ * useMarketData() and only backstopped here.
+ *
+ * `asOfDate` drives the staleness badge (see isMacroStale). Update it whenever
+ * any figure below changes.
+ */
+export const EGYPT_MACRO = {
+  asOfDate: '2026-07-03',
+  source: 'CBE MPC 21 May 2026 (rates held); CAPMAS May 2026 CPI; investing.com EGP 10Y',
+  cbeOvernightDeposit: 19.0,     // held since Feb 2026, confirmed 21 May 2026
+  cbeOvernightLending: 20.0,
+  cbeMainOperation: 19.5,
+  cbeDiscountRate: 19.5,
+  requiredReserveRatio: 16.0,    // cut from 18% Feb 2026
+  egypt10YBondYield: 20.0,       // EGP 10Y proxy; keep as default Rf
+  headlineInflation: 14.0,       // ~13–15% YoY (Feb 13.4%, Apr 14.9%)
+  cbeInflationTarget: 7.0,       // ±2pp, Q4 2026
+  usdEgpClosing: 52.9,           // ~May 2026 (auto-refreshed by useMarketData)
+  corporateTaxRate: 22.5,        // MOPCO note 33 confirms standard rate
+  damodaranCRP: 9.71,            // Egypt; Moody's Caa1 / S&P B- (outlook stable)
+  matureERP: 4.23,
+} as const;
+
+/** One CBE MPC cycle (~45 days) before macro config is considered stale. */
+export const MACRO_STALE_DAYS = 45;
+
+/** Whole days since the given macro as-of date (defaults to EGYPT_MACRO). */
+export function macroDaysOld(asOfDate: string = EGYPT_MACRO.asOfDate): number {
+  return Math.floor((Date.now() - new Date(asOfDate).getTime()) / 86400000);
+}
+
+/** True when the maintained macro config is older than one MPC cycle. */
+export function isMacroStale(asOfDate: string = EGYPT_MACRO.asOfDate): boolean {
+  return macroDaysOld(asOfDate) > MACRO_STALE_DAYS;
+}
+
 /** Egyptian tax categories per Section 3.4 */
 export const EGYPT_TAX_CATEGORIES = {
   standard: { rate: 22.5, label: 'Standard Corporate Tax (DEFAULT)', applies: 'Most Egyptian companies' },
@@ -25,6 +69,7 @@ export const MARKET_DEFAULTS = {
     terminalGrowthRate: 2.5,      // Long-term GDP growth proxy
     maxTerminalGrowth: 4.0,       // Cap for validation
     defaultTaxRate: 21.0,         // US Federal Corporate Tax Rate
+    defaultCostOfDebt: 6.25,      // Rf 4.25% + ~200bp US corporate credit spread
     currency: 'USD' as const,
     currencySymbol: '$',
     label: '🇺🇸 USA',
@@ -36,7 +81,8 @@ export const MARKET_DEFAULTS = {
   Egypt: {
     riskFreeRate: 20.40,          // 10-Year Egyptian Government Bond Yield (Mar 2026 avg)
     marketRiskPremium: 4.23,      // Mature Market ERP (Damodaran, Jan 5 2026 update)
-    terminalGrowthRate: 8.0,      // Egyptian nominal GDP growth (~5% real + ~8-10% inflation target)
+    terminalGrowthRate: 10.0,     // Egypt nominal GDP ~11–13% (real ~4-5% + inflation);
+                                   // 8% understated TV in a high-inflation currency (user & EFG use ~10%)
     maxTerminalGrowth: 12.0,      // Sustainable long-term rate (nominal, includes inflation)
     defaultTaxRate: 22.5,         // Egyptian Corporate Tax Rate (Law 91/2005)
     defaultCostOfDebt: 22.9,      // Rf 20.4% + 250bp corporate credit spread (must be > Rf)

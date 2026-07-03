@@ -14,7 +14,7 @@ import { calculateKeyMetrics, getRecommendation, KeyMetrics, Recommendation } fr
 import { calculateScenarioCases, ScenarioCases } from '../utils/calculations/scenarios';
 import { CurrencyCode, getCurrencyFromMarket } from '../utils/formatters';
 import { calculateDDM } from '../utils/valuationEngine';
-import { calculateWACC, calculateKe } from '../utils/valuation';
+import { resolveEffectiveWACC, calculateKe } from '../utils/valuation';
 
 export interface UseValuationCalculationsReturn {
   adjustedAssumptions: ValuationAssumptions;
@@ -54,9 +54,10 @@ export function useValuationCalculations(
   // Get currency based on market region
   const currency: CurrencyCode = getCurrencyFromMarket(marketRegion).code;
 
-  // LIVE WACC — always computed from CAPM components, never from stale discountRate
+  // LIVE WACC — CAPM from current inputs, but respects a deliberate manual
+  // WACC override (so the "Discount Rate (WACC)" field is actually linked).
   const liveWACC = useMemo(
-    () => calculateWACC(financialData, assumptions),
+    () => resolveEffectiveWACC(financialData, assumptions),
     [financialData, assumptions]
   );
 
@@ -71,11 +72,18 @@ export function useValuationCalculations(
     const baseTermGrowth = assumptions.terminalGrowthRate * multipliers.terminalGrowth;
     const baseMargin = assumptions.marginImprovement + multipliers.marginChange * 100;
 
+    // Scenario/style margin delta (in pp) — applied to ebitdaMargin, which the
+    // DCF projections actually read. marginImprovement is kept for display only.
+    // For Base scenario + default style both deltas are 0, so headline output is
+    // unchanged; only the Bear/Bull toggle now correctly shifts projected margin.
+    const marginDeltaPP = multipliers.marginChange * 100 + style.marginChange;
+
     const adjusted = {
       ...assumptions,
       revenueGrowthRate: baseRevGrowth * style.revenueGrowthMult,
       discountRate: Math.max(2, baseWACC + style.waccAdd),
       terminalGrowthRate: baseTermGrowth * style.terminalGrowthMult,
+      ebitdaMargin: Math.max(0, assumptions.ebitdaMargin + marginDeltaPP),
       marginImprovement: baseMargin + style.marginChange,
     };
 

@@ -1,14 +1,22 @@
 /**
  * C3: EV-to-Equity Bridge (Waterfall)
- * Shows the step-by-step bridge from Enterprise Value to per-share price.
+ * Shows the step-by-step bridge from Enterprise Value to per-share price,
+ * including non-operating financial assets (marketable securities, long-term
+ * investments) that are added back because their finance income is excluded
+ * from unlevered FCFF.
  */
 import React from 'react';
 import { formatCurrencyShort, CurrencyCode } from '../../../utils/formatters';
 
 interface Props {
     enterpriseValue: number;
-    totalDebt: number;
     cash: number;
+    marketableSecurities?: number;
+    longTermInvestments?: number;
+    otherNonOpAssets?: number;
+    totalDebt: number;
+    minorityInterest?: number;
+    preferredEquity?: number;
     equityValue: number;
     sharesOutstanding: number;
     perSharePrice: number;
@@ -20,22 +28,35 @@ interface Props {
 }
 
 export const EVBridgeChart: React.FC<Props> = ({
-    enterpriseValue, totalDebt, cash, equityValue, sharesOutstanding, perSharePrice,
+    enterpriseValue, cash, marketableSecurities = 0, longTermInvestments = 0,
+    otherNonOpAssets = 0, totalDebt, minorityInterest = 0, preferredEquity = 0,
+    equityValue, sharesOutstanding, perSharePrice,
     isDarkMode, cardClass, textClass, textMutedClass, currency,
 }) => {
+    // Build the bridge dynamically — only show lines that carry a value.
     const items: Array<{ label: string; value: number; type: 'positive' | 'negative' | 'total' }> = [
         { label: 'Enterprise Value', value: enterpriseValue, type: 'positive' },
-        { label: 'Less: Total Debt', value: -totalDebt, type: 'negative' },
-        { label: 'Plus: Cash', value: cash, type: 'positive' },
-        { label: '= Equity Value', value: equityValue, type: 'total' },
+        { label: 'Plus: Cash & Equivalents', value: cash, type: 'positive' },
     ];
+    if (marketableSecurities > 0) items.push({ label: 'Plus: Marketable Securities', value: marketableSecurities, type: 'positive' });
+    if (longTermInvestments > 0) items.push({ label: 'Plus: Long-term Investments', value: longTermInvestments, type: 'positive' });
+    if (otherNonOpAssets > 0) items.push({ label: 'Plus: Other Non-Op Assets', value: otherNonOpAssets, type: 'positive' });
+    items.push({ label: 'Less: Total Debt', value: -totalDebt, type: 'negative' });
+    if (minorityInterest > 0) items.push({ label: 'Less: Minority Interest', value: -minorityInterest, type: 'negative' });
+    if (preferredEquity > 0) items.push({ label: 'Less: Preferred Equity', value: -preferredEquity, type: 'negative' });
+    items.push({ label: '= Equity Value', value: equityValue, type: 'total' });
 
     const maxVal = Math.max(...items.map(i => Math.abs(i.value)));
+
+    // Non-operating financial assets (excl. cash) — the amount the bridge fix adds back.
+    const nonOpFinancialAssets = marketableSecurities + longTermInvestments + otherNonOpAssets;
+    const showNonOpNote = enterpriseValue > 0 && nonOpFinancialAssets > 0.10 * enterpriseValue;
+    const nonOpPerShare = sharesOutstanding > 0 ? nonOpFinancialAssets / sharesOutstanding : 0;
 
     return (
         <div className={`p-6 rounded-xl border ${cardClass}`}>
             <h3 className={`text-lg font-semibold mb-4 ${textClass}`}>
-                EV-to-Equity Bridge
+                EV → Equity Bridge
             </h3>
 
             <div className="space-y-3">
@@ -68,6 +89,18 @@ export const EVBridgeChart: React.FC<Props> = ({
                     );
                 })}
             </div>
+
+            {/* Non-operating asset callout — appears when material (>10% of EV) */}
+            {showNonOpNote && (
+                <div className={`mt-4 p-3 rounded-lg border ${isDarkMode ? 'bg-blue-500/5 border-blue-500/30' : 'bg-blue-50 border-blue-200'}`}>
+                    <p className={`text-xs leading-relaxed ${textMutedClass}`}>
+                        Non-operating financial assets of{' '}
+                        <span className="font-semibold text-[var(--accent-gold)]">{formatCurrencyShort(nonOpFinancialAssets, currency)}</span>
+                        {' '}(~{formatCurrencyShort(nonOpPerShare, currency)}/share) added to equity value — common for Egyptian
+                        firms holding T-bill/bond portfolios whose finance income is excluded from unlevered FCFF.
+                    </p>
+                </div>
+            )}
 
             {/* Per-share callout */}
             <div className={`mt-4 p-3 rounded-lg border-2 border-amber-500/40 ${isDarkMode ? 'bg-amber-500/5' : 'bg-amber-50'}`}>

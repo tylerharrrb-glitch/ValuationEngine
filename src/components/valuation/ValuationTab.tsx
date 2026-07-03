@@ -304,17 +304,30 @@ export const ValuationTab: React.FC<ValuationTabProps> = (props) => {
       <FCFESection
         financialData={financialData} assumptions={adjustedAssumptions} {...themeProps}
       />
-      {/* C3: EV-to-Equity Bridge */}
+      {/* C3: EV-to-Equity Bridge (includes non-operating financial assets) */}
       {(() => {
-        const totalDebt = financialData.balanceSheet.shortTermDebt + financialData.balanceSheet.longTermDebt;
-        const cash = financialData.balanceSheet.cash;
+        const bs = financialData.balanceSheet;
+        const totalDebt = bs.shortTermDebt + bs.longTermDebt;
+        const cash = bs.cash;
+        const marketableSecurities = bs.marketableSecurities ?? 0;
+        const longTermInvestments = bs.longTermInvestments ?? 0;
+        const otherNonOpAssets = adjustedAssumptions.otherNonOpAssets ?? 0;
+        const minorityInterest = bs.minorityInterest ?? 0;
+        const preferredEquity = bs.preferredEquity ?? 0;
+        const nonOpAssets = cash + marketableSecurities + longTermInvestments + otherNonOpAssets;
         const equityVal = dcfValue * financialData.sharesOutstanding;
-        const ev = equityVal + totalDebt - cash;
+        // EV computed forward from equity: EV = Equity − NonOpAssets + Debt + Minority + Preferred
+        const ev = equityVal - nonOpAssets + totalDebt + minorityInterest + preferredEquity;
         return (
           <EVBridgeChart
             enterpriseValue={ev}
-            totalDebt={totalDebt}
             cash={cash}
+            marketableSecurities={marketableSecurities}
+            longTermInvestments={longTermInvestments}
+            otherNonOpAssets={otherNonOpAssets}
+            totalDebt={totalDebt}
+            minorityInterest={minorityInterest}
+            preferredEquity={preferredEquity}
             equityValue={equityVal}
             sharesOutstanding={financialData.sharesOutstanding}
             perSharePrice={dcfValue}

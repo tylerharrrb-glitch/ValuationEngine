@@ -6,8 +6,9 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import type { FinancialData, ValuationAssumptions, ComparableCompany, DCFProjection, MarketRegion } from '../../types/financial';
-import { calculateWACC, calculateKe } from '../../utils/valuation';
+import { resolveEffectiveWACC, calculateKe } from '../../utils/valuation';
 import { calcScenarioPrice } from '../../utils/calculations/scenarios';
+import { bridgeEnterpriseToEquity } from '../../utils/calculations/dcf';
 import { calculateQualityScorecard, calculateReverseDCF, runMonteCarloSimulation } from '../../utils/advancedAnalysis';
 import { calculateDDM } from '../../utils/valuationEngine';
 
@@ -104,7 +105,7 @@ function generateNativePDF(props:Props){
   const date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
   // WACC sync
-  const syncWACC=calculateWACC(fd,assumptions);
+  const syncWACC=resolveEffectiveWACC(fd,assumptions);
   const a={...assumptions,discountRate:syncWACC};
   const is=fd.incomeStatement,bs=fd.balanceSheet,cf=fd.cashFlowStatement;
   const totalDebt=bs.shortTermDebt+bs.longTermDebt;
@@ -123,7 +124,9 @@ function generateNativePDF(props:Props){
   const tv=wD>gD?(lastFCFF*(1+gD))/(wD-gD):0;
   const pvTV=tv/Math.pow(1+wD,a.projectionYears);
   const ev=sumPV+pvTV;
-  const eqVal=ev-totalDebt+bs.cash;
+  // Full EV→Equity bridge — includes non-operating financial assets
+  const mktSec=bs.marketableSecurities??0, ltInv=bs.longTermInvestments??0;
+  const eqVal=bridgeEnterpriseToEquity(ev,fd,a);
   const dcfPS=eqVal/shares;
 
   // WACC components
@@ -296,7 +299,7 @@ function generateNativePDF(props:Props){
   // Two-column: EV Bridge + WACC
   let yL=y,yR=y;
   yL=secHdr(doc,yL,'EV-to-Equity Bridge');
-  [[`Sum PV(FCFF) Yr 1-${a.projectionYears}`,fl(sumPV),false],[`Terminal Value (g=${fp(a.terminalGrowthRate)})`,fl(tv),false],['PV of Terminal Value',fl(pvTV),false],['Enterprise Value',fl(ev),true],['Less: Total Debt',`(${fl(totalDebt)})`,false],['Plus: Cash',fl(bs.cash),false],['Equity Value',fl(eqVal),true],['Shares Outstanding',fl(shares),false],['DCF Fair Value / Share',fe(dcfPS,ccy),true]].forEach(([l,v,h])=>{
+  [[`Sum PV(FCFF) Yr 1-${a.projectionYears}`,fl(sumPV),false],[`Terminal Value (g=${fp(a.terminalGrowthRate)})`,fl(tv),false],['PV of Terminal Value',fl(pvTV),false],['Enterprise Value',fl(ev),true],['Plus: Cash',fl(bs.cash),false],...(mktSec>0?[['Plus: Marketable Securities',fl(mktSec),false] as [string,string,boolean]]:[]),...(ltInv>0?[['Plus: Long-term Investments',fl(ltInv),false] as [string,string,boolean]]:[]),['Less: Total Debt',`(${fl(totalDebt)})`,false],['Equity Value',fl(eqVal),true],['Shares Outstanding',fl(shares),false],['DCF Fair Value / Share',fe(dcfPS,ccy),true]].forEach(([l,v,h])=>{
     yL=dr(doc,yL,l as string,v as string,h as boolean,h?C.gd:undefined,ML,hw);
   });
   yR=secHdr(doc,yR,'WACC Breakdown');

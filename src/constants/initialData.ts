@@ -64,7 +64,7 @@ export const initialFinancialData: FinancialData = {
 export const initialAssumptions: ValuationAssumptions = {
   // Core DCF
   discountRate: 0,                // SENTINEL — always overridden by live calculateWACC()
-  terminalGrowthRate: 8.0,        // Egyptian nominal GDP growth
+  terminalGrowthRate: 10.0,       // Egypt nominal GDP ~11–13% (user & EFG use ~10%); 8% understates TV
   projectionYears: 5,
   revenueGrowthRate: 15,
   marginImprovement: 0,           // Legacy — retained for compatibility
