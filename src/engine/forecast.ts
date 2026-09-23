@@ -26,6 +26,11 @@ export interface CoreOverrides {
   rf?: number;
   /** Replaces the levered beta. */
   leveredBeta?: number;
+  /**
+   * FX level shock (METHODOLOGY 13): USD/EGP moves by `move` (0.10 = +10%, EGP weaker).
+   * USD-linked revenue and USD-linked cash costs are scaled; D&A on existing PP&E is not.
+   */
+  fx?: { revenueShare: number; costShare: number; move: number };
 }
 
 export interface SeedResult {
@@ -146,11 +151,23 @@ export function runForecast(c: CompanyData, norm: NormalizationResult, a: Assump
   let prevNp = base.netProfit;
 
   const step = (index: number, label: string, fiscalYear: number, d: YearDrivers, growth: number, capexAbsolute: number | null): ForecastYear => {
-    const revenue = prevRevenue * (1 + growth / 100);
+    const chainRevenue = prevRevenue * (1 + growth / 100);
     const gmx = d.grossMarginExDA / 100;
-    const grossProfitExDA = revenue * gmx;
-    const sga = revenue * d.sgaPctRevenue / 100;
-    const otherOp = revenue * d.otherOpPctRevenue / 100;
+    let revenue = chainRevenue;
+    let grossProfitExDA: number;
+    let sga: number;
+    let costFactor = 1;
+    if (ov.fx) {
+      const revFactor = 1 + (ov.fx.revenueShare / 100) * ov.fx.move;
+      costFactor = 1 + (ov.fx.costShare / 100) * ov.fx.move;
+      revenue = chainRevenue * revFactor;
+      grossProfitExDA = revenue - chainRevenue * (1 - gmx) * costFactor;
+      sga = chainRevenue * d.sgaPctRevenue / 100 * costFactor;
+    } else {
+      grossProfitExDA = revenue * gmx;
+      sga = revenue * d.sgaPctRevenue / 100;
+    }
+    const otherOp = chainRevenue * d.otherOpPctRevenue / 100;
     const ebitda = grossProfitExDA - sga + otherOp;
     const capex = capexAbsolute ?? revenue * d.capexPctRevenue / 100;
     const openingPpe = prevPpe;
@@ -169,7 +186,7 @@ export function runForecast(c: CompanyData, norm: NormalizationResult, a: Assump
     const taxRate = d.taxRate;
     const taxOnEbit = ebit * taxRate / 100;
     const nopat = ebit - taxOnEbit;
-    const cashCogs = revenue * (1 - gmx);
+    const cashCogs = ov.fx ? chainRevenue * (1 - gmx) * costFactor : revenue * (1 - gmx);
     const receivables = revenue * d.dso / 365;
     const inventory = cashCogs * d.dio / 365;
     const payables = cashCogs * d.dpo / 365;
@@ -186,7 +203,7 @@ export function runForecast(c: CompanyData, norm: NormalizationResult, a: Assump
       receivables, inventory, payables, otherCurrentAssets, otherCurrentLiabilities, nwc, deltaNwc,
       priorYearNetProfit: prevNp, distributions, netProfit, fcff,
     };
-    prevRevenue = revenue;
+    prevRevenue = chainRevenue;
     prevPpe = closingPpe;
     prevNwc = nwc;
     prevNp = netProfit;

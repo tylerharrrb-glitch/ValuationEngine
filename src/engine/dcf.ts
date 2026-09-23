@@ -7,10 +7,10 @@ import type { Timeline } from './timeline';
 import { discountFactor } from './timeline';
 import { terminalGrowth, type CoreOverrides } from './forecast';
 
-/** Every bridge line from the base-year balance sheet (METHODOLOGY 5.3). `cit` in percent. */
 /** Negation without producing -0 for display. */
 const neg = (x: number) => (x === 0 ? 0 : -x);
 
+/** Every bridge line from the base-year balance sheet (METHODOLOGY 5.3). `cit` in percent. */
 export function bridgeLines(c: CompanyData, opt: BridgeOptions, cit: number): BridgeLine[] {
   const y = latestYear(c);
   const b = y.balance;

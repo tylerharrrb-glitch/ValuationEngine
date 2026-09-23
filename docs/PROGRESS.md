@@ -12,7 +12,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 3 | Rates registry and live data | done | `npx tsx scripts/verify-part3.ts` 41/41 PASS |
 | 4 | Company data model and MOPCO fixture | done | `npx tsx scripts/verify-part4.ts` 36/36 PASS |
 | 5 | Valuation core | done | `npx tsx scripts/verify-part5.ts` 11/11 PASS (100 intermediates TS vs Python) |
-| 6 | Secondary modules | not started | |
+| 6 | Secondary modules | done | `npx tsx scripts/verify-part6.ts` 17/17 PASS |
 | 7 | Excel export | not started | |
 | 8 | PDF export | not started | |
 | 9 | UI | not started | |
@@ -38,6 +38,9 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D13 (Part 5): Blend default DCF 75% / DDM 25%; invalid methods excluded, remaining weights rescaled, both shown. DDM high growth default = forecast revenue CAGR; DDM discounts whole years from the valuation date.
 - D14 (Part 5): Monte Carlo: mulberry32 seed 20260923; growth shift N(0,3pp), margin shift N(0,2pp), WACC N(base,1pp), g U(base±1pp), redraw when WACC − g < 1pp.
 - D15 (Part 5): Altman Z''-EM lower cut-off corrected to 4.35 (the draft had 4.15) after checking the published zones.
+- D16 (Part 6) Modules kept: trading comparables (raw peer inputs, computed multiples, median EV/EBITDA feeds the blend), precedent transactions, SOTP (user segments; MOPCO segment figures not supplied, so empty by default), broker reference band (never in the blend), Piotroski (two-year variant on year-end assets), Altman Z''-EM, DuPont 3/5-step, credit metrics, FX sensitivity (USD cost share has no default), EAS panel (only standards evidenced by statement lines: EAS 47/48/49), reverse DCF, Monte Carlo, scenarios, sensitivity, USD check.
+- D17 (Part 6) Modules removed: LBO (screening model did not meet the spec's full-build bar: no sources & uses, single tranche, FCF = net income); confidence score, quality scorecard and sector benchmarks (heuristic scores on unsourced thresholds); WOLF Analyst AI panel and AI report (sent statements to Groq, conflicts with Part 10); bundled EGX industry multiples and placeholder precedent deals; inflation-adjusted return narrative.
+- D18 (Part 6) The entire pre-v2 tree (src/components, utils, services, constants, types, hooks, workers, old tests and scripts, functions/api/market-data.ts) was deleted; a placeholder App renders until Part 9. History is in git (commit 5a073cb).
 
 ## Open issues
 
@@ -54,4 +57,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 6: secondary modules (comps, precedents, SOTP, LBO decision, Piotroski, Z''-EM, DuPont, credit metrics, FX sensitivity, EAS panel, broker reference) with MOPCO unit tests; decide keep/remove.
+Part 7: Excel exporter (classic IB style), LibreOffice recalculation, parity and style lint gate.

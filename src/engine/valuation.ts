@@ -16,18 +16,18 @@ import { runMonteCarlo, type MonteCarloResult } from './montecarlo';
 import { blend, type BlendResult, type MethodValue } from './blend';
 import { companyChecks, companyFacts, validateCompany, type CompanyFacts, type TieCheck } from './company';
 import type { RateUse } from './rates';
-
-export interface SecondaryValues {
-  comps?: MethodValue;
-  precedents?: MethodValue;
-  sotp?: MethodValue;
-}
+import type { SecondaryInputs } from '../domain/secondary';
+import { EMPTY_SECONDARY } from '../domain/secondary';
+import { runComps, runPrecedents, runSotp, brokerBand, type CompsResult, type PrecedentsResult, type SotpResult, type BrokerBand } from './relative';
+import { piotroski, altmanZem, dupont, creditMetrics, type PiotroskiResult, type ZScoreResult, type DupontResult, type CreditMetrics } from './scores';
+import { runFxSensitivity, type FxSensitivityResult } from './fx';
+import { easReferences, type EasReference } from './eas';
 
 export interface ValuationOptions {
   /** Skip Monte Carlo (10,000 full runs) when not needed, e.g. inside sensitivity loops. */
   monteCarlo?: boolean;
   monteCarloRuns?: number;
-  secondary?: SecondaryValues;
+  secondary?: SecondaryInputs;
 }
 
 export interface ValuationResult {
@@ -43,6 +43,17 @@ export interface ValuationResult {
   reverse: ReverseDcfResult;
   monteCarlo: MonteCarloResult | null;
   blend: BlendResult;
+  comps: CompsResult;
+  precedents: PrecedentsResult;
+  sotp: SotpResult;
+  brokers: BrokerBand | null;
+  piotroski: PiotroskiResult;
+  zScores: ZScoreResult[];
+  dupont: DupontResult;
+  credit: CreditMetrics;
+  fx: FxSensitivityResult;
+  eas: EasReference[];
+  secondary: SecondaryInputs;
   ratesUsed: RateUse[];
   messages: EngineMessage[];
 }
@@ -57,13 +68,16 @@ export function runValuation(c: CompanyData, a: Assumptions, snapshot: RatesSnap
   const sensitivity = runSensitivity(c, a, snapshot, core);
   const reverse = runReverseDcf(c, a, snapshot, core);
   const monteCarlo = opt.monteCarlo === false ? null : runMonteCarlo(c, a, snapshot, core, opt.monteCarloRuns);
-  const sec = opt.secondary ?? {};
+  const sec = opt.secondary ?? EMPTY_SECONDARY;
+  const comps = runComps(c, sec.peers, core.norm, core.forecast, core.dcf.bridge);
+  const precedents = runPrecedents(c, sec.transactions, core.norm, core.dcf.bridge);
+  const sotp = runSotp(c, sec.segments, core.dcf.bridge);
   const values: MethodValue[] = [
     { id: 'dcf', value: Number.isFinite(core.dcf.perShare) ? core.dcf.perShare : null, reason: 'DCF value is undefined' },
     { id: 'ddm', value: ddm.applicable ? ddm.twoStage : null, reason: 'DDM not applicable' },
-    sec.comps ?? { id: 'comps', value: null, reason: 'no peers entered' },
-    sec.precedents ?? { id: 'precedents', value: null, reason: 'no transactions entered' },
-    sec.sotp ?? { id: 'sotp', value: null, reason: 'no segments entered' },
+    comps.methodValue,
+    precedents.methodValue,
+    sotp.methodValue,
   ];
   const bl = blend(a.blend, values, c.price);
   const ratesUsed = [...core.rates.used.values()];
@@ -89,6 +103,17 @@ export function runValuation(c: CompanyData, a: Assumptions, snapshot: RatesSnap
     reverse,
     monteCarlo,
     blend: bl,
+    comps,
+    precedents,
+    sotp,
+    brokers: brokerBand(sec.brokers),
+    piotroski: piotroski(c),
+    zScores: c.years.map(altmanZem),
+    dupont: dupont(c),
+    credit: creditMetrics(c),
+    fx: runFxSensitivity(c, a, snapshot, core.dcf.perShare),
+    eas: easReferences(c),
+    secondary: sec,
     ratesUsed,
     messages,
   };
