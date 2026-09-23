@@ -1,0 +1,34 @@
+/** Prints the MOPCO valuation on the frozen snapshot (development aid). */
+import { readFileSync } from 'node:fs';
+import { loadMopco } from '../tests/lib/fixtures';
+import { buildDefaultAssumptions } from '../src/engine/defaults';
+import { runValuation } from '../src/engine/valuation';
+import type { RatesSnapshot } from '../src/domain/rates';
+
+const snap = JSON.parse(readFileSync('tests/fixtures/rates-snapshot-2026-09-23.json', 'utf8')) as RatesSnapshot;
+const c = loadMopco();
+const a = buildDefaultAssumptions(c, snap, { betaIndustry: 'Chemical (Basic)' });
+const t0 = Date.now();
+const v = runValuation(c, a, snap, { monteCarloRuns: Number(process.argv[2] ?? 10000) });
+const ms = Date.now() - t0;
+const f = (x: number, d = 0) => x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const w = v.core.wacc;
+console.log(`Rf ${w.rfId} ${w.rf}  bU ${w.unleveredBeta.toFixed(4)} D/E ${w.debtToEquity.toFixed(6)} bL ${w.leveredBeta.toFixed(4)}`);
+console.log(`Ke ${w.ke.toFixed(4)}  Kd ${w.kdPreTax.toFixed(4)} (${w.syntheticRating}, cov ${w.interestCoverage?.toFixed(1)})  E/V ${w.equityWeight.toFixed(6)}  WACC ${w.wacc.toFixed(4)}`);
+console.log(`norm EBIT ${f(v.core.norm.normalizedEbit)}  norm EBITDA ${f(v.core.norm.normalizedEbitda)}  stub ${v.core.timeline.stubFraction.toFixed(6)}`);
+for (const y of [...v.core.forecast.years, v.core.forecast.terminal]) console.log(`${y.label.padEnd(9)} g ${y.revenueGrowth.toFixed(2).padStart(6)} R ${f(y.revenue).padStart(16)} EBITDA ${f(y.ebitda).padStart(16)} capex ${f(y.capex).padStart(15)} dNWC ${f(y.deltaNwc).padStart(14)} dist ${f(y.distributions).padStart(14)} FCFF ${f(y.fcff).padStart(16)}`);
+for (const r of v.core.dcf.rows) console.log(`${r.period.label} frac ${r.period.fraction.toFixed(4)} yrs ${r.period.years.toFixed(4)} DF ${r.discountFactor.toFixed(6)} PV ${f(r.pv)}`);
+const d = v.core.dcf;
+console.log(`sumPV ${f(d.sumPv)}  TV G ${f(d.terminal.gordonTv)} PV ${f(d.terminal.gordonPv)} | TV X ${f(d.terminal.exitTv)} (${a.terminal.exitMultiple.value.toFixed(3)}x) PV ${f(d.terminal.exitPv)}`);
+console.log(`EV ${f(d.enterpriseValue)}  TV% ${(d.tvShareOfEv * 100).toFixed(1)}`);
+for (const l of d.bridge) console.log(`  ${l.memo ? '(memo) ' : ''}${l.label}: ${f(l.amount)}`);
+console.log(`Equity ${f(d.equityValue)}  per share ${d.perShare.toFixed(4)}  upside ${(d.upside * 100).toFixed(1)}%`);
+console.log(`DDM two-stage ${v.ddm.twoStage.toFixed(4)} H ${v.ddm.hModel.toFixed(4)} DPS ${v.ddm.dps0.toFixed(4)} gH ${v.ddm.highGrowth.toFixed(3)}`);
+console.log(`USD: WACC$ ${v.usd.waccUsd.toFixed(3)} g$ ${v.usd.growthUsd.toFixed(3)} gap ${(v.usd.gap * 100).toFixed(1)}%  ${v.usd.explanation}`);
+console.log(`Scenarios: ${v.scenarios.rows.map((s) => `${s.name} ${s.perShare.toFixed(2)}`).join(' / ')}  weighted ${v.scenarios.weightedPerShare.toFixed(2)}`);
+console.log(`Reverse: g ${v.reverse.impliedTerminalGrowth.value.toFixed(3)}%  rev ${v.reverse.impliedRevenueGrowth.value.toFixed(3)}%`);
+if (v.monteCarlo) console.log(`MC mean ${v.monteCarlo.mean.toFixed(2)} med ${v.monteCarlo.median.toFixed(2)} P5 ${v.monteCarlo.p5.toFixed(2)} P95 ${v.monteCarlo.p95.toFixed(2)} P>price ${(v.monteCarlo.probAbovePrice * 100).toFixed(1)}%`);
+console.log(`Blend ${v.blend.blendedValue.toFixed(4)}  ${v.blend.verdict.text} — ${v.blend.verdict.band}`);
+for (const g of v.sensitivity) console.log(`${g.id} centre ${g.centre.toFixed(4)}`);
+for (const m of v.messages) console.log(`[${m.severity}] ${m.text}`);
+console.log(`runtime ${ms} ms`);

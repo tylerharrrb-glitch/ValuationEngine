@@ -11,7 +11,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 2 | Target architecture | done | `npx tsx scripts/verify-part2.ts` 14/14 PASS |
 | 3 | Rates registry and live data | done | `npx tsx scripts/verify-part3.ts` 41/41 PASS |
 | 4 | Company data model and MOPCO fixture | done | `npx tsx scripts/verify-part4.ts` 36/36 PASS |
-| 5 | Valuation core | not started | |
+| 5 | Valuation core | done | `npx tsx scripts/verify-part5.ts` 11/11 PASS (100 intermediates TS vs Python) |
 | 6 | Secondary modules | not started | |
 | 7 | Excel export | not started | |
 | 8 | PDF export | not started | |
@@ -32,6 +32,12 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D7 (Part 3): Seed and manual file hold the owner's 23-Sep-2026 values unchanged. Values verified today that differ are listed under Open issues for the owner to apply.
 - D8 (Part 4): Balance-sheet component-sum checks allow ±1 EGP for line rounding and print the difference. Totals (assets = equity + liabilities, OP, PBT, NP, CFO) tie with 0.5 EGP tolerance.
 - D9 (Part 4): Pledged deposits (EGP 1,010,115,488) mapped to restrictedCashNonCurrent; "Other assets & PUC" to intangibleAndOtherAssets; "General reserve" to otherReserves; "Result of merging process" to otherEquity; "Debtors & other debit balances" to otherCurrentAssets.
+- D10 (Part 5): Forecast drivers: gross margin before D&A (all D&A assumed in cost of sales), SG&A % and other operating % revenue; NWC days on cash cost of sales; D&A by PP&E roll-forward (default); forecast net profit = NOPAT + after-tax net finance income held flat (distribution base only).
+- D11 (Part 5): Default drivers fade linearly from FY2025 actuals (year 1) to terminal drivers (year N). Terminal capex default is value-driver consistent (net reinvestment = g/RONIC × NOPAT, RONIC = WACC). Exit multiple default = company's own EV/EBITDA at the price date (5.66x).
+- D12 (Part 5): Kd "actual" and synthetic coverage use debt + lease interest (MOPCO has only lease debt), never employee-benefit interest. Synthetic table: small-firm table when market cap < USD 5bn at eg.usdEgp.
+- D13 (Part 5): Blend default DCF 75% / DDM 25%; invalid methods excluded, remaining weights rescaled, both shown. DDM high growth default = forecast revenue CAGR; DDM discounts whole years from the valuation date.
+- D14 (Part 5): Monte Carlo: mulberry32 seed 20260923; growth shift N(0,3pp), margin shift N(0,2pp), WACC N(base,1pp), g U(base±1pp), redraw when WACC − g < 1pp.
+- D15 (Part 5): Altman Z''-EM lower cut-off corrected to 4.35 (the draft had 4.15) after checking the published zones.
 
 ## Open issues
 
@@ -44,6 +50,8 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - MOPCO FY2025: the asset lines as supplied sum to 61,193,831,632, 1 EGP below the stated total 61,193,831,633 (the balance sheet itself balances). Owner to check which line differs against the audited statements.
 - Cloudflare deployment of the Worker/KV not done yet (needs account access).
 
+- MOPCO default result on the seed snapshot: DCF 26.33, DDM 27.15, blended 26.54 per share (price 36.00; EFG Hermes target 43 is a reference only). The default risk-free rate (EGP 10Y secondary 21.58%) is stale (21-May-2026); refresh it before relying on the output.
+
 ## Next step
 
-Part 5: write docs/METHODOLOGY.md, then engine timeline/normalize/forecast/wacc/dcf/usdCheck/ddm/scenarios/sensitivity/reverse/MC/blend; independent Python reference; parity gate.
+Part 6: secondary modules (comps, precedents, SOTP, LBO decision, Piotroski, Z''-EM, DuPont, credit metrics, FX sensitivity, EAS panel, broker reference) with MOPCO unit tests; decide keep/remove.
