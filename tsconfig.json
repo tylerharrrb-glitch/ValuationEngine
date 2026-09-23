@@ -13,6 +13,8 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "types": ["node", "vite/client"],
 
     /* Linting */
     "strict": true,
@@ -26,5 +28,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "scripts", "functions", "workers", "tests"],
+  "exclude": ["node_modules", "dist"]
 }
