@@ -1,0 +1,3 @@
+tests/fixtures/sources/** -text
+*.xlsx binary
+*.xls binary
