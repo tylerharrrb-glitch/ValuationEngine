@@ -9,7 +9,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 |---|---|---|---|
 | 1 | Read-only audit | done | `npx tsx scripts/verify-part1.ts` 11/11 PASS |
 | 2 | Target architecture | done | `npx tsx scripts/verify-part2.ts` 14/14 PASS |
-| 3 | Rates registry and live data | not started | |
+| 3 | Rates registry and live data | done | `npx tsx scripts/verify-part3.ts` 41/41 PASS |
 | 4 | Company data model and MOPCO fixture | not started | |
 | 5 | Valuation core | not started | |
 | 6 | Secondary modules | not started | |
@@ -27,11 +27,20 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 - D3 (Part 2): New code lives in src/domain, src/engine, src/data, src/export, src/ui. The pre-v2 code (src/utils, src/components, src/hooks, src/services, src/constants) stays in place until Part 9 replaces the UI, then is deleted.
 - D4 (Part 2): Statement sign convention: lines stored with their reported sign (costs negative); D&A positive. See src/domain/company.ts.
+- D5 (Part 3): Automated fetches use an identifying UA and never impersonate a browser. The CBE firewall rejects them, so the CBE adapters end in fetch_failed and CBE values are manual (runbook). One-time manual verification on 23-Sep-2026 read CBE pages from a browser-type client to record fixtures.
+- D6 (Part 3): Added registry entries beyond spec 3.3: cbe.inflationTargetPoint (7.0, numeric point of the target for the USD-check fade), damodaran.rf.usd, damodaran.expectedInflation.egp/.usd (used by Rf option (d), Fisher from US 10Y).
+- D7 (Part 3): Seed and manual file hold the owner's 23-Sep-2026 values unchanged. Values verified today that differ are listed under Open issues for the owner to apply.
 
 ## Open issues
 
 - LibreOffice 26.8.0 installed via winget on 2026-09-23 (installer requested a reboot); headless conversion to be tested at Part 7.
 
+- CBE adapters blocked by the CBE firewall (see D5). CBE values must be refreshed manually.
+- Values read on 23-Sep-2026 that differ from the seed (not applied): CBE official USD/EGP 51.3606 buy / 51.4956 sell (seed 51.9 market close 21-Sep); latest 3Y T-bond auction 21-Sep-2026 weighted avg 23.697% (seed 23.147% from 13-Jul); US 10Y par 4.96% on 22-Sep-2026 (seed 5.10 intraday 23-Sep).
+- 24-Sep-2026 MPC not yet held when the registry was built; the four policy rates go stale on 24-Sep until updated.
+- MPC calendar beyond 24-Sep-2026 unconfirmed; S&P primary URL TO_VERIFY; Fitch 2026 action unconfirmed; legal texts TO_VERIFY.
+- Cloudflare deployment of the Worker/KV not done yet (needs account access).
+
 ## Next step
 
-Part 3: rates registry schema, seed, staleness, Worker adapters with recorded fixtures, /api/rates, useRates, runbook.
+Part 4: MOPCO fixture and company-data checks.

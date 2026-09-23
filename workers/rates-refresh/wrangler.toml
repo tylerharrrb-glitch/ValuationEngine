@@ -1,0 +1,17 @@
+name = "wolf-rates-refresh"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0 6 * * *"]
+
+# Create with: npx wrangler kv namespace create RATES
+# then paste the returned id here and in the Pages project binding (see docs/RATES_RUNBOOK.md).
+[[kv_namespaces]]
+binding = "RATES"
+id = "TO_CONFIGURE"
+
+# Secrets (not in git):
+#   npx wrangler secret put REFRESH_SECRET
+#   npx wrangler secret put FRED_API_KEY      (optional; Treasury fallback)
