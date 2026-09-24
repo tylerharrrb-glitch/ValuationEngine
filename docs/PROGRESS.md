@@ -60,7 +60,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - 24-Sep-2026 MPC held: rates unchanged. Recorded in data/rates.manual.json (asOf 2026-09-24), together with CBE official USD/EGP 51.4281 (23-Sep) and the 21-Sep 3Y auction 23.697%. The seed file is unchanged (owner values of 23-Sep).
 - MPC calendar beyond 24-Sep-2026 unconfirmed; S&P primary URL TO_VERIFY; Fitch 2026 action unconfirmed; legal texts TO_VERIFY.
 - MOPCO FY2025: the asset lines as supplied sum to 61,193,831,632, 1 EGP below the stated total 61,193,831,633 (the balance sheet itself balances). Owner to check which line differs against the audited statements.
-- Deployment: branch rebuild/v2 is live as a Cloudflare Pages preview (https://rebuild-v2.wolf-valuation-engine.pages.dev), deployed by the Git integration on push; live smoke test passed. Not done: the rates Worker and the RATES KV namespace (wrangler is not logged in on this machine), so /api/rates serves data/rates.manual.json and reports kvError. Production (main) untouched.
+- Deployment: on 2026-09-24 the owner approved production; main was fast-forwarded to rebuild/v2 (14786fd) and Cloudflare Pages deployed it to production (https://wolf-valuation-engine.pages.dev). Smoke test passed on production (blended 26.54, DCF 26.33, 12 same-origin requests, no leaks). Not done: the rates Worker and the RATES KV namespace (wrangler is not logged in on this machine), so /api/rates serves data/rates.manual.json and reports kvError.
 - GitHub Actions workflow did not start: GitHub reports the account is locked due to a billing issue.
 
 - MOPCO default result on the seed snapshot: DCF 26.33, DDM 27.15, blended 26.54 per share (price 36.00; EFG Hermes target 43 is a reference only). The default risk-free rate (EGP 10Y secondary 21.58%) is stale (21-May-2026); refresh it before relying on the output.
@@ -69,4 +69,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Owner: review the preview, then (1) run `npx wrangler login` and the one-time Worker/KV steps in docs/RATES_RUNBOOK.md, (2) resolve the GitHub billing lock so CI runs, (3) approve the merge of rebuild/v2 into main for production.
+Owner: review the preview, then (1) run `npx wrangler login` and the one-time Worker/KV steps in docs/RATES_RUNBOOK.md, (2) resolve the GitHub billing lock so CI runs, (3) done: production approved and deployed 2026-09-24.
