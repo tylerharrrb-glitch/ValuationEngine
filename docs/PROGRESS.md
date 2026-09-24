@@ -17,7 +17,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 8 | PDF export | done | `npx tsx scripts/verify-part8.ts` 5/5 PASS (22 engine strings found in extracted text) |
 | 9 | UI | done | `npx tsx scripts/verify-part9.ts` 7/7 PASS (build, tsc, emoji/banned-word scan, Playwright smoke) |
 | 10 | Confidentiality | done | `npx tsx scripts/verify-part10.ts` 12/12 PASS (12 requests, all same-origin, no fixture values) |
-| 11 | Tests and regression | not started | |
+| 11 | Tests and regression | done | `npx tsx scripts/verify-part11.ts` 13/13 PASS (64 unit tests, golden file 136 outputs) |
 | 12 | Documentation | not started | |
 
 ## Decisions taken
@@ -68,4 +68,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 11: unit tests, golden file, verify-all, GitHub Actions workflow.
+Part 12: README, DATA_SOURCES (generated), CLAUDE.md; verify-all; preview deployment.

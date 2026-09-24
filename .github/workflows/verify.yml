@@ -1,0 +1,30 @@
+name: verify-all
+
+on:
+  push:
+    branches: [rebuild/v2]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python packages
+        run: pip install openpyxl pypdf
+      - name: LibreOffice (headless recalculation for the Excel gate)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
+      - name: Node packages
+        run: npm ci
+      - name: Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: verify-all
+        run: npx tsx scripts/verify-all.ts
