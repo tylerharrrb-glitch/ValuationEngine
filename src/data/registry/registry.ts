@@ -252,7 +252,7 @@ function appendNote(prev: string | undefined, add: string): string {
  * or the auto registry does not contain the id.
  */
 export function mergeManual(auto: RatesRegistry | null, manual: RatesRegistry): RatesRegistry {
-  if (!auto) return { ...manual, snapshotId: `manual-${manual.snapshotId}` };
+  if (!auto) return { ...manual };
   const autoById = new Map(auto.entries.map((e) => [e.id, e]));
   const ids = [...new Set([...manual.entries.map((e) => e.id), ...auto.entries.map((e) => e.id)])];
   const manualById = new Map(manual.entries.map((e) => [e.id, e]));

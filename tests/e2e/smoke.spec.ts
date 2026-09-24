@@ -7,7 +7,8 @@ import { mkdirSync, writeFileSync, statSync } from 'node:fs';
 
 const OUT = process.env.WOLF_E2E_OUT ?? 'test-results/e2e';
 
-test('MOPCO end to end without leaking company data', async ({ page }) => {
+test('MOPCO end to end without leaking company data', async ({ page, baseURL }) => {
+  const origin = new URL(baseURL ?? 'http://127.0.0.1:4173').origin + '/';
   mkdirSync(OUT, { recursive: true });
   const requests: { url: string; method: string; body: string }[] = [];
   page.on('request', (r: Request) => requests.push({ url: r.url(), method: r.method(), body: r.postData() ?? '' }));
@@ -51,6 +52,6 @@ test('MOPCO end to end without leaking company data', async ({ page }) => {
   writeFileSync(`${OUT}/network.json`, JSON.stringify({ blendedText, dcfText, requests, leaks, errors, xlPath, pdfPath }, null, 2));
   expect(errors, 'no uncaught page errors').toEqual([]);
   expect(leaks, 'no request contains fixture values').toEqual([]);
-  const external = requests.filter((r) => !r.url.startsWith('http://127.0.0.1:4173/') && !r.url.startsWith('data:') && !r.url.startsWith('blob:'));
+  const external = requests.filter((r) => !r.url.startsWith(origin) && !r.url.startsWith('data:') && !r.url.startsWith('blob:'));
   expect(external, 'no request leaves the application origin').toEqual([]);
 });
