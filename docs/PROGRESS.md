@@ -13,7 +13,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 4 | Company data model and MOPCO fixture | done | `npx tsx scripts/verify-part4.ts` 36/36 PASS |
 | 5 | Valuation core | done | `npx tsx scripts/verify-part5.ts` 11/11 PASS (100 intermediates TS vs Python) |
 | 6 | Secondary modules | done | `npx tsx scripts/verify-part6.ts` 17/17 PASS |
-| 7 | Excel export | not started | |
+| 7 | Excel export | done | `npx tsx scripts/verify-part7.ts` 17/17 PASS (158 parity items after LibreOffice recalculation, 33 checks TRUE, lint 0) |
 | 8 | PDF export | not started | |
 | 9 | UI | not started | |
 | 10 | Confidentiality | not started | |
@@ -41,6 +41,9 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D16 (Part 6) Modules kept: trading comparables (raw peer inputs, computed multiples, median EV/EBITDA feeds the blend), precedent transactions, SOTP (user segments; MOPCO segment figures not supplied, so empty by default), broker reference band (never in the blend), Piotroski (two-year variant on year-end assets), Altman Z''-EM, DuPont 3/5-step, credit metrics, FX sensitivity (USD cost share has no default), EAS panel (only standards evidenced by statement lines: EAS 47/48/49), reverse DCF, Monte Carlo, scenarios, sensitivity, USD check.
 - D17 (Part 6) Modules removed: LBO (screening model did not meet the spec's full-build bar: no sources & uses, single tranche, FCF = net income); confidence score, quality scorecard and sector benchmarks (heuristic scores on unsourced thresholds); WOLF Analyst AI panel and AI report (sent statements to Groq, conflicts with Part 10); bundled EGX industry multiples and placeholder precedent deals; inflation-adjusted return narrative.
 - D18 (Part 6) The entire pre-v2 tree (src/components, utils, services, constants, types, hooks, workers, old tests and scripts, functions/api/market-data.ts) was deleted; a placeholder App renders until Part 9. History is in git (commit 5a073cb).
+- D19 (Part 7): Excel built with ExcelJS (styles, defined names, page setup, footers, hyperlinks). No cached formula results are written; fullCalcOnLoad is set. Sheet 12 is named "Comps Precedents SOTP" (LBO removed). Every constant sits on Inputs as a blue input (including days per year, check tolerances, quartile points, H-model factor, Altman coefficients, grid offsets); literals 0 and 1 are the only numbers allowed inside formulas.
+- D20 (Part 7): Scenarios and the growth x margin sensitivity grid are full re-runs through mini operating models on their own sheets (3 + 25 blocks). Grids WACC x g, WACC x exit and Rf x beta re-discount the model cash flows with SUMPRODUCT; WACC x g uses a g-dependent terminal-year FCFF row.
+- D21 (Part 7): Monte Carlo is not reproduced in Excel; its P5/median/P95 appear as engine outputs on Inputs for the football-field row. The Blume beta cross-check is shown in the UI only.
 
 ## Open issues
 
@@ -55,6 +58,8 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 - MOPCO default result on the seed snapshot: DCF 26.33, DDM 27.15, blended 26.54 per share (price 36.00; EFG Hermes target 43 is a reference only). The default risk-free rate (EGP 10Y secondary 21.58%) is stale (21-May-2026); refresh it before relying on the output.
 
+- Excel: no chart in the workbook (ExcelJS cannot write charts; the spec allows at most one). Recalculation verified in LibreOffice only; Excel desktop and Google Sheets not tested in this environment.
+
 ## Next step
 
-Part 7: Excel exporter (classic IB style), LibreOffice recalculation, parity and style lint gate.
+Part 8: PDF export (broker-note structure) and text-extraction gate.

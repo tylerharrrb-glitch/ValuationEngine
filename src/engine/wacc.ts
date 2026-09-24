@@ -70,11 +70,13 @@ export function debtAndLeaseInterest(c: CompanyData): number {
   return -(i.financeCostDebt + i.financeCostLease);
 }
 
+/** Row with the largest lower bound not above the coverage (Excel MATCH type 1); no interest → top row. */
 export function syntheticRating(table: SpreadRow[], coverage: number): SpreadRow {
   const rows = [...table].sort((a, b) => a.coverageAbove - b.coverageAbove);
   if (!Number.isFinite(coverage)) return rows[rows.length - 1];
-  for (const row of rows) if (coverage > row.coverageAbove && coverage <= row.coverageUpTo) return row;
-  return coverage <= rows[0].coverageAbove ? rows[0] : rows[rows.length - 1];
+  let pick = rows[0];
+  for (const row of rows) if (row.coverageAbove <= coverage) pick = row;
+  return pick;
 }
 
 export function computeWacc(

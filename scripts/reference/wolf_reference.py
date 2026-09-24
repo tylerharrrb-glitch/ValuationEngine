@@ -139,11 +139,10 @@ def run(company, snap, industry, n=5, g_pct=10.0, mid_year=True):
     usd_mcap = E / R.v("eg.usdEgp")
     table = R.v("damodaran.synthetic.small" if usd_mcap < 5e9 else "damodaran.synthetic.large")
     table = sorted(table, key=lambda r: r["coverageAbove"])
-    row = table[-1]
+    row = table[0]
     for r in table:
-        if r["coverageAbove"] < coverage <= r["coverageUpTo"]:
+        if r["coverageAbove"] <= coverage:
             row = r
-            break
     kd = rf + row["spread"]  # local Rf: no country default spread
     ev_w = E / (E + D)
     dv_w = D / (E + D)

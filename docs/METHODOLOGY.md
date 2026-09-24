@@ -131,7 +131,7 @@ Warnings: A/B/C with a local Rf double-counts country risk; local_rf with a clea
 
 ### 4.4 Cost of debt
 
-- (a) Synthetic rating (default): interest coverage = normalized EBIT ÷ (debt interest + lease interest), using debt interest only (employee-benefit interest excluded). Rating and spread from the Damodaran table (`damodaran.synthetic.small` when market capitalisation converted at `eg.usdEgp` is below USD 5bn, else `.large`); a zero interest charge gives the top row. Kd = Rf + spread, plus the country default spread (`damodaran.egypt.defaultSpread`) only when Rf is clean.
+- (a) Synthetic rating (default): interest coverage = normalized EBIT ÷ (debt interest + lease interest), using debt interest only (employee-benefit interest excluded). Rating and spread from the Damodaran table (`damodaran.synthetic.small` when market capitalisation converted at `eg.usdEgp` is below USD 5bn, else `.large`): the row with the largest lower coverage bound not above the company's coverage (this closes the table's rounding gaps such as 8.499999 / 8.5); a zero interest charge gives the top row. Kd = Rf + spread, plus the country default spread (`damodaran.egypt.defaultSpread`) only when Rf is clean.
 - (b) CBE lending + spread: Kd = `cbe.overnightLending` + user spread.
 - (c) Actual: (debt interest + lease interest) ÷ average of opening and closing interest-bearing debt.
 - After-tax Kd = Kd × (1 − `eg.cit`).
