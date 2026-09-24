@@ -29,7 +29,7 @@ If the seed should also change (the offline fallback), run `npx tsx scripts/buil
 - Page: https://www.cbe.org.eg/en/monetary-policy/mpc-meetings-schedule (rate cards: overnight deposit, overnight lending, main operation, discount rate) and the MPC press release on https://www.cbe.org.eg/en/ (news list).
 - Update `cbe.overnightDeposit`, `cbe.overnightLending`, `cbe.mainOperation`, `cbe.discountRate` with `asOf` = meeting date, even if rates were held. Otherwise the `mpc` staleness rule flags them as soon as the meeting date passes.
 - Update `cbe.mpcCalendar` when the CBE publishes the next year's schedule. The schedule page renders the dates with JavaScript, so read them in a browser. Set `status: "ok"` once all dates are read from the CBE page.
-- **24-Sep-2026 meeting: not yet held when this registry was built (23-Sep-2026).** Update the four rates after the announcement.
+- 24-Sep-2026 meeting: held; key policy rates kept unchanged (19.00 / 20.00 / 19.50 / 19.50). Recorded in `data/rates.manual.json` on 24-Sep-2026 (read manually from the CBE homepage news and MPC page). The seed keeps the owner's 23-Sep values. The next MPC date is not yet in `cbe.mpcCalendar` (unconfirmed): add it when the CBE publishes it.
 
 ## After each CPI release (about the 10th of each month)
 

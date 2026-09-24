@@ -18,7 +18,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 9 | UI | done | `npx tsx scripts/verify-part9.ts` 7/7 PASS (build, tsc, emoji/banned-word scan, Playwright smoke) |
 | 10 | Confidentiality | done | `npx tsx scripts/verify-part10.ts` 12/12 PASS (12 requests, all same-origin, no fixture values) |
 | 11 | Tests and regression | done | `npx tsx scripts/verify-part11.ts` 13/13 PASS (64 unit tests, golden file 136 outputs) |
-| 12 | Documentation | not started | |
+| 12 | Documentation | done | `npx tsx scripts/verify-part12.ts` 8/8 PASS |
 
 ## Decisions taken
 
@@ -56,8 +56,8 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - LibreOffice 26.8.0 installed via winget on 2026-09-23 (installer requested a reboot); headless conversion to be tested at Part 7.
 
 - CBE adapters blocked by the CBE firewall (see D5). CBE values must be refreshed manually.
-- Values read on 23-Sep-2026 that differ from the seed (not applied): CBE official USD/EGP 51.3606 buy / 51.4956 sell (seed 51.9 market close 21-Sep); latest 3Y T-bond auction 21-Sep-2026 weighted avg 23.697% (seed 23.147% from 13-Jul); US 10Y par 4.96% on 22-Sep-2026 (seed 5.10 intraday 23-Sep).
-- 24-Sep-2026 MPC not yet held when the registry was built; the four policy rates go stale on 24-Sep until updated.
+- US 10Y par 4.96% on 22-Sep-2026 differs from the seed 5.10 (intraday 23-Sep); the Worker replaces it automatically once deployed with KV.
+- 24-Sep-2026 MPC held: rates unchanged. Recorded in data/rates.manual.json (asOf 2026-09-24), together with CBE official USD/EGP 51.4281 (23-Sep) and the 21-Sep 3Y auction 23.697%. The seed file is unchanged (owner values of 23-Sep).
 - MPC calendar beyond 24-Sep-2026 unconfirmed; S&P primary URL TO_VERIFY; Fitch 2026 action unconfirmed; legal texts TO_VERIFY.
 - MOPCO FY2025: the asset lines as supplied sum to 61,193,831,632, 1 EGP below the stated total 61,193,831,633 (the balance sheet itself balances). Owner to check which line differs against the audited statements.
 - Cloudflare deployment of the Worker/KV not done yet (needs account access).
@@ -68,4 +68,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 12: README, DATA_SOURCES (generated), CLAUDE.md; verify-all; preview deployment.
+Preview deployment on Cloudflare Pages (owner requested the app live); owner reviews and approves merge to main.

@@ -1,13 +1,16 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "wolf-valuation-engine",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "verify": "tsx scripts/verify-all.ts",
+    "reference": "python scripts/reference/wolf_reference.py tests/fixtures/mopco-fy2025.json tests/fixtures/rates-snapshot-2026-09-23.json --industry \"Chemical (Basic)\""
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",

@@ -1,9 +1,9 @@
 {
-  "snapshotId": "manual-2026-09-23",
-  "generatedAt": "2026-09-23T00:00:00Z",
+  "snapshotId": "manual-2026-09-24",
+  "generatedAt": "2026-09-24T00:00:00Z",
   "entries": [
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "cbe.overnightDeposit",
@@ -13,16 +13,16 @@
       "nature": "official",
       "sourceName": "Central Bank of Egypt",
       "sourceUrl": "https://www.cbe.org.eg/en/",
-      "asOf": "2026-08-20",
+      "asOf": "2026-09-24",
       "updateCycle": "mpc",
       "bounds": [
         0,
         60
       ],
-      "notes": "MPC 20-Aug-2026: rates held. Next MPC 24-Sep-2026; must be re-verified after that meeting."
+      "notes": "MPC Thursday 24-Sep-2026: key policy rates kept unchanged (CBE homepage news \"MPC decides to keep key policy rates unchanged\" and \"MPC Press Release 24 September 2026\"; MPC page rate cards 19.00 / 20.00 / 19.50 / 19.50). Read manually on 24-Sep-2026."
     },
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "cbe.overnightLending",
@@ -32,15 +32,16 @@
       "nature": "official",
       "sourceName": "Central Bank of Egypt",
       "sourceUrl": "https://www.cbe.org.eg/en/",
-      "asOf": "2026-08-20",
+      "asOf": "2026-09-24",
       "updateCycle": "mpc",
       "bounds": [
         0,
         60
-      ]
+      ],
+      "notes": "MPC Thursday 24-Sep-2026: key policy rates kept unchanged (CBE homepage news \"MPC decides to keep key policy rates unchanged\" and \"MPC Press Release 24 September 2026\"; MPC page rate cards 19.00 / 20.00 / 19.50 / 19.50). Read manually on 24-Sep-2026."
     },
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "cbe.mainOperation",
@@ -50,15 +51,16 @@
       "nature": "official",
       "sourceName": "Central Bank of Egypt",
       "sourceUrl": "https://www.cbe.org.eg/en/",
-      "asOf": "2026-08-20",
+      "asOf": "2026-09-24",
       "updateCycle": "mpc",
       "bounds": [
         0,
         60
-      ]
+      ],
+      "notes": "MPC Thursday 24-Sep-2026: key policy rates kept unchanged (CBE homepage news \"MPC decides to keep key policy rates unchanged\" and \"MPC Press Release 24 September 2026\"; MPC page rate cards 19.00 / 20.00 / 19.50 / 19.50). Read manually on 24-Sep-2026."
     },
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "cbe.discountRate",
@@ -68,12 +70,13 @@
       "nature": "official",
       "sourceName": "Central Bank of Egypt",
       "sourceUrl": "https://www.cbe.org.eg/en/monetary-policy/mpc-meetings-schedule",
-      "asOf": "2026-08-20",
+      "asOf": "2026-09-24",
       "updateCycle": "mpc",
       "bounds": [
         0,
         60
-      ]
+      ],
+      "notes": "MPC Thursday 24-Sep-2026: key policy rates kept unchanged (CBE homepage news \"MPC decides to keep key policy rates unchanged\" and \"MPC Press Release 24 September 2026\"; MPC page rate cards 19.00 / 20.00 / 19.50 / 19.50). Read manually on 24-Sep-2026."
     },
     {
       "verifiedAt": "2026-09-23",
@@ -184,23 +187,23 @@
       ]
     },
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "eg.usdEgp",
       "label": "USD/EGP",
-      "value": 51.9,
+      "value": 51.4281,
       "unit": "EGP_per_USD",
-      "nature": "market_quote",
-      "sourceName": "Market close (owner research)",
-      "sourceUrl": "TO_VERIFY",
-      "asOf": "2026-09-21",
+      "nature": "official",
+      "sourceName": "Central Bank of Egypt, official exchange rates",
+      "sourceUrl": "https://www.cbe.org.eg/en/economic-research/statistics/cbe-exchange-rates",
+      "asOf": "2026-09-23",
       "updateCycle": "daily",
       "bounds": [
         1,
         500
       ],
-      "notes": "Approximate market close 21-Sep-2026. The Worker replaces it with the CBE official rate (https://www.cbe.org.eg/en/economic-research/statistics/cbe-exchange-rates)."
+      "notes": "CBE official rate for 23/09/2026: buy 51.3606 / sell 51.4956; mid stored. Replaces the 21-Sep market close of the seed."
     },
     {
       "verifiedAt": "2026-09-23",
@@ -222,23 +225,23 @@
       "notes": "Last quote available to the owner is 21-May-2026. Manual refresh required."
     },
     {
-      "verifiedAt": "2026-09-23",
+      "verifiedAt": "2026-09-24",
       "method": "manual",
       "status": "ok",
       "id": "eg.tbondAuction.3y",
       "label": "EGP T-bond auction, 3y fixed coupon (accepted weighted average yield)",
-      "value": 23.147,
+      "value": 23.697,
       "unit": "pct",
       "nature": "official",
       "sourceName": "Central Bank of Egypt, T-bond auction results",
       "sourceUrl": "https://www.cbe.org.eg/en/auctions/egp-t-bonds-fixed-coupon",
-      "asOf": "2026-07-13",
+      "asOf": "2026-09-21",
       "updateCycle": "monthly",
       "bounds": [
         0,
         60
       ],
-      "notes": "Auction of 13-Jul-2026. Recent auctions were 2Y and 3Y only."
+      "notes": "Auction of 21-Sep-2026, ISIN EGBGR07181F3 (reopening), accepted weighted average yield 23.697% (accepted min 23.630%, max 23.800%). Seed value 23.147% was the 13-Jul-2026 auction."
     },
     {
       "verifiedAt": "2026-09-23",
