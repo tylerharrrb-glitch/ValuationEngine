@@ -55,7 +55,8 @@ export async function clearAllLocalData(): Promise<void> {
     req.onblocked = () => resolve();
   });
   try {
-    for (const k of Object.keys(localStorage)) if (k.startsWith('wolf')) localStorage.removeItem(k);
+    // Includes keys left by the pre-v2 app: wolf_valuations, wolf_valuation_state, wolf_user, fmp_api_key.
+    for (const k of Object.keys(localStorage)) if (k.startsWith('wolf') || k === 'fmp_api_key') localStorage.removeItem(k);
   } catch {
     /* storage unavailable */
   }

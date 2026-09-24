@@ -16,7 +16,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 7 | Excel export | done | `npx tsx scripts/verify-part7.ts` 17/17 PASS (158 parity items after LibreOffice recalculation, 33 checks TRUE, lint 0) |
 | 8 | PDF export | done | `npx tsx scripts/verify-part8.ts` 5/5 PASS (22 engine strings found in extracted text) |
 | 9 | UI | done | `npx tsx scripts/verify-part9.ts` 7/7 PASS (build, tsc, emoji/banned-word scan, Playwright smoke) |
-| 10 | Confidentiality | not started | |
+| 10 | Confidentiality | done | `npx tsx scripts/verify-part10.ts` 12/12 PASS (12 requests, all same-origin, no fixture values) |
 | 11 | Tests and regression | not started | |
 | 12 | Documentation | not started | |
 
@@ -49,6 +49,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D24 (Part 9): Fonts self-hosted via @fontsource (Spectral 600 for headings, IBM Plex Sans for body); no Google Fonts request. Gold only on the active tab, primary button and blended value; football-field bars neutral.
 - D25 (Part 9): The FMVA credential line moved to the About page with the owner's original wording ("FMVA® Certified"); marketing chips and the footer line removed.
 - D26 (Part 9): Removed unused dependencies: recharts, lucide-react, xlsx-js-style, stackblur-canvas, clsx, tailwind-merge, @types/jspdf, jspdf-autotable, vite-plugin-singlefile. SheetJS (xlsx) stays for the Damodaran adapters.
+- D27 (Part 10): No server-side storage existed. Legacy localStorage keys from the pre-v2 app (wolf_valuations, wolf_valuation_state, wolf_user, fmp_api_key) are removed by "Clear all local data"; v2 never reads them. See docs/PRIVACY.md.
 
 ## Open issues
 
@@ -67,4 +68,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 10: confidentiality gate (network log, storage).
+Part 11: unit tests, golden file, verify-all, GitHub Actions workflow.
