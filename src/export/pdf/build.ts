@@ -499,9 +499,10 @@ export function buildPdf(input: PdfInput): jsPDF {
     d.h2('Egyptian Accounting Standards reflected in the statement lines');
     for (const e of v.eas) d.text(`${e.standard} (${e.topic}): ${e.text}`, 8.5);
   }
-  if (v.secondary.risks.length) {
+  const risks = v.secondary.risks.map((r) => r.trim()).filter(Boolean);
+  if (risks.length) {
     d.h2('Key risks (entered by the analyst)');
-    for (const r of v.secondary.risks) d.text(`- ${r}`, 8.5);
+    for (const r of risks) d.text(`- ${r}`, 8.5);
   }
 
   // ------------------------------------------------------------------ sources

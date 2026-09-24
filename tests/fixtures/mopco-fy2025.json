@@ -212,6 +212,7 @@
       }
     }
   ],
+  "damodaranIndustry": "Chemical (Basic)",
   "segments": [],
   "facts": [
     { "label": "Associate", "text": "25% stake in Damietta Green Ammonia, accounted for by the equity method.", "source": "Audited FY2025 financial statements" },

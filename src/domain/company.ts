@@ -178,6 +178,8 @@ export interface CompanyData {
   years: FinancialYear[];
   segments: SegmentData[];
   facts: SourcedFact[];
+  /** Default Damodaran emerging-markets industry for the bottom-up beta (user-editable). */
+  damodaranIndustry?: string;
   statementsSource: {
     description: string;
     auditor: string;

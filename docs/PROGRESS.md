@@ -15,7 +15,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 6 | Secondary modules | done | `npx tsx scripts/verify-part6.ts` 17/17 PASS |
 | 7 | Excel export | done | `npx tsx scripts/verify-part7.ts` 17/17 PASS (158 parity items after LibreOffice recalculation, 33 checks TRUE, lint 0) |
 | 8 | PDF export | done | `npx tsx scripts/verify-part8.ts` 5/5 PASS (22 engine strings found in extracted text) |
-| 9 | UI | not started | |
+| 9 | UI | done | `npx tsx scripts/verify-part9.ts` 7/7 PASS (build, tsc, emoji/banned-word scan, Playwright smoke) |
 | 10 | Confidentiality | not started | |
 | 11 | Tests and regression | not started | |
 | 12 | Documentation | not started | |
@@ -45,6 +45,10 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D20 (Part 7): Scenarios and the growth x margin sensitivity grid are full re-runs through mini operating models on their own sheets (3 + 25 blocks). Grids WACC x g, WACC x exit and Rf x beta re-discount the model cash flows with SUMPRODUCT; WACC x g uses a g-dependent terminal-year FCFF row.
 - D21 (Part 7): Monte Carlo is not reproduced in Excel; its P5/median/P95 appear as engine outputs on Inputs for the football-field row. The Blume beta cross-check is shown in the UI only.
 - D22 (Part 8): PDF with jsPDF standard fonts: Times (headings) and Helvetica (body, tabular digits); no font download. Text is sanitized to WinAnsi (e.g. "−" to "-", "×" to "x", "β" to "beta"). Single accent colour for rules and football-field bars; reference-only rows (broker targets) drawn as outlines. Amounts in full EGP.
+- D23 (Part 9): New UI in src/ui: tabs Company data, Assumptions (spec order 1-7), Valuation, Analysis, Relative, Historical, Rates, Methodology, Data sources, Saved, About. The engine runs in a Web Worker (debounced 350 ms). Every headline figure, forecast cell, sensitivity cell and WACC component opens an audit drawer (formula, inputs, rate source / URL / asOf / status). Exporters are lazy-loaded.
+- D24 (Part 9): Fonts self-hosted via @fontsource (Spectral 600 for headings, IBM Plex Sans for body); no Google Fonts request. Gold only on the active tab, primary button and blended value; football-field bars neutral.
+- D25 (Part 9): The FMVA credential line moved to the About page with the owner's original wording ("FMVA® Certified"); marketing chips and the footer line removed.
+- D26 (Part 9): Removed unused dependencies: recharts, lucide-react, xlsx-js-style, stackblur-canvas, clsx, tailwind-merge, @types/jspdf, jspdf-autotable, vite-plugin-singlefile. SheetJS (xlsx) stays for the Damodaran adapters.
 
 ## Open issues
 
@@ -63,4 +67,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 9: new UI on the engine (tabs, audit panels, rates panel, exports), Playwright smoke test.
+Part 10: confidentiality gate (network log, storage).
