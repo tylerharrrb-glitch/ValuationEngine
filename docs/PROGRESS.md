@@ -14,7 +14,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 | 5 | Valuation core | done | `npx tsx scripts/verify-part5.ts` 11/11 PASS (100 intermediates TS vs Python) |
 | 6 | Secondary modules | done | `npx tsx scripts/verify-part6.ts` 17/17 PASS |
 | 7 | Excel export | done | `npx tsx scripts/verify-part7.ts` 17/17 PASS (158 parity items after LibreOffice recalculation, 33 checks TRUE, lint 0) |
-| 8 | PDF export | not started | |
+| 8 | PDF export | done | `npx tsx scripts/verify-part8.ts` 5/5 PASS (22 engine strings found in extracted text) |
 | 9 | UI | not started | |
 | 10 | Confidentiality | not started | |
 | 11 | Tests and regression | not started | |
@@ -44,6 +44,7 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 - D19 (Part 7): Excel built with ExcelJS (styles, defined names, page setup, footers, hyperlinks). No cached formula results are written; fullCalcOnLoad is set. Sheet 12 is named "Comps Precedents SOTP" (LBO removed). Every constant sits on Inputs as a blue input (including days per year, check tolerances, quartile points, H-model factor, Altman coefficients, grid offsets); literals 0 and 1 are the only numbers allowed inside formulas.
 - D20 (Part 7): Scenarios and the growth x margin sensitivity grid are full re-runs through mini operating models on their own sheets (3 + 25 blocks). Grids WACC x g, WACC x exit and Rf x beta re-discount the model cash flows with SUMPRODUCT; WACC x g uses a g-dependent terminal-year FCFF row.
 - D21 (Part 7): Monte Carlo is not reproduced in Excel; its P5/median/P95 appear as engine outputs on Inputs for the football-field row. The Blume beta cross-check is shown in the UI only.
+- D22 (Part 8): PDF with jsPDF standard fonts: Times (headings) and Helvetica (body, tabular digits); no font download. Text is sanitized to WinAnsi (e.g. "−" to "-", "×" to "x", "β" to "beta"). Single accent colour for rules and football-field bars; reference-only rows (broker targets) drawn as outlines. Amounts in full EGP.
 
 ## Open issues
 
@@ -62,4 +63,4 @@ A new session starts here and in CLAUDE.md, not by re-exploring.
 
 ## Next step
 
-Part 8: PDF export (broker-note structure) and text-extraction gate.
+Part 9: new UI on the engine (tabs, audit panels, rates panel, exports), Playwright smoke test.

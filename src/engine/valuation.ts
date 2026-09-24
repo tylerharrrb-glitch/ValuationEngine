@@ -81,7 +81,8 @@ export function runValuation(c: CompanyData, a: Assumptions, snapshot: RatesSnap
   ];
   const bl = blend(a.blend, values, c.price);
   const ratesUsed = [...core.rates.used.values()];
-  const stale = ratesUsed.filter((u) => u.status !== 'ok');
+  // The risk-free rate status is already reported by the WACC module.
+  const stale = ratesUsed.filter((u) => u.status !== 'ok' && u.id !== core.wacc.rfId);
   const messages: EngineMessage[] = [
     ...core.wacc.messages,
     ...core.dcf.messages,
